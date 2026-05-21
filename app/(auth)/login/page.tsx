@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { BoxesIcon, AlertCircle } from 'lucide-react';
@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -47,6 +47,64 @@ export default function LoginPage() {
   }
 
   return (
+    <>
+      {/* Callback error banner */}
+      {callbackError && !error && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-danger-500/20 bg-danger-50 px-4 py-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger-600" />
+          <p className="text-sm text-danger-700">
+            Authentication failed. Please sign in again.
+          </p>
+        </div>
+      )}
+
+      {/* Error banner */}
+      {error && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-danger-500/20 bg-danger-50 px-4 py-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger-600" />
+          <p className="text-sm text-danger-700">{error}</p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <Input
+          label="Email address"
+          type="email"
+          placeholder="you@company.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="email"
+          autoFocus
+          disabled={loading}
+        />
+
+        <Input
+          label="Password"
+          type="password"
+          placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          autoComplete="current-password"
+          disabled={loading}
+        />
+
+        <Button
+          type="submit"
+          loading={loading}
+          className="w-full"
+          size="lg"
+        >
+          Sign in
+        </Button>
+      </form>
+    </>
+  );
+}
+
+export default function LoginPage() {
+  return (
     <div className="w-full max-w-md">
       {/* Branding */}
       <div className="mb-8 text-center">
@@ -68,57 +126,9 @@ export default function LoginPage() {
 
       {/* Card */}
       <div className="rounded-2xl border border-white/10 bg-white p-8 shadow-2xl shadow-black/20">
-        {/* Callback error banner */}
-        {callbackError && !error && (
-          <div className="mb-6 flex items-start gap-3 rounded-lg border border-danger-500/20 bg-danger-50 px-4 py-3">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger-600" />
-            <p className="text-sm text-danger-700">
-              Authentication failed. Please sign in again.
-            </p>
-          </div>
-        )}
-
-        {/* Error banner */}
-        {error && (
-          <div className="mb-6 flex items-start gap-3 rounded-lg border border-danger-500/20 bg-danger-50 px-4 py-3">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger-600" />
-            <p className="text-sm text-danger-700">{error}</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <Input
-            label="Email address"
-            type="email"
-            placeholder="you@company.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-            autoFocus
-            disabled={loading}
-          />
-
-          <Input
-            label="Password"
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            disabled={loading}
-          />
-
-          <Button
-            type="submit"
-            loading={loading}
-            className="w-full"
-            size="lg"
-          >
-            Sign in
-          </Button>
-        </form>
+        <Suspense fallback={<div className="h-40 flex items-center justify-center">Loading...</div>}>
+          <LoginForm />
+        </Suspense>
 
         <p className="mt-6 text-center text-sm text-gray-500">
           Don&apos;t have an account?{' '}
