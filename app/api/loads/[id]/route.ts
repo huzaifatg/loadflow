@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
+import { Prisma } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
@@ -77,7 +78,7 @@ export async function PATCH(
     // Optional: update items if provided
     // This assumes items is an array of deliveryIds in the new sorted order
     if (items && Array.isArray(items)) {
-      await prisma.$transaction(async (tx: any) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         // Delete old items
         await tx.loadPlanItem.deleteMany({
           where: { loadPlanId: id }

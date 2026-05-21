@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { AlertTriangle } from 'lucide-react';
-import { PageHeader } from '@/components/ui/PageHeader';
 
 export default function DashboardError({
   error,

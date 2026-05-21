@@ -4,7 +4,14 @@ import { LoadPlanCard } from '@/components/loads/LoadPlanCard';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
+import type { LoadPlan, Truck, Driver } from '@prisma/client';
+
+type LoadPlanWithRelations = LoadPlan & {
+  truck: Truck;
+  driver: Driver | null;
+  _count: { items: number };
+};
 
 export default async function LoadsPage() {
   const supabase = await createClient();
@@ -13,8 +20,7 @@ export default async function LoadsPage() {
   if (!user) redirect('/login');
 
   let company = null;
-  let loads: any[] = [];
-  let dbError = false;
+  let loads: LoadPlanWithRelations[] = [];
 
   try {
     company = await prisma.company.findFirst();
@@ -34,7 +40,6 @@ export default async function LoadsPage() {
     }
   } catch (error) {
     console.error("Database connection failed:", error);
-    dbError = true;
   }
 
   // Group by date
@@ -47,14 +52,16 @@ export default async function LoadsPage() {
 
   const hasData = loads.length > 0;
 
-  // Mock data if none exists
+  const todayDate = new Date();
+  const tomorrowDate = addDays(todayDate, 1);
+
   const mockGroups = {
     'Today': [
-      { id: 'mock-l1', date: new Date(), status: 'DISPATCHED', truck: { name: 'Volvo FH16' }, driver: { name: 'Marcus J.' }, _count: { items: 4 } },
-      { id: 'mock-l2', date: new Date(), status: 'CONFIRMED', truck: { name: 'Scania R450' }, driver: { name: 'Sarah C.' }, _count: { items: 2 } }
+      { id: 'mock-l1', date: todayDate, status: 'DISPATCHED', truck: { name: 'Volvo FH16' }, driver: { name: 'Marcus J.' }, _count: { items: 4 } },
+      { id: 'mock-l2', date: todayDate, status: 'CONFIRMED', truck: { name: 'Scania R450' }, driver: { name: 'Sarah C.' }, _count: { items: 2 } }
     ],
     'Tomorrow': [
-      { id: 'mock-l3', date: new Date(Date.now() + 86400000), status: 'DRAFT', truck: { name: 'Mercedes Actros' }, driver: null, _count: { items: 6 } },
+      { id: 'mock-l3', date: tomorrowDate, status: 'DRAFT', truck: { name: 'Mercedes Actros' }, driver: null, _count: { items: 6 } },
     ]
   };
 
@@ -76,7 +83,7 @@ export default async function LoadsPage() {
           <div key={dateLabel}>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">{dateLabel}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {(groupLoads as any[]).map((load: any) => (
+              {(groupLoads as LoadPlanWithRelations[]).map((load) => (
                 <LoadPlanCard 
                   key={load.id}
                   id={load.id}

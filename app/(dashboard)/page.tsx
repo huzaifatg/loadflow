@@ -118,7 +118,7 @@ export default function DashboardPage() {
         {/* Today's Dispatches */}
         <div className="flex flex-col rounded-2xl bg-white shadow-sm ring-1 ring-gray-900/5">
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
-            <h2 className="text-lg font-semibold text-gray-900">Today's Dispatches</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Today&apos;s Dispatches</h2>
             <Link href="/deliveries" className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center">
               View all <ArrowRight className="ml-1 h-4 w-4" />
             </Link>

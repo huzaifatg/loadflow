@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Package,
   Truck,
-  Users,
   ClipboardList,
   Settings,
 } from 'lucide-react';

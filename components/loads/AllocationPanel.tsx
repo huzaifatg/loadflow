@@ -9,6 +9,9 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
+  DragStartEvent,
+  DragOverEvent,
+  DragEndEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -102,25 +105,26 @@ export function AllocationPanel({ initialUnassigned, initialAssigned, truckCapac
     return null;
   }
 
-  function handleDragStart(event: any) {
-    setActiveId(event.active.id);
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
   }
 
-  function handleDragOver(event: any) {
+  function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
-    const overId = over?.id;
+    const overId = over?.id ? String(over.id) : null;
+    const activeId = String(active.id);
 
-    if (!overId || active.id === overId) return;
+    if (!overId || activeId === overId) return;
 
-    const activeContainer = findContainer(active.id);
+    const activeContainer = findContainer(activeId);
     const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
 
     if (!activeContainer || !overContainer || activeContainer === overContainer) return;
 
     // Moving between containers
     if (activeContainer === 'unassigned') {
-      const activeItem = unassigned.find(i => i.id === active.id)!;
-      setUnassigned(prev => prev.filter(i => i.id !== active.id));
+      const activeItem = unassigned.find(i => i.id === activeId)!;
+      setUnassigned(prev => prev.filter(i => i.id !== activeId));
       setAssigned(prev => {
         const overIndex = prev.findIndex(i => i.id === overId);
         const newIndex = overIndex >= 0 ? overIndex : prev.length;
@@ -129,8 +133,8 @@ export function AllocationPanel({ initialUnassigned, initialAssigned, truckCapac
         return newArr;
       });
     } else {
-      const activeItem = assigned.find(i => i.id === active.id)!;
-      setAssigned(prev => prev.filter(i => i.id !== active.id));
+      const activeItem = assigned.find(i => i.id === activeId)!;
+      setAssigned(prev => prev.filter(i => i.id !== activeId));
       setUnassigned(prev => {
         const overIndex = prev.findIndex(i => i.id === overId);
         const newIndex = overIndex >= 0 ? overIndex : prev.length;
@@ -141,25 +145,28 @@ export function AllocationPanel({ initialUnassigned, initialAssigned, truckCapac
     }
   }
 
-  function handleDragEnd(event: any) {
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null);
 
     if (!over) return;
+    
+    const activeId = String(active.id);
+    const overId = String(over.id);
 
-    const activeContainer = findContainer(active.id);
-    const overContainer = findContainer(over.id) || (over.id === 'assigned-container' ? 'assigned' : 'unassigned');
+    const activeContainer = findContainer(activeId);
+    const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
 
     if (activeContainer && activeContainer === overContainer) {
       if (activeContainer === 'unassigned') {
-        const oldIndex = unassigned.findIndex(i => i.id === active.id);
-        const newIndex = unassigned.findIndex(i => i.id === over.id);
+        const oldIndex = unassigned.findIndex(i => i.id === activeId);
+        const newIndex = unassigned.findIndex(i => i.id === overId);
         if (oldIndex !== newIndex) {
           setUnassigned(arrayMove(unassigned, oldIndex, newIndex));
         }
       } else {
-        const oldIndex = assigned.findIndex(i => i.id === active.id);
-        const newIndex = assigned.findIndex(i => i.id === over.id);
+        const oldIndex = assigned.findIndex(i => i.id === activeId);
+        const newIndex = assigned.findIndex(i => i.id === overId);
         if (oldIndex !== newIndex) {
           setAssigned(arrayMove(assigned, oldIndex, newIndex));
         }

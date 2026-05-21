@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { Card } from '@/components/ui/Card';
 import { MapPin, Package, User, Weight } from 'lucide-react';
+import type { Delivery } from '@prisma/client';
 
 export default async function DeliveryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -40,7 +41,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
       notes: null,
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any;
+    } as Delivery;
   }
 
   if (!delivery) {

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { StatusPill } from '@/components/ui/StatusPill';
+import type { Delivery } from '@prisma/client';
 
 export default async function LoadPlanBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -23,7 +24,7 @@ export default async function LoadPlanBuilderPage({ params }: { params: Promise<
 
   // Real fetch if it exists
   let loadPlan = null;
-  let unassignedDeliveries: any[] = [];
+  let unassignedDeliveries: Delivery[] = [];
   
   if (!id.startsWith('mock-') && company) {
     try {

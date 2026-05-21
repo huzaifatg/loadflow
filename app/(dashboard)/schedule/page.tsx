@@ -9,6 +9,13 @@ import { addDays, startOfWeek, format } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import type { LoadPlan, Truck, Driver } from '@prisma/client';
+
+type LoadPlanWithRelations = LoadPlan & {
+  truck: Truck | null;
+  driver: Driver | null;
+  _count: { items: number };
+};
 
 export default async function SchedulePage({
   searchParams,
@@ -25,7 +32,7 @@ export default async function SchedulePage({
   const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 }); // Monday start
   const weekEnd = addDays(weekStart, 7);
 
-  let loadPlans: any[] = [];
+  let loadPlans: LoadPlanWithRelations[] = [];
   try {
     const company = await prisma.company.findFirst();
     if (company) {
@@ -71,7 +78,7 @@ export default async function SchedulePage({
       driver: { name: 'Marcus J.' },
       _count: { items: 4 },
       date: new Date()
-    } as any);
+    } as unknown as LoadPlanWithRelations);
     days[2].plans.push({
       id: 'mock-s2',
       status: 'DRAFT',
@@ -79,7 +86,7 @@ export default async function SchedulePage({
       driver: { name: 'Sarah C.' },
       _count: { items: 2 },
       date: new Date()
-    } as any);
+    } as unknown as LoadPlanWithRelations);
   }
 
   return (

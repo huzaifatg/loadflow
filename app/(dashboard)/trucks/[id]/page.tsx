@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Truck as TruckIcon, Gauge, Calendar } from 'lucide-react';
+import type { Truck } from '@prisma/client';
 
 export default async function TruckDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -38,7 +39,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
       notes: null,
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any;
+    } as Truck;
   }
 
   if (!truck) {
