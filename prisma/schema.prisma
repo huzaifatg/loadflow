@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum TruckStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+
+  @@map("truck_status")
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ON_TRIP
+  OFF_DUTY
+
+  @@map("driver_status")
+}
+
+enum DeliveryStatus {
+  PENDING
+  ALLOCATED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+
+  @@map("delivery_status")
+}
+
+enum LoadPlanStatus {
+  DRAFT
+  CONFIRMED
+  DISPATCHED
+  COMPLETED
+
+  @@map("load_plan_status")
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model Company {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @map("name")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  trucks     Truck[]
+  drivers    Driver[]
+  deliveries Delivery[]
+  loadPlans  LoadPlan[]
+  users      UserProfile[]
+
+  @@map("companies")
+}
+
+model UserProfile {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  authUserId String   @unique @map("auth_user_id")
+  companyId  String   @map("company_id") @db.Uuid
+  email      String   @map("email")
+  fullName   String?  @map("full_name")
+  role       String   @default("member") @map("role")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("user_profiles")
+}
+
+model Truck {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId      String      @map("company_id") @db.Uuid
+  name           String      @map("name")
+  plateNumber    String      @map("plate_number")
+  weightCapacity Float       @map("weight_capacity")
+  status         TruckStatus @default(AVAILABLE) @map("status")
+  notes          String?     @map("notes")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  loadPlans LoadPlan[] @relation("TruckLoadPlans")
+
+  @@map("trucks")
+}
+
+model Driver {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String       @map("company_id") @db.Uuid
+  name          String       @map("name")
+  phone         String?      @map("phone")
+  licenseNumber String?      @map("license_number")
+  status        DriverStatus @default(AVAILABLE) @map("status")
+  notes         String?      @map("notes")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  loadPlans LoadPlan[] @relation("DriverLoadPlans")
+
+  @@map("drivers")
+}
+
+model Delivery {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String         @map("company_id") @db.Uuid
+  customerName    String         @map("customer_name")
+  pickupAddress   String         @map("pickup_address")
+  deliveryAddress String         @map("delivery_address")
+  weight          Float          @map("weight")
+  status          DeliveryStatus @default(PENDING) @map("status")
+  scheduledDate   DateTime?      @map("scheduled_date")
+  notes           String?        @map("notes")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  loadPlanItems LoadPlanItem[]
+
+  @@map("deliveries")
+}
+
+model LoadPlan {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String         @map("company_id") @db.Uuid
+  truckId   String         @map("truck_id") @db.Uuid
+  driverId  String?        @map("driver_id") @db.Uuid
+  status    LoadPlanStatus @default(DRAFT) @map("status")
+  date      DateTime       @map("date")
+  notes     String?        @map("notes")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  company Company        @relation(fields: [companyId], references: [id])
+  truck   Truck          @relation("TruckLoadPlans", fields: [truckId], references: [id], onDelete: Restrict)
+  driver  Driver?        @relation("DriverLoadPlans", fields: [driverId], references: [id], onDelete: Restrict)
+  items   LoadPlanItem[]
+
+  @@map("load_plans")
+}
+
+model LoadPlanItem {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  loadPlanId String   @map("load_plan_id") @db.Uuid
+  deliveryId String   @map("delivery_id") @db.Uuid
+  sortOrder  Int      @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  loadPlan LoadPlan @relation(fields: [loadPlanId], references: [id], onDelete: Cascade)
+  delivery Delivery @relation(fields: [deliveryId], references: [id])
+
+  @@unique([loadPlanId, deliveryId])
+  @@map("load_plan_items")
+}
