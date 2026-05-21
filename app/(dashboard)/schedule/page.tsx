@@ -20,30 +20,33 @@ export default async function SchedulePage({
   
   if (!user) redirect('/login');
 
-  const company = await prisma.company.findFirst();
-
-  if (!company) redirect('/login');
-
   const rawDate = (await searchParams).date;
   const baseDate = rawDate ? new Date(rawDate) : new Date();
   const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 }); // Monday start
-
-  // Fetch load plans for this week
   const weekEnd = addDays(weekStart, 7);
-  const loadPlans = await prisma.loadPlan.findMany({
-    where: {
-      companyId: company.id,
-      date: {
-        gte: weekStart,
-        lt: weekEnd,
-      }
-    },
-    include: {
-      truck: true,
-      driver: true,
-      _count: { select: { items: true } }
+
+  let loadPlans: any[] = [];
+  try {
+    const company = await prisma.company.findFirst();
+    if (company) {
+      loadPlans = await prisma.loadPlan.findMany({
+        where: {
+          companyId: company.id,
+          date: {
+            gte: weekStart,
+            lt: weekEnd,
+          }
+        },
+        include: {
+          truck: true,
+          driver: true,
+          _count: { select: { items: true } }
+        }
+      });
     }
-  });
+  } catch (err) {
+    console.error("Prisma Connection Error in Schedule:", err);
+  }
 
   const prevWeekStr = format(addDays(weekStart, -7), 'yyyy-MM-dd');
   const nextWeekStr = format(addDays(weekStart, 7), 'yyyy-MM-dd');

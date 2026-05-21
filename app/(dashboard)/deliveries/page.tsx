@@ -1,37 +1,10 @@
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { DataTable, type Column } from '@/components/ui/DataTable';
-import { StatusPill } from '@/components/ui/StatusPill';
+import { DeliveriesTable } from '@/components/deliveries/DeliveriesTable';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import type { Delivery } from '@prisma/client';
-
-const columns: Column<Delivery>[] = [
-  {
-    key: 'id',
-    label: 'Order ID',
-    render: (row) => (
-      <Link href={`/deliveries/${row.id}`} className="font-medium text-primary-600 hover:text-primary-700">
-        {row.id.split('-')[0]}...
-      </Link>
-    ),
-  },
-  { key: 'customerName', label: 'Customer' },
-  { key: 'pickupAddress', label: 'Pickup' },
-  { key: 'deliveryAddress', label: 'Destination' },
-  { 
-    key: 'weight', 
-    label: 'Weight (lbs)',
-    render: (row) => row.weight.toLocaleString()
-  },
-  {
-    key: 'status',
-    label: 'Status',
-    render: (row) => <StatusPill status={row.status} />
-  },
-];
 
 export default async function DeliveriesPage() {
   const supabase = await createClient();
@@ -39,16 +12,22 @@ export default async function DeliveriesPage() {
   
   if (!user) redirect('/login');
 
-  const company = await prisma.company.findFirst();
+  let company = null;
+  let deliveries: Delivery[] = [];
+  
+  try {
+    company = await prisma.company.findFirst();
+    if (company) {
+      deliveries = await prisma.delivery.findMany({
+        where: { companyId: company.id },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+  } catch (err) {
+    console.error("Prisma Connection Error in Deliveries:", err);
+  }
 
-  if (!company) redirect('/login');
-
-  const deliveries = await prisma.delivery.findMany({
-    where: { companyId: company.id },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  // Mock data fallback if empty
+  // Mock data fallback if empty or db error
   const displayData = deliveries.length > 0 ? deliveries : [
     {
       id: 'mock-1',
@@ -86,11 +65,7 @@ export default async function DeliveriesPage() {
         actionLabel="New Delivery"
         actionHref="/deliveries/new"
       />
-      <DataTable 
-        columns={columns} 
-        data={displayData} 
-        emptyMessage="No deliveries found."
-      />
+      <DeliveriesTable data={displayData} />
     </div>
   );
 }

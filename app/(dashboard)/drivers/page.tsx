@@ -1,22 +1,10 @@
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { DataTable, type Column } from '@/components/ui/DataTable';
-import { StatusPill } from '@/components/ui/StatusPill';
+import { DriversTable } from '@/components/drivers/DriversTable';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import type { Driver } from '@prisma/client';
-
-const columns: Column<Driver>[] = [
-  { key: 'name', label: 'Name' },
-  { key: 'phone', label: 'Phone Number' },
-  { key: 'licenseNumber', label: 'License #' },
-  {
-    key: 'status',
-    label: 'Status',
-    render: (row) => <StatusPill status={row.status} />
-  },
-];
 
 export default async function DriversPage() {
   const supabase = await createClient();
@@ -24,14 +12,20 @@ export default async function DriversPage() {
   
   if (!user) redirect('/login');
 
-  const company = await prisma.company.findFirst();
+  let company = null;
+  let drivers: Driver[] = [];
 
-  if (!company) redirect('/login');
-
-  const drivers = await prisma.driver.findMany({
-    where: { companyId: company.id },
-    orderBy: { createdAt: 'desc' },
-  });
+  try {
+    company = await prisma.company.findFirst();
+    if (company) {
+      drivers = await prisma.driver.findMany({
+        where: { companyId: company.id },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+  } catch (err) {
+    console.error("Prisma Connection Error in Drivers:", err);
+  }
 
   const displayData = drivers.length > 0 ? drivers : [
     { id: 'mock-d1', companyId: company.id, name: 'Marcus Johnson', phone: '555-0101', licenseNumber: 'DL-123456', status: 'AVAILABLE', notes: null, createdAt: new Date(), updatedAt: new Date() },
@@ -46,11 +40,7 @@ export default async function DriversPage() {
         description="Manage your drivers and their current availability."
         actionLabel="Add Driver"
       />
-      <DataTable 
-        columns={columns} 
-        data={displayData} 
-        emptyMessage="No drivers found."
-      />
+      <DriversTable data={displayData} />
     </div>
   );
 }

@@ -11,14 +11,20 @@ export default async function TrucksPage() {
   
   if (!user) redirect('/login');
 
-  const company = await prisma.company.findFirst();
+  let company = null;
+  let trucks: any[] = [];
 
-  if (!company) redirect('/login');
-
-  const trucks = await prisma.truck.findMany({
-    where: { companyId: company.id },
-    orderBy: { createdAt: 'desc' },
-  });
+  try {
+    company = await prisma.company.findFirst();
+    if (company) {
+      trucks = await prisma.truck.findMany({
+        where: { companyId: company.id },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+  } catch (err) {
+    console.error("Prisma Connection Error in Trucks:", err);
+  }
 
   const displayData = trucks.length > 0 ? trucks : [
     { id: 'mock-t1', name: 'Volvo FH16', plateNumber: 'XYZ-1234', weightCapacity: 44000, status: 'AVAILABLE' },
