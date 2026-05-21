@@ -4,6 +4,7 @@ import { DriversTable } from '@/components/drivers/DriversTable';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { MOCK_DRIVERS } from '@/lib/mockData';
 import type { Driver } from '@prisma/client';
 
 export default async function DriversPage() {
@@ -27,11 +28,7 @@ export default async function DriversPage() {
     console.error("Prisma Connection Error in Drivers:", err);
   }
 
-  const displayData = drivers.length > 0 ? drivers : [
-    { id: 'mock-d1', companyId: company?.id || 'mock-company', name: 'Marcus Johnson', phone: '555-0101', licenseNumber: 'DL-123456', status: 'AVAILABLE', notes: null, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'mock-d2', companyId: company?.id || 'mock-company', name: 'Sarah Connor', phone: '555-0102', licenseNumber: 'DL-987654', status: 'ON_TRIP', notes: null, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'mock-d3', companyId: company?.id || 'mock-company', name: 'David Chen', phone: '555-0103', licenseNumber: 'DL-555555', status: 'OFF_DUTY', notes: null, createdAt: new Date(), updatedAt: new Date() },
-  ] as Driver[];
+  const displayData = drivers.length > 0 ? drivers : MOCK_DRIVERS;
 
   return (
     <div className="space-y-6">
@@ -39,6 +36,7 @@ export default async function DriversPage() {
         title="Drivers" 
         description="Manage your drivers and their current availability."
         actionLabel="Add Driver"
+        actionHref="/drivers/new"
       />
       <DriversTable data={displayData} />
     </div>

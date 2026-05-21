@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
-export function DeliveryForm() {
+export function DriverForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,25 +18,19 @@ export function DeliveryForm() {
 
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData.entries());
-    
-    // Parse numeric fields for Prisma
-    const payload = {
-      ...data,
-      weight: parseFloat(data.weight as string) || 0,
-    };
 
     try {
-      const res = await fetch('/api/deliveries', {
+      const res = await fetch('/api/drivers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(data),
       });
 
       if (!res.ok) {
-        throw new Error('Failed to create delivery');
+        throw new Error('Failed to add driver');
       }
 
-      router.push('/deliveries');
+      router.push('/drivers');
       router.refresh();
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -61,44 +55,48 @@ export function DeliveryForm() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="md:col-span-2">
             <Input
-              name="customerName"
-              label="Customer Name"
+              name="name"
+              label="Driver Name"
               required
-              placeholder="e.g. Acme Corp"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Input
-              name="pickupAddress"
-              label="Pickup Address"
-              required
-              placeholder="Full address"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Input
-              name="deliveryAddress"
-              label="Delivery Address"
-              required
-              placeholder="Full address"
+              placeholder="e.g. Marcus Johnson"
             />
           </div>
           <div>
             <Input
-              name="weight"
-              label="Weight (lbs)"
-              type="number"
-              min="0"
-              step="0.1"
-              required
-              placeholder="e.g. 4500"
+              name="phone"
+              label="Phone Number"
+              placeholder="e.g. 555-0101"
             />
           </div>
           <div>
             <Input
-              name="scheduledDate"
-              label="Scheduled Date"
-              type="datetime-local"
+              name="licenseNumber"
+              label="License Number"
+              placeholder="e.g. DL-123456"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Status
+            </label>
+            <select
+              name="status"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
+            >
+              <option value="AVAILABLE">Available</option>
+              <option value="OFF_DUTY">Off Duty</option>
+              <option value="ON_TRIP">On Trip</option>
+            </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Notes (Optional)
+            </label>
+            <textarea
+              name="notes"
+              rows={3}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              placeholder="Any additional information..."
             />
           </div>
         </div>
@@ -113,7 +111,7 @@ export function DeliveryForm() {
             Cancel
           </Button>
           <Button type="submit" loading={loading}>
-            Create Delivery
+            Add Driver
           </Button>
         </div>
       </form>

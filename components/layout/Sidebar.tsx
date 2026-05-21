@@ -138,9 +138,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <p className="truncate text-sm font-medium text-gray-200">
                 User
               </p>
-              <p className="truncate text-xs text-gray-500">
+              <p className="truncate text-xs text-gray-500 mb-1">
                 user@loadflow.app
               </p>
+              <span className="inline-flex items-center rounded-md bg-primary-500/10 px-1.5 py-0.5 text-[10px] font-medium text-primary-400 ring-1 ring-inset ring-primary-500/20">
+                Dispatcher / Admin
+              </span>
             </div>
             <button
               onClick={handleSignOut}

@@ -12,6 +12,7 @@ import {
   DragStartEvent,
   DragOverEvent,
   DragEndEvent,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -87,6 +88,9 @@ export function AllocationPanel({ initialUnassigned, initialAssigned, truckCapac
   const [unassigned, setUnassigned] = useState(initialUnassigned);
   const [assigned, setAssigned] = useState(initialAssigned);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  const { setNodeRef: setUnassignedRef } = useDroppable({ id: 'unassigned-container' });
+  const { setNodeRef: setAssignedRef } = useDroppable({ id: 'assigned-container' });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -191,7 +195,7 @@ export function AllocationPanel({ initialUnassigned, initialAssigned, truckCapac
             <h3 className="font-semibold text-gray-900">Unassigned Deliveries</h3>
             <p className="text-sm text-gray-500">{unassigned.length} items available</p>
           </div>
-          <div className="flex-1 p-4 overflow-y-auto space-y-3" id="unassigned-container">
+          <div ref={setUnassignedRef} className="flex-1 p-4 overflow-y-auto space-y-3" id="unassigned-container">
             <SortableContext
               items={unassigned.map(i => i.id)}
               strategy={verticalListSortingStrategy}
@@ -231,7 +235,7 @@ export function AllocationPanel({ initialUnassigned, initialAssigned, truckCapac
               {isOverweight && <p className="text-xs text-red-500 mt-1">Warning: Truck is over capacity</p>}
             </div>
           </div>
-          <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30" id="assigned-container">
+          <div ref={setAssignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30" id="assigned-container">
             <SortableContext
               items={assigned.map(i => i.id)}
               strategy={verticalListSortingStrategy}

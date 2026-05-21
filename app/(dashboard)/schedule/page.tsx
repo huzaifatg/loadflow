@@ -6,9 +6,10 @@ import { redirect } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { addDays, startOfWeek, format } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 import type { LoadPlan, Truck, Driver } from '@prisma/client';
 
 type LoadPlanWithRelations = LoadPlan & {
@@ -88,14 +89,18 @@ export default async function SchedulePage({
       date: new Date()
     } as unknown as LoadPlanWithRelations);
   }
-
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <PageHeader 
-          title="Weekly Schedule" 
-          description="View and manage load plans dispatched across the week."
-        />
+          title="Schedule Overview" 
+          description="Weekly view of your dispatched and upcoming load plans."
+        >
+          <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-500/10">
+            <Lock className="w-3 h-3 mr-1" />
+            Read-Only View
+          </span>
+        </PageHeader>
         <div className="flex items-center gap-2 pb-8">
           <Link href={`/schedule?date=${prevWeekStr}`}>
             <Button variant="secondary" size="sm"><ChevronLeft className="h-4 w-4" /></Button>
@@ -118,21 +123,26 @@ export default async function SchedulePage({
             <div className="flex-1 p-3 space-y-3 bg-gray-50/30 overflow-y-auto">
               {day.plans.map(plan => (
                 <Link key={plan.id} href={`/loads/${plan.id}`}>
-                  <Card className="p-3 cursor-pointer hover:shadow-md transition-shadow group animate-in fade-in zoom-in-95 duration-200 border-l-4 border-l-primary-500">
+                  <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg group hover:border-gray-200 transition-colors">
                     <div className="flex justify-between items-start mb-2">
-                      <span className="text-xs font-semibold text-gray-900 group-hover:text-primary-600 truncate mr-2">
-                        {plan.truck?.name || 'Unassigned'}
+                      <span className={cn(
+                        "text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase",
+                        plan.status === 'DRAFT' ? "bg-gray-200 text-gray-700" :
+                        plan.status === 'CONFIRMED' ? "bg-amber-100 text-amber-800" :
+                        plan.status === 'DISPATCHED' ? "bg-emerald-100 text-emerald-800" :
+                        "bg-blue-100 text-blue-800"
+                      )}>
+                        {plan.status}
                       </span>
-                      <StatusPill status={plan.status} className="scale-75 origin-top-right shrink-0" />
+                      <span className="text-xs font-medium text-gray-500">{plan._count?.items || 0} stops</span>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {plan.driver?.name || 'No Driver'}
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-gray-100 flex justify-between">
-                      <span className="text-[10px] text-gray-400 font-mono">#{plan.id.split('-')[0]}</span>
-                      <span className="text-[10px] font-medium text-gray-600">{plan._count.items} drops</span>
-                    </div>
-                  </Card>
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {plan.truck?.name || 'Unassigned'}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {plan.driver?.name || 'No driver'}
+                    </p>
+                  </div>
                 </Link>
               ))}
               {day.plans.length === 0 && (

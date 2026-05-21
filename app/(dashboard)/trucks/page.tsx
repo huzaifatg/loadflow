@@ -4,6 +4,7 @@ import { TruckCard } from '@/components/trucks/TruckCard';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { MOCK_TRUCKS } from '@/lib/mockData';
 import type { Truck } from '@prisma/client';
 
 export default async function TrucksPage() {
@@ -27,12 +28,7 @@ export default async function TrucksPage() {
     console.error("Prisma Connection Error in Trucks:", err);
   }
 
-  const displayData = trucks.length > 0 ? trucks : [
-    { id: 'mock-t1', companyId: company?.id || 'mock-c', name: 'Volvo FH16', plateNumber: 'XYZ-1234', weightCapacity: 44000, status: 'AVAILABLE', notes: null, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'mock-t2', companyId: company?.id || 'mock-c', name: 'Scania R450', plateNumber: 'ABC-9876', weightCapacity: 40000, status: 'IN_USE', notes: null, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'mock-t3', companyId: company?.id || 'mock-c', name: 'Mercedes Actros', plateNumber: 'LMN-5555', weightCapacity: 42000, status: 'MAINTENANCE', notes: null, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'mock-t4', companyId: company?.id || 'mock-c', name: 'Ford F-Max', plateNumber: 'DEF-1111', weightCapacity: 38000, status: 'AVAILABLE', notes: null, createdAt: new Date(), updatedAt: new Date() },
-  ] as Truck[];
+  const displayData = trucks.length > 0 ? trucks : MOCK_TRUCKS;
 
   return (
     <div className="space-y-6">

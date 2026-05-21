@@ -73,8 +73,6 @@ export default async function LoadsPage() {
         title="Load Plans" 
         description="Organize and dispatch your deliveries onto trucks."
         actionLabel="Create Plan"
-        // In a real app, this might open a modal to select a date and truck first
-        // For now, we'll just link to a builder with a mock new ID
         actionHref="/loads/new" 
       />
       

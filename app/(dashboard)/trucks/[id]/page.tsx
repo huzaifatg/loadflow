@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Truck as TruckIcon, Gauge, Calendar } from 'lucide-react';
+import { MOCK_TRUCKS } from '@/lib/mockData';
 import type { Truck } from '@prisma/client';
 
 export default async function TruckDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,16 +31,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
 
   // Mock fallback for demo
   if (!truck && id.startsWith('mock-')) {
-    truck = {
-      id,
-      name: 'Demo Truck',
-      plateNumber: 'DEMO-1234',
-      weightCapacity: 40000,
-      status: 'AVAILABLE',
-      notes: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as Truck;
+    truck = MOCK_TRUCKS.find((t) => t.id === id) || null;
   }
 
   if (!truck) {
