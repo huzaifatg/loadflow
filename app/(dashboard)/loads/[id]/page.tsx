@@ -12,7 +12,12 @@ export default async function LoadPlanBuilderPage({ params }: { params: Promise<
   
   if (!user) redirect('/login');
 
-  let company = await prisma.company.findFirst();
+  let company = null;
+  try {
+    company = await prisma.company.findFirst();
+  } catch(e) {
+    console.error("DB error:", e);
+  }
 
   const id = (await params).id;
 

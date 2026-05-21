@@ -31,7 +31,7 @@ export default async function DeliveriesPage() {
   const displayData = deliveries.length > 0 ? deliveries : [
     {
       id: 'mock-1',
-      companyId: company.id,
+      companyId: company?.id || 'mock-company',
       customerName: 'Acme Corp',
       pickupAddress: 'Warehouse A',
       deliveryAddress: 'Chicago, IL',
@@ -44,7 +44,7 @@ export default async function DeliveriesPage() {
     },
     {
       id: 'mock-2',
-      companyId: company.id,
+      companyId: company?.id || 'mock-company',
       customerName: 'Stark Ind.',
       pickupAddress: 'Factory B',
       deliveryAddress: 'Detroit, MI',
