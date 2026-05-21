@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
@@ -56,25 +57,10 @@ model Company {
   drivers    Driver[]
   deliveries Delivery[]
   loadPlans  LoadPlan[]
-  users      UserProfile[]
 
   @@map("companies")
 }
 
-model UserProfile {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  authUserId String   @unique @map("auth_user_id")
-  companyId  String   @map("company_id") @db.Uuid
-  email      String   @map("email")
-  fullName   String?  @map("full_name")
-  role       String   @default("member") @map("role")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  company Company @relation(fields: [companyId], references: [id])
-
-  @@map("user_profiles")
-}
 
 model Truck {
   id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

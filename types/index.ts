@@ -36,16 +36,6 @@ export interface Company {
   updatedAt: Date
 }
 
-export interface UserProfile {
-  id: string
-  authUserId: string
-  companyId: string
-  email: string
-  fullName: string | null
-  role: string
-  createdAt: Date
-  updatedAt: Date
-}
 
 export interface Truck {
   id: string
@@ -114,12 +104,8 @@ export interface CompanyWithRelations extends Company {
   drivers: Driver[]
   deliveries: Delivery[]
   loadPlans: LoadPlan[]
-  users: UserProfile[]
 }
 
-export interface UserProfileWithCompany extends UserProfile {
-  company: Company
-}
 
 export interface TruckWithLoadPlans extends Truck {
   loadPlans: LoadPlan[]

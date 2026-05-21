@@ -12,6 +12,7 @@ import {
   Users,
   ClipboardList,
   Calendar,
+  Settings,
   LogOut,
   X,
   BoxesIcon,
@@ -25,6 +26,7 @@ const navItems = [
   { label: 'Drivers', href: '/drivers', icon: Users },
   { label: 'Load Plans', href: '/loads', icon: ClipboardList },
   { label: 'Schedule', href: '/schedule', icon: Calendar },
+  { label: 'Settings', href: '/settings', icon: Settings },
 ] as const;
 
 /* ── Props ───────────────────────────────────────── */

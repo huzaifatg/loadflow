@@ -10,14 +10,15 @@ import {
   Truck,
   Users,
   ClipboardList,
+  Settings,
 } from 'lucide-react';
 
 const navItems = [
   { label: 'Home', href: '/', icon: LayoutDashboard },
   { label: 'Deliveries', href: '/deliveries', icon: Package },
   { label: 'Trucks', href: '/trucks', icon: Truck },
-  { label: 'Drivers', href: '/drivers', icon: Users },
   { label: 'Plans', href: '/loads', icon: ClipboardList },
+  { label: 'Settings', href: '/settings', icon: Settings },
 ] as const;
 
 export function MobileNav() {

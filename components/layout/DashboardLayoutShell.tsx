@@ -14,6 +14,7 @@ const pageTitles: Record<string, string> = {
   '/drivers': 'Drivers',
   '/loads': 'Load Plans',
   '/schedule': 'Schedule',
+  '/settings': 'Settings',
 };
 
 function getPageTitle(pathname: string): string {
