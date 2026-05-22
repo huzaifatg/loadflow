@@ -4,7 +4,7 @@ import { LoadPlanCard } from '@/components/loads/LoadPlanCard';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import type { LoadPlan, Truck, Driver } from '@prisma/client';
 
 type LoadPlanWithRelations = LoadPlan & {
@@ -50,23 +50,6 @@ export default async function LoadsPage() {
     return acc;
   }, {} as Record<string, typeof loads>);
 
-  const hasData = loads.length > 0;
-
-  const todayDate = new Date();
-  const tomorrowDate = addDays(todayDate, 1);
-
-  const mockGroups = {
-    'Today': [
-      { id: 'mock-l1', date: todayDate, status: 'DISPATCHED', truck: { name: 'Volvo FH16' }, driver: { name: 'Marcus J.' }, _count: { items: 4 } },
-      { id: 'mock-l2', date: todayDate, status: 'CONFIRMED', truck: { name: 'Scania R450' }, driver: { name: 'Sarah C.' }, _count: { items: 2 } }
-    ],
-    'Tomorrow': [
-      { id: 'mock-l3', date: tomorrowDate, status: 'DRAFT', truck: { name: 'Mercedes Actros' }, driver: null, _count: { items: 6 } },
-    ]
-  };
-
-  const displayGroups = hasData ? groupedLoads : mockGroups;
-
   return (
     <div className="space-y-6">
       <PageHeader 
@@ -77,7 +60,7 @@ export default async function LoadsPage() {
       />
       
       <div className="space-y-8">
-        {Object.entries(displayGroups).map(([dateLabel, groupLoads]) => (
+        {Object.entries(groupedLoads).map(([dateLabel, groupLoads]) => (
           <div key={dateLabel}>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">{dateLabel}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -95,6 +78,12 @@ export default async function LoadsPage() {
             </div>
           </div>
         ))}
+        {loads.length === 0 && (
+          <div className="text-center py-12">
+            <h3 className="mt-2 text-sm font-semibold text-gray-900">No load plans</h3>
+            <p className="mt-1 text-sm text-gray-500">Get started by creating a new load plan.</p>
+          </div>
+        )}
       </div>
     </div>
   );

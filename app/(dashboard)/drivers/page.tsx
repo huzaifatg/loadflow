@@ -4,7 +4,6 @@ import { DriversTable } from '@/components/drivers/DriversTable';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { MOCK_DRIVERS } from '@/lib/mockData';
 import type { Driver } from '@prisma/client';
 
 export default async function DriversPage() {
@@ -28,8 +27,6 @@ export default async function DriversPage() {
     console.error("Prisma Connection Error in Drivers:", err);
   }
 
-  const displayData = drivers.length > 0 ? drivers : MOCK_DRIVERS;
-
   return (
     <div className="space-y-6">
       <PageHeader 
@@ -38,7 +35,7 @@ export default async function DriversPage() {
         actionLabel="Add Driver"
         actionHref="/drivers/new"
       />
-      <DriversTable data={displayData} />
+      <DriversTable data={drivers} />
     </div>
   );
 }

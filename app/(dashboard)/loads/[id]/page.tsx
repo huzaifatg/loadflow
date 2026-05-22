@@ -26,7 +26,7 @@ export default async function LoadPlanBuilderPage({ params }: { params: Promise<
   let loadPlan = null;
   let unassignedDeliveries: Delivery[] = [];
   
-  if (!id.startsWith('mock-') && company) {
+  if (company) {
     try {
       loadPlan = await prisma.loadPlan.findUnique({
         where: { id, companyId: company.id },
@@ -54,33 +54,30 @@ export default async function LoadPlanBuilderPage({ params }: { params: Promise<
     }
   }
 
-  // Fallback to mock data to fulfill requirements
-  const truckCapacity = loadPlan?.truck?.weightCapacity || 40000;
-  
-  const initialAssigned = loadPlan 
-    ? loadPlan.items.map(item => ({
-        id: item.delivery.id,
-        customerName: item.delivery.customerName,
-        deliveryAddress: item.delivery.deliveryAddress,
-        weight: item.delivery.weight
-      }))
-    : [
-        { id: 'd1', customerName: 'Acme Corp', deliveryAddress: 'Warehouse A', weight: 4500 },
-        { id: 'd2', customerName: 'Stark Ind.', deliveryAddress: 'Factory B', weight: 12000 },
-      ];
+  if (!loadPlan) {
+    return (
+      <div className="space-y-6 flex flex-col items-center justify-center h-[50vh]">
+        <h2 className="text-xl font-bold text-gray-900">Load Plan Not Found</h2>
+        <p className="text-gray-500">The load plan you are looking for does not exist.</p>
+      </div>
+    );
+  }
 
-  const initialUnassigned = loadPlan
-    ? unassignedDeliveries.map(d => ({
-        id: d.id,
-        customerName: d.customerName,
-        deliveryAddress: d.deliveryAddress,
-        weight: d.weight
-      }))
-    : [
-        { id: 'd3', customerName: 'Wayne Tech', deliveryAddress: 'Gotham City', weight: 8000 },
-        { id: 'd4', customerName: 'Oscorp', deliveryAddress: 'New York', weight: 21000 },
-        { id: 'd5', customerName: 'LexCorp', deliveryAddress: 'Metropolis', weight: 3500 },
-      ];
+  const truckCapacity = loadPlan.truck?.weightCapacity || 40000;
+  
+  const initialAssigned = loadPlan.items.map(item => ({
+    id: item.delivery.id,
+    customerName: item.delivery.customerName,
+    deliveryAddress: item.delivery.deliveryAddress,
+    weight: item.delivery.weight
+  }));
+
+  const initialUnassigned = unassignedDeliveries.map(d => ({
+    id: d.id,
+    customerName: d.customerName,
+    deliveryAddress: d.deliveryAddress,
+    weight: d.weight
+  }));
 
   return (
     <div className="space-y-6 flex flex-col h-full">
@@ -92,6 +89,7 @@ export default async function LoadPlanBuilderPage({ params }: { params: Promise<
       </PageHeader>
       
       <AllocationPanel 
+        loadPlanId={id}
         initialUnassigned={initialUnassigned}
         initialAssigned={initialAssigned}
         truckCapacity={truckCapacity}

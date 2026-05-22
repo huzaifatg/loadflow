@@ -18,9 +18,9 @@ export function DriversTable({ data }: { data: Driver[] }) {
   ];
 
   return (
-    <DataTable 
-      columns={columns} 
-      data={data} 
+    <DataTable
+      columns={columns}
+      data={data}
       emptyMessage="No drivers found."
     />
   );

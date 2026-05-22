@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/drivers');
+
     return NextResponse.json(driver, { status: 201 })
   } catch (error) {
     console.error('POST /api/drivers error:', error)

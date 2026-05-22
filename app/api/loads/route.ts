@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       data: {
         companyId: company.id,
         truckId,
-        driverId,
+        driverId: driverId || null,
         date: new Date(date),
         notes,
         status: 'DRAFT',
@@ -70,6 +70,9 @@ export async function POST(request: NextRequest) {
         driver: true,
       }
     });
+
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/loads');
 
     return NextResponse.json(load);
   } catch (error) {

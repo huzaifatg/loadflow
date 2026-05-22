@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Truck as TruckIcon, Gauge, Calendar } from 'lucide-react';
-import { MOCK_TRUCKS } from '@/lib/mockData';
+
 
 export default async function TruckDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -26,11 +26,6 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
     }
   } catch (err) {
     console.error("Prisma Connection Error in TruckDetail:", err);
-  }
-
-  // Mock fallback for demo
-  if (!truck && id.startsWith('mock-')) {
-    truck = MOCK_TRUCKS.find((t) => t.id === id) || null;
   }
 
   if (!truck) {

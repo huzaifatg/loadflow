@@ -27,36 +27,6 @@ export default async function DeliveriesPage() {
     console.error("Prisma Connection Error in Deliveries:", err);
   }
 
-  // Mock data fallback if empty or db error
-  const displayData = deliveries.length > 0 ? deliveries : [
-    {
-      id: 'mock-1',
-      companyId: company?.id || 'mock-company',
-      customerName: 'Acme Corp',
-      pickupAddress: 'Warehouse A',
-      deliveryAddress: 'Chicago, IL',
-      weight: 4200,
-      status: 'PENDING',
-      scheduledDate: null,
-      notes: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: 'mock-2',
-      companyId: company?.id || 'mock-company',
-      customerName: 'Stark Ind.',
-      pickupAddress: 'Factory B',
-      deliveryAddress: 'Detroit, MI',
-      weight: 1800,
-      status: 'IN_TRANSIT',
-      scheduledDate: null,
-      notes: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-  ] as Delivery[];
-
   return (
     <div className="space-y-6">
       <PageHeader 
@@ -65,7 +35,7 @@ export default async function DeliveriesPage() {
         actionLabel="New Delivery"
         actionHref="/deliveries/new"
       />
-      <DeliveriesTable data={displayData} />
+      <DeliveriesTable data={deliveries} />
     </div>
   );
 }

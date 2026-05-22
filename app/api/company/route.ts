@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -31,6 +32,10 @@ export async function PATCH(request: NextRequest) {
         name: body.name.trim(),
       },
     });
+
+    // Revalidate paths that depend on company data
+    revalidatePath('/settings');
+    revalidatePath('/', 'layout'); // revalidate entire dashboard layout if needed
 
     return NextResponse.json({ data: updatedCompany, error: null }, { status: 200 });
   } catch (error) {

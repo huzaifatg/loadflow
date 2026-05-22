@@ -118,6 +118,11 @@ export async function PATCH(
       }
     });
 
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath(`/loads/${id}`);
+    revalidatePath('/loads');
+    revalidatePath('/deliveries'); // Refresh deliveries list since they may now be assigned
+
     return NextResponse.json(load);
   } catch (error) {
     console.error('[load_PATCH]', error);

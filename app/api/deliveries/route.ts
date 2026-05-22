@@ -123,6 +123,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/deliveries');
+
     return NextResponse.json({ data: delivery, error: null }, { status: 201 })
   } catch (error) {
     console.error('POST /api/deliveries error:', error)

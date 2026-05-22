@@ -4,7 +4,6 @@ import { TruckCard } from '@/components/trucks/TruckCard';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { MOCK_TRUCKS } from '@/lib/mockData';
 import type { Truck } from '@prisma/client';
 
 export default async function TrucksPage() {
@@ -28,8 +27,6 @@ export default async function TrucksPage() {
     console.error("Prisma Connection Error in Trucks:", err);
   }
 
-  const displayData = trucks.length > 0 ? trucks : MOCK_TRUCKS;
-
   return (
     <div className="space-y-6">
       <PageHeader 
@@ -39,7 +36,7 @@ export default async function TrucksPage() {
       />
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {displayData.map((truck) => (
+        {trucks.map((truck) => (
           <TruckCard 
             key={truck.id}
             id={truck.id}
