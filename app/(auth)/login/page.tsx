@@ -33,14 +33,23 @@ function LoginForm() {
       });
 
       if (signInError) {
-        setError(signInError.message);
+        // Distinguish between network errors and auth errors
+        if (signInError.message.includes('fetch') || signInError.message.includes('network')) {
+          setError('Unable to connect to authentication service. Please check your internet connection and try again.');
+        } else {
+          setError(signInError.message);
+        }
         return;
       }
 
       router.push('/');
       router.refresh();
-    } catch {
-      setError('An unexpected error occurred. Please try again.');
+    } catch (err: unknown) {
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError('Unable to connect to authentication service. Please check your internet connection and try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

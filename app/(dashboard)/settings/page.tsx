@@ -10,7 +10,12 @@ export default async function SettingsPage() {
 
   if (!user) redirect('/login');
 
-  const company = await prisma.company.findFirst();
+  let company = null;
+  try {
+    company = await prisma.company.findFirst();
+  } catch (err) {
+    console.error("DB error in Settings:", err);
+  }
 
   return (
     <div className="space-y-6 max-w-3xl">

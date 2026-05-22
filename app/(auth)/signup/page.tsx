@@ -35,13 +35,21 @@ export default function SignupPage() {
       });
 
       if (signUpError) {
-        setError(signUpError.message);
+        if (signUpError.message.includes('fetch') || signUpError.message.includes('network')) {
+          setError('Unable to connect to authentication service. Please check your internet connection and try again.');
+        } else {
+          setError(signUpError.message);
+        }
         return;
       }
 
       setSuccess(true);
-    } catch {
-      setError('An unexpected error occurred. Please try again.');
+    } catch (err: unknown) {
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError('Unable to connect to authentication service. Please check your internet connection and try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

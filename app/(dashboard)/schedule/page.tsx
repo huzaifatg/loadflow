@@ -3,8 +3,6 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { Card } from '@/components/ui/Card';
-import { StatusPill } from '@/components/ui/StatusPill';
 import { addDays, startOfWeek, format } from 'date-fns';
 import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import Link from 'next/link';

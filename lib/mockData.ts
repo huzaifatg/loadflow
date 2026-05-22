@@ -1,4 +1,4 @@
-import type { Truck, Driver, Delivery, LoadPlan } from '@prisma/client';
+import type { Truck, Driver } from '@prisma/client';
 
 export const MOCK_TRUCKS: Truck[] = [
   { id: 'mock-t1', companyId: 'mock-c', name: 'Volvo FH16', plateNumber: 'XYZ-1234', weightCapacity: 44000, status: 'AVAILABLE', notes: null, createdAt: new Date(), updatedAt: new Date() },
