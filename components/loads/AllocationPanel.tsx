@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
-  pointerWithin,
+  rectIntersection,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -119,42 +119,10 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   }
 
   function handleDragOver(event: DragOverEvent) {
-    const { active, over } = event;
-    const overId = over?.id ? String(over.id) : null;
-    const activeId = String(active.id);
-
-    if (!overId || activeId === overId) {
-      return;
-    }
-
-    setItems((prev) => {
-      const activeContainer = prev.unassigned.find(i => i.id === activeId) ? 'unassigned' : 
-                              prev.assigned.find(i => i.id === activeId) ? 'assigned' : null;
-
-      const overContainer = prev.unassigned.find(i => i.id === overId) ? 'unassigned' : 
-                            prev.assigned.find(i => i.id === overId) ? 'assigned' : 
-                            overId === 'unassigned-container' ? 'unassigned' : 
-                            overId === 'assigned-container' ? 'assigned' : null;
-
-      if (!activeContainer || !overContainer || activeContainer === overContainer) {
-        return prev;
-      }
-
-      const activeItem = prev[activeContainer].find(i => i.id === activeId)!;
-      const overIndex = prev[overContainer].findIndex(i => i.id === overId);
-      
-      const newIndex = overIndex >= 0 ? overIndex : prev[overContainer].length;
-
-      return {
-        ...prev,
-        [activeContainer]: prev[activeContainer].filter(i => i.id !== activeId),
-        [overContainer]: [
-          ...prev[overContainer].slice(0, newIndex),
-          activeItem,
-          ...prev[overContainer].slice(newIndex)
-        ]
-      };
-    });
+    // Intentionally empty!
+    // We completely disable state mutation during hover.
+    // This prevents React from unmounting the active DOM node mid-drag,
+    // which fundamentally solves the browser `pointercancel` abort bug.
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -164,7 +132,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const activeId = String(active.id);
     const overId = over?.id ? String(over.id) : null;
 
-    if (!over) {
+    if (!overId) {
       return;
     }
     
@@ -177,18 +145,38 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                             overId === 'unassigned-container' ? 'unassigned' : 
                             overId === 'assigned-container' ? 'assigned' : null;
 
-      if (!activeContainer || !overContainer || activeContainer !== overContainer) {
+      if (!activeContainer || !overContainer) {
         return prev;
       }
 
-      const oldIndex = prev[activeContainer].findIndex(i => i.id === activeId);
-      const newIndex = prev[activeContainer].findIndex(i => i.id === overId);
+      if (activeContainer !== overContainer) {
+        // CROSS-CONTAINER DROP
+        const activeItem = prev[activeContainer].find(i => i.id === activeId)!;
+        const overIndex = prev[overContainer].findIndex(i => i.id === overId);
+        
+        // If dropped on an empty container (or overId is the container itself), place it at the end
+        const newIndex = overIndex >= 0 ? overIndex : prev[overContainer].length;
 
-      if (oldIndex !== newIndex && newIndex >= 0) {
         return {
           ...prev,
-          [activeContainer]: arrayMove(prev[activeContainer], oldIndex, newIndex)
+          [activeContainer]: prev[activeContainer].filter(i => i.id !== activeId),
+          [overContainer]: [
+            ...prev[overContainer].slice(0, newIndex),
+            activeItem,
+            ...prev[overContainer].slice(newIndex)
+          ]
         };
+      } else {
+        // SAME-CONTAINER REORDER
+        const oldIndex = prev[activeContainer].findIndex(i => i.id === activeId);
+        const newIndex = prev[activeContainer].findIndex(i => i.id === overId);
+
+        if (oldIndex !== newIndex && newIndex >= 0) {
+          return {
+            ...prev,
+            [activeContainer]: arrayMove(prev[activeContainer], oldIndex, newIndex)
+          };
+        }
       }
 
       return prev;
@@ -241,7 +229,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
         <DndContext
           sensors={sensors}
-          collisionDetection={pointerWithin}
+          collisionDetection={rectIntersection}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
