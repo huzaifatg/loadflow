@@ -86,10 +86,9 @@ function SortableItem({ item }: { item: DeliveryItem }) {
 export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned, truckCapacity }: AllocationPanelProps) {
   const router = useRouter();
   
-  const [items, setItems] = useState<{ unassigned: DeliveryItem[], assigned: DeliveryItem[] }>({
-    unassigned: initialUnassigned,
-    assigned: initialAssigned,
-  });
+  // RESTORED: Discrete state arrays to prevent strictly bound state collisions during rapid DnD hovers
+  const [unassigned, setUnassigned] = useState<DeliveryItem[]>(initialUnassigned);
+  const [assigned, setAssigned] = useState<DeliveryItem[]>(initialAssigned);
   
   const [activeId, setActiveId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -98,7 +97,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const { setNodeRef: setUnassignedRef } = useDroppable({ id: 'unassigned-container' });
   const { setNodeRef: setAssignedRef } = useDroppable({ id: 'assigned-container' });
 
-  // Memoize sensors to prevent infinite render loops caused by inline initialization tearing down DndContext
+  // PRESERVED: Memoized sensors to prevent infinite teardown loops
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -106,90 +105,99 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     })
   );
 
-  const currentWeight = items.assigned.reduce((sum, item) => sum + item.weight, 0);
+  const currentWeight = assigned.reduce((sum, item) => sum + item.weight, 0);
   const percentFull = Math.min((currentWeight / truckCapacity) * 100, 100);
   const isOverweight = currentWeight > truckCapacity;
 
-  // Memoize item arrays to prevent SortableContext from constantly recalculating layout and memory allocations
-  const unassignedIds = useMemo(() => items.unassigned.map(i => i.id), [items.unassigned]);
-  const assignedIds = useMemo(() => items.assigned.map(i => i.id), [items.assigned]);
+  // PRESERVED: Memoized context arrays to prevent React rendering churn
+  const unassignedIds = useMemo(() => unassigned.map(i => i.id), [unassigned]);
+  const assignedIds = useMemo(() => assigned.map(i => i.id), [assigned]);
+
+  // RESTORED: Closure-based lookup logic that correctly evaluates container borders during batched updates
+  function findContainer(id: string) {
+    if (unassigned.find(i => i.id === id)) return 'unassigned';
+    if (assigned.find(i => i.id === id)) return 'assigned';
+    return null;
+  }
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id));
   }
 
+  // RESTORED: Working cross-container orchestration loop
   function handleDragOver(event: DragOverEvent) {
-    // Intentionally empty!
-    // We completely disable state mutation during hover.
-    // This prevents React from unmounting the active DOM node mid-drag,
-    // which fundamentally solves the browser `pointercancel` abort bug.
+    const { active, over } = event;
+    const overId = over?.id ? String(over.id) : null;
+    const activeId = String(active.id);
+
+    if (!overId || activeId === overId) return;
+
+    const activeContainer = findContainer(activeId);
+    const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
+
+    if (!activeContainer || !overContainer || activeContainer === overContainer) return;
+
+    // Moving between containers
+    if (activeContainer === 'unassigned') {
+      const activeItem = unassigned.find(i => i.id === activeId)!;
+      setUnassigned(prev => prev.filter(i => i.id !== activeId));
+      setAssigned(prev => {
+        const overIndex = prev.findIndex(i => i.id === overId);
+        const newIndex = overIndex >= 0 ? overIndex : prev.length;
+        const newArr = [...prev];
+        newArr.splice(newIndex, 0, activeItem);
+        return newArr;
+      });
+    } else {
+      const activeItem = assigned.find(i => i.id === activeId)!;
+      setAssigned(prev => prev.filter(i => i.id !== activeId));
+      setUnassigned(prev => {
+        const overIndex = prev.findIndex(i => i.id === overId);
+        const newIndex = overIndex >= 0 ? overIndex : prev.length;
+        const newArr = [...prev];
+        newArr.splice(newIndex, 0, activeItem);
+        return newArr;
+      });
+    }
   }
 
+  // RESTORED: Working same-container reordering loop
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null);
 
-    const activeId = String(active.id);
-    const overId = over?.id ? String(over.id) : null;
-
-    if (!overId) {
-      return;
-    }
+    if (!over) return;
     
-    setItems((prev) => {
-      const activeContainer = prev.unassigned.find(i => i.id === activeId) ? 'unassigned' : 
-                              prev.assigned.find(i => i.id === activeId) ? 'assigned' : null;
+    const activeId = String(active.id);
+    const overId = String(over.id);
 
-      const overContainer = prev.unassigned.find(i => i.id === overId) ? 'unassigned' : 
-                            prev.assigned.find(i => i.id === overId) ? 'assigned' : 
-                            overId === 'unassigned-container' ? 'unassigned' : 
-                            overId === 'assigned-container' ? 'assigned' : null;
+    const activeContainer = findContainer(activeId);
+    const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
 
-      if (!activeContainer || !overContainer) {
-        return prev;
-      }
-
-      if (activeContainer !== overContainer) {
-        // CROSS-CONTAINER DROP
-        const activeItem = prev[activeContainer].find(i => i.id === activeId)!;
-        const overIndex = prev[overContainer].findIndex(i => i.id === overId);
-        
-        // If dropped on an empty container (or overId is the container itself), place it at the end
-        const newIndex = overIndex >= 0 ? overIndex : prev[overContainer].length;
-
-        return {
-          ...prev,
-          [activeContainer]: prev[activeContainer].filter(i => i.id !== activeId),
-          [overContainer]: [
-            ...prev[overContainer].slice(0, newIndex),
-            activeItem,
-            ...prev[overContainer].slice(newIndex)
-          ]
-        };
+    if (activeContainer && activeContainer === overContainer) {
+      if (activeContainer === 'unassigned') {
+        const oldIndex = unassigned.findIndex(i => i.id === activeId);
+        const newIndex = unassigned.findIndex(i => i.id === overId);
+        if (oldIndex !== newIndex) {
+          setUnassigned(arrayMove(unassigned, oldIndex, newIndex));
+        }
       } else {
-        // SAME-CONTAINER REORDER
-        const oldIndex = prev[activeContainer].findIndex(i => i.id === activeId);
-        const newIndex = prev[activeContainer].findIndex(i => i.id === overId);
-
-        if (oldIndex !== newIndex && newIndex >= 0) {
-          return {
-            ...prev,
-            [activeContainer]: arrayMove(prev[activeContainer], oldIndex, newIndex)
-          };
+        const oldIndex = assigned.findIndex(i => i.id === activeId);
+        const newIndex = assigned.findIndex(i => i.id === overId);
+        if (oldIndex !== newIndex) {
+          setAssigned(arrayMove(assigned, oldIndex, newIndex));
         }
       }
-
-      return prev;
-    });
+    }
   }
 
-  const activeItem = activeId ? [...items.unassigned, ...items.assigned].find(i => i.id === activeId) : null;
+  const activeItem = activeId ? [...unassigned, ...assigned].find(i => i.id === activeId) : null;
 
   async function handleSave() {
     setSaving(true);
     setSaved(false);
     try {
-      const assignedDeliveryIds = items.assigned.map(a => a.id);
+      const assignedDeliveryIds = assigned.map(a => a.id);
       const res = await fetch(`/api/loads/${loadPlanId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -199,7 +207,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       if (!res.ok) throw new Error('Failed to save plan');
       
       setSaved(true);
-      router.refresh(); 
+      router.refresh(); // PRESERVED: cache invalidation synchronization
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error(err);
@@ -238,7 +246,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
           <Card className="flex flex-col h-full bg-gray-50/50">
             <div className="p-4 border-b border-gray-200 bg-white rounded-t-xl">
               <h3 className="font-semibold text-gray-900">Unassigned Deliveries</h3>
-              <p className="text-sm text-gray-500">{items.unassigned.length} items available</p>
+              <p className="text-sm text-gray-500">{unassigned.length} items available</p>
             </div>
             <div ref={setUnassignedRef} className="flex-1 p-4 overflow-y-auto space-y-3" id="unassigned-container">
               <SortableContext
@@ -246,10 +254,10 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                 items={unassignedIds}
                 strategy={verticalListSortingStrategy}
               >
-                {items.unassigned.map(item => (
+                {unassigned.map(item => (
                   <SortableItem key={item.id} item={item} />
                 ))}
-                {items.unassigned.length === 0 && (
+                {unassigned.length === 0 && (
                   <div className="h-24 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-sm text-gray-400">
                     No unassigned deliveries
                   </div>
@@ -287,7 +295,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                 items={assignedIds}
                 strategy={verticalListSortingStrategy}
               >
-                {items.assigned.map((item, index) => (
+                {assigned.map((item, index) => (
                   <div key={item.id} className="relative">
                     <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-800 text-white rounded-full flex items-center justify-center text-xs font-bold z-10 shadow-sm border-2 border-white">
                       {index + 1}
@@ -297,7 +305,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                     </div>
                   </div>
                 ))}
-                {items.assigned.length === 0 && (
+                {assigned.length === 0 && (
                   <div className="h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-400 bg-white">
                     Drag deliveries here
                   </div>
