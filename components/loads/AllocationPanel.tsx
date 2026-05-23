@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import {
   DndContext,
-  closestCenter,
+  rectIntersection,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -104,6 +104,8 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const isOverweight = currentWeight > truckCapacity;
 
   function findContainer(id: string) {
+    if (id === 'unassigned-container' || id === 'unassigned-list') return 'unassigned';
+    if (id === 'assigned-container' || id === 'assigned-list') return 'assigned';
     if (unassigned.find((item) => item.id === id)) return 'unassigned';
     if (assigned.find((item) => item.id === id)) return 'assigned';
     return null;
@@ -121,7 +123,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     if (!overId || activeId === overId) return;
 
     const activeContainer = findContainer(activeId);
-    const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
+    const overContainer = findContainer(overId);
 
     if (!activeContainer || !overContainer || activeContainer === overContainer) return;
 
@@ -159,19 +161,19 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const overId = String(over.id);
 
     const activeContainer = findContainer(activeId);
-    const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
+    const overContainer = findContainer(overId);
 
     if (activeContainer && activeContainer === overContainer) {
       if (activeContainer === 'unassigned') {
         const oldIndex = unassigned.findIndex(i => i.id === activeId);
         const newIndex = unassigned.findIndex(i => i.id === overId);
-        if (oldIndex !== newIndex) {
+        if (newIndex !== -1 && oldIndex !== newIndex) {
           setUnassigned(arrayMove(unassigned, oldIndex, newIndex));
         }
       } else {
         const oldIndex = assigned.findIndex(i => i.id === activeId);
         const newIndex = assigned.findIndex(i => i.id === overId);
-        if (oldIndex !== newIndex) {
+        if (newIndex !== -1 && oldIndex !== newIndex) {
           setAssigned(arrayMove(assigned, oldIndex, newIndex));
         }
       }
@@ -223,7 +225,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={rectIntersection}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
@@ -236,6 +238,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             </div>
             <div ref={setUnassignedRef} className="flex-1 p-4 overflow-y-auto space-y-3" id="unassigned-container">
               <SortableContext
+                id="unassigned-list"
                 items={unassigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
@@ -276,6 +279,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             </div>
             <div ref={setAssignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30" id="assigned-container">
               <SortableContext
+                id="assigned-list"
                 items={assigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
