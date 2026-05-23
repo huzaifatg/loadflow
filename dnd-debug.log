@@ -47,3 +47,4 @@
 [2026-05-23T12:23:58.098Z] onDragEnd (reorder): {"activeContainer":"unassigned","oldIndex":1,"newIndex":1}
 [2026-05-23T12:23:58.276Z] onDragEnd (state): {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned"}
 [2026-05-23T12:23:58.466Z] onDragEnd (reorder): {"activeContainer":"unassigned","oldIndex":1,"newIndex":1}
+[2026-05-23T20:05:34.660Z] DROP_COMMIT: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":null,"activeContainer":"unassigned","overContainer":null,"eventOver":false}

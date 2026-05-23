@@ -121,12 +121,26 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const overId = over?.id ? String(over.id) : null;
     const activeId = String(active.id);
 
-    if (!overId || activeId === overId) return;
+    logToServer('HOVER_TICK', {
+      activeId,
+      overId,
+      hasOver: !!over
+    });
+
+    if (!overId || activeId === overId) {
+       logToServer('HOVER_ABORT', { reason: 'No overId or active === over' });
+       return;
+    }
 
     const activeContainer = findContainer(activeId);
     const overContainer = findContainer(overId);
 
-    if (!activeContainer || !overContainer || activeContainer === overContainer) return;
+    if (!activeContainer || !overContainer || activeContainer === overContainer) {
+       logToServer('HOVER_ABORT', { reason: 'Same container or null container', activeContainer, overContainer });
+       return;
+    }
+
+    logToServer('HOVER_MOVE', { from: activeContainer, to: overContainer });
 
     // Moving between containers
     if (activeContainer === 'unassigned') {
