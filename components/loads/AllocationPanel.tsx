@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import {
   DndContext,
-  rectIntersection,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -84,12 +83,8 @@ function SortableItem({ item }: { item: DeliveryItem }) {
 }
 
 export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned, truckCapacity }: AllocationPanelProps) {
-  const router = useRouter();
-  
-  // RESTORED: Discrete state arrays to prevent strictly bound state collisions during rapid DnD hovers
-  const [unassigned, setUnassigned] = useState<DeliveryItem[]>(initialUnassigned);
-  const [assigned, setAssigned] = useState<DeliveryItem[]>(initialAssigned);
-  
+  const [unassigned, setUnassigned] = useState(initialUnassigned);
+  const [assigned, setAssigned] = useState(initialAssigned);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -97,7 +92,6 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const { setNodeRef: setUnassignedRef } = useDroppable({ id: 'unassigned-container' });
   const { setNodeRef: setAssignedRef } = useDroppable({ id: 'assigned-container' });
 
-  // PRESERVED: Memoized sensors to prevent infinite teardown loops
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -109,14 +103,9 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const percentFull = Math.min((currentWeight / truckCapacity) * 100, 100);
   const isOverweight = currentWeight > truckCapacity;
 
-  // PRESERVED: Memoized context arrays to prevent React rendering churn
-  const unassignedIds = useMemo(() => unassigned.map(i => i.id), [unassigned]);
-  const assignedIds = useMemo(() => assigned.map(i => i.id), [assigned]);
-
-  // RESTORED: Closure-based lookup logic that correctly evaluates container borders during batched updates
   function findContainer(id: string) {
-    if (unassigned.find(i => i.id === id)) return 'unassigned';
-    if (assigned.find(i => i.id === id)) return 'assigned';
+    if (unassigned.find((item) => item.id === id)) return 'unassigned';
+    if (assigned.find((item) => item.id === id)) return 'assigned';
     return null;
   }
 
@@ -124,7 +113,6 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     setActiveId(String(event.active.id));
   }
 
-  // RESTORED: Working cross-container orchestration loop
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
     const overId = over?.id ? String(over.id) : null;
@@ -161,7 +149,6 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     }
   }
 
-  // RESTORED: Working same-container reordering loop
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null);
@@ -207,7 +194,6 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       if (!res.ok) throw new Error('Failed to save plan');
       
       setSaved(true);
-      router.refresh(); // PRESERVED: cache invalidation synchronization
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error(err);
@@ -228,7 +214,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
         <button
           onClick={handleSave}
           disabled={saving}
-          className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50 transition-colors"
+          className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
         >
           {saving ? 'Saving...' : 'Save Plan'}
         </button>
@@ -237,7 +223,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
         <DndContext
           sensors={sensors}
-          collisionDetection={rectIntersection}
+          collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
@@ -250,8 +236,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             </div>
             <div ref={setUnassignedRef} className="flex-1 p-4 overflow-y-auto space-y-3" id="unassigned-container">
               <SortableContext
-                id="unassigned-list"
-                items={unassignedIds}
+                items={unassigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
                 {unassigned.map(item => (
@@ -291,8 +276,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             </div>
             <div ref={setAssignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30" id="assigned-container">
               <SortableContext
-                id="assigned-list"
-                items={assignedIds}
+                items={assigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
                 {assigned.map((item, index) => (
