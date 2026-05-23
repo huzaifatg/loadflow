@@ -230,28 +230,12 @@ export function SettingsForm({ email, company }: SettingsFormProps) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Preferred Units</label>
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
                 type="button"
-                onClick={() => setUnits('imperial')}
-                className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all ${
-                  units === 'imperial'
-                    ? 'border-primary-500 bg-primary-50 text-primary-700 ring-1 ring-primary-500'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
+                className="w-full rounded-lg border px-4 py-2.5 text-sm font-medium border-primary-500 bg-primary-50 text-primary-700 ring-1 ring-primary-500 cursor-default"
               >
-                Metric (kg, km)
-              </button>
-              <button
-                type="button"
-                onClick={() => setUnits('metric')}
-                className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all ${
-                  units === 'metric'
-                    ? 'border-primary-500 bg-primary-50 text-primary-700 ring-1 ring-primary-500'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                Metric (kg, km)
+                Metric (kg, km) (Default System Unit)
               </button>
             </div>
           </div>
