@@ -3,7 +3,10 @@
 import React, { useState } from 'react';
 import {
   DndContext,
+  closestCorners,
+  rectIntersection,
   pointerWithin,
+  getFirstCollision,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -13,6 +16,7 @@ import {
   DragOverEvent,
   DragEndEvent,
   useDroppable,
+  CollisionDetection,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -109,6 +113,21 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const currentWeight = assigned.reduce((sum, item) => sum + item.weight, 0);
   const percentFull = Math.min((currentWeight / truckCapacity) * 100, 100);
   const isOverweight = currentWeight > truckCapacity;
+
+  const customCollisionDetection: CollisionDetection = (args) => {
+    // 1. Try pointer intersection first (strict mouse location)
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    // 2. Try rectangle intersection (bounding box overlap)
+    const rectCollisions = rectIntersection(args);
+    if (rectCollisions.length > 0) {
+      return rectCollisions;
+    }
+    // 3. Fallback to closest corners (best for empty containers)
+    return closestCorners(args);
+  };
 
   function findContainer(id: string) {
     if (id === 'unassigned' || id === 'assigned') return id;
@@ -254,7 +273,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
         <DndContext
           sensors={sensors}
-          collisionDetection={pointerWithin}
+          collisionDetection={customCollisionDetection}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
