@@ -25,6 +25,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/Card';
 import { GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { logToServer } from '@/app/actions/log';
 
 interface DeliveryItem {
   id: string;
@@ -153,15 +154,24 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+
+    const activeId = String(active.id);
+    const overId = over ? String(over.id) : null;
+
+    const activeContainer = findContainer(activeId);
+    const overContainer = overId ? findContainer(overId) : null;
+
+    logToServer('DROP_COMMIT', {
+      activeId,
+      overId,
+      activeContainer,
+      overContainer,
+      eventOver: over ? true : false
+    });
+
     setActiveId(null);
 
     if (!over) return;
-    
-    const activeId = String(active.id);
-    const overId = String(over.id);
-
-    const activeContainer = findContainer(activeId);
-    const overContainer = findContainer(overId);
 
     if (activeContainer && activeContainer === overContainer) {
       if (activeContainer === 'unassigned') {
