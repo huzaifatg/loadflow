@@ -115,3 +115,34 @@
 [2026-05-23T20:30:33.584Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
 [2026-05-23T20:30:33.790Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
 [2026-05-23T20:30:34.192Z] DROP_COMMIT: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned","eventOver":true}
+[2026-05-23T20:34:35.487Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:34:35.679Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:34:35.867Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"ca53dbe9-8d8f-4aef-a7f7-f6c95f22a6f9","hasOver":true}
+[2026-05-23T20:34:36.029Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:34:36.269Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:34:36.480Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:34:37.861Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"ca53dbe9-8d8f-4aef-a7f7-f6c95f22a6f9","hasOver":true}
+[2026-05-23T20:34:38.109Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:34:38.836Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:34:39.034Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:34:39.365Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"ca53dbe9-8d8f-4aef-a7f7-f6c95f22a6f9","hasOver":true}
+[2026-05-23T20:34:39.559Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:34:39.774Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:34:39.958Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:34:40.195Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","hasOver":true}
+[2026-05-23T20:34:40.392Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:34:40.601Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:34:40.830Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:34:41.049Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"ca53dbe9-8d8f-4aef-a7f7-f6c95f22a6f9","hasOver":true}
+[2026-05-23T20:34:41.227Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:34:41.478Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:34:41.673Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:34:41.889Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","hasOver":true}
+[2026-05-23T20:34:42.066Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:34:42.235Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:34:42.438Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:34:42.632Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"ca53dbe9-8d8f-4aef-a7f7-f6c95f22a6f9","hasOver":true}
+[2026-05-23T20:34:43.147Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:34:43.389Z] HOVER_TICK: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:34:43.593Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:34:43.798Z] DROP_COMMIT: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned","eventOver":true}

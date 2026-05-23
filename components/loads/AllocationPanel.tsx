@@ -115,18 +115,23 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const isOverweight = currentWeight > truckCapacity;
 
   const customCollisionDetection: CollisionDetection = (args) => {
-    // 1. Try pointer intersection first (strict mouse location)
-    const pointerCollisions = pointerWithin(args);
+    // 1. Try pointer intersection first
+    let pointerCollisions = pointerWithin(args);
+    pointerCollisions = pointerCollisions.filter(c => c.id !== args.active.id);
     if (pointerCollisions.length > 0) {
       return pointerCollisions;
     }
-    // 2. Try rectangle intersection (bounding box overlap)
-    const rectCollisions = rectIntersection(args);
+    
+    // 2. Try rectangle intersection
+    let rectCollisions = rectIntersection(args);
+    rectCollisions = rectCollisions.filter(c => c.id !== args.active.id);
     if (rectCollisions.length > 0) {
       return rectCollisions;
     }
-    // 3. Fallback to closest corners (best for empty containers)
-    return closestCorners(args);
+    
+    // 3. Fallback to closest corners
+    let closest = closestCorners(args);
+    return closest.filter(c => c.id !== args.active.id);
   };
 
   function findContainer(id: string) {
