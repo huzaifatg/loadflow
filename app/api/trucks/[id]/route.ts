@@ -44,7 +44,7 @@ export async function GET(
     }
 
     return NextResponse.json(truck)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('GET /api/trucks/[id] error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

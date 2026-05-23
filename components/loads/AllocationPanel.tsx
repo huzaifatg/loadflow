@@ -115,6 +115,9 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const isOverweight = currentWeight > truckCapacity;
 
   const customCollisionDetection: CollisionDetection = (args) => {
+    // LOG ONLY ONCE per drag (to avoid spam, maybe just log to console)
+    console.log('Droppables:', args.droppableContainers.map(d => d.id));
+    
     // 1. Try pointer intersection first
     let pointerCollisions = pointerWithin(args);
     pointerCollisions = pointerCollisions.filter(c => c.id !== args.active.id);
@@ -294,7 +297,6 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             </div>
             <div ref={setUnassignedRef} className="flex-1 p-4 overflow-y-auto space-y-3" id="unassigned-container">
               <SortableContext
-                id="unassigned"
                 items={unassigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
@@ -335,7 +337,6 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             </div>
             <div ref={setAssignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30 min-h-[150px]" id="truck-allocation">
               <SortableContext
-                id="truck-allocation"
                 items={assigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
