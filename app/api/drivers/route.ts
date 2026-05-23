@@ -68,6 +68,8 @@ export async function POST(request: NextRequest) {
 
     const { revalidatePath } = await import('next/cache');
     revalidatePath('/drivers');
+    revalidatePath('/schedule');
+    revalidatePath('/loads');
 
     return NextResponse.json(driver, { status: 201 })
   } catch (error) {

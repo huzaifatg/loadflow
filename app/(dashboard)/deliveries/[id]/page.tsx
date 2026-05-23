@@ -28,21 +28,6 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
     console.error("Prisma Connection Error in DeliveryDetail:", err);
   }
 
-  // Mock fallback for demo
-  if (!delivery && id.startsWith('mock-')) {
-    delivery = {
-      id,
-      customerName: 'Demo Customer',
-      pickupAddress: 'Warehouse A, Chicago',
-      deliveryAddress: 'Distribution Center, Detroit',
-      weight: 4200,
-      status: 'PENDING',
-      scheduledDate: null,
-      notes: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as Delivery;
-  }
 
   if (!delivery) {
     return (

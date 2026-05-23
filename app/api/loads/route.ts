@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
 
     const { revalidatePath } = await import('next/cache');
     revalidatePath('/loads');
+    revalidatePath('/schedule');
 
     return NextResponse.json(load);
   } catch (error) {

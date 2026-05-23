@@ -33,6 +33,7 @@ export default async function TrucksPage() {
         title="Fleet Management" 
         description="Monitor and manage all your trucks and their capacities."
         actionLabel="Add Truck"
+        actionHref="/trucks/new"
       />
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -42,6 +43,7 @@ export default async function TrucksPage() {
             id={truck.id}
             name={truck.name}
             plateNumber={truck.plateNumber}
+            type={truck.type}
             weightCapacity={truck.weightCapacity}
             status={truck.status}
           />

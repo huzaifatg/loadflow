@@ -68,25 +68,11 @@ export default async function SchedulePage({
     };
   });
 
-  // Mock inject to ensure the UI isn't totally blank during review
-  if (loadPlans.length === 0) {
-    days[0].plans.push({
-      id: 'mock-s1',
-      status: 'CONFIRMED',
-      truck: { name: 'Volvo FH16' },
-      driver: { name: 'Marcus J.' },
-      _count: { items: 4 },
-      date: new Date()
-    } as unknown as LoadPlanWithRelations);
-    days[2].plans.push({
-      id: 'mock-s2',
-      status: 'DRAFT',
-      truck: { name: 'Scania R450' },
-      driver: { name: 'Sarah C.' },
-      _count: { items: 2 },
-      date: new Date()
-    } as unknown as LoadPlanWithRelations);
-  }
+  // Sort plans chronologically
+  days.forEach(day => {
+    day.plans.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  });
+
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

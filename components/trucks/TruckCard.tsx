@@ -8,11 +8,12 @@ interface TruckCardProps {
   id: string;
   name: string;
   plateNumber: string;
+  type: string;
   weightCapacity: number;
   status: string;
 }
 
-export function TruckCard({ id, name, plateNumber, weightCapacity, status }: TruckCardProps) {
+export function TruckCard({ id, name, plateNumber, type, weightCapacity, status }: TruckCardProps) {
   return (
     <Link href={`/trucks/${id}`}>
       <Card className="hover:shadow-md transition-shadow group cursor-pointer p-5 flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
@@ -23,7 +24,7 @@ export function TruckCard({ id, name, plateNumber, weightCapacity, status }: Tru
             </div>
             <div>
               <h3 className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">{name}</h3>
-              <p className="text-xs font-mono text-gray-500 mt-0.5">{plateNumber}</p>
+              <p className="text-xs font-mono text-gray-500 mt-0.5">{plateNumber} &bull; {type}</p>
             </div>
           </div>
           <StatusPill status={status} />

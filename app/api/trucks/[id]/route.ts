@@ -75,12 +75,18 @@ export async function PUT(
       where: { id },
       data: {
         ...(body.name !== undefined ? { name: body.name.trim() } : {}),
+        ...((body as any).type !== undefined ? { type: (body as any).type.trim() } : {}),
         ...(body.plateNumber !== undefined ? { plateNumber: body.plateNumber.trim() } : {}),
         ...(body.weightCapacity !== undefined ? { weightCapacity: body.weightCapacity } : {}),
         ...(body.status !== undefined ? { status: body.status } : {}),
         ...(body.notes !== undefined ? { notes: body.notes } : {}),
       },
     })
+
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/trucks');
+    revalidatePath('/schedule');
+    revalidatePath('/loads');
 
     return NextResponse.json(truck)
   } catch (error) {
@@ -110,6 +116,11 @@ export async function DELETE(
     }
 
     await prisma.truck.delete({ where: { id } })
+
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/trucks');
+    revalidatePath('/schedule');
+    revalidatePath('/loads');
 
     return NextResponse.json({ success: true })
   } catch (error: unknown) {

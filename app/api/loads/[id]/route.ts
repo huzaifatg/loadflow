@@ -121,6 +121,7 @@ export async function PATCH(
     const { revalidatePath } = await import('next/cache');
     revalidatePath(`/loads/${id}`);
     revalidatePath('/loads');
+    revalidatePath('/schedule');
     revalidatePath('/deliveries'); // Refresh deliveries list since they may now be assigned
 
     return NextResponse.json(load);
@@ -159,6 +160,7 @@ export async function DELETE(
 
     const { revalidatePath } = await import('next/cache');
     revalidatePath('/loads');
+    revalidatePath('/schedule');
 
     return NextResponse.json({ success: true });
   } catch (error) {

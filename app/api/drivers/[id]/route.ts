@@ -82,6 +82,11 @@ export async function PUT(
       },
     })
 
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/drivers');
+    revalidatePath('/schedule');
+    revalidatePath('/loads');
+
     return NextResponse.json(driver)
   } catch (error) {
     console.error('PUT /api/drivers/[id] error:', error)
@@ -110,6 +115,11 @@ export async function DELETE(
     }
 
     await prisma.driver.delete({ where: { id } })
+
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/drivers');
+    revalidatePath('/schedule');
+    revalidatePath('/loads');
 
     return NextResponse.json({ success: true })
   } catch (error: unknown) {

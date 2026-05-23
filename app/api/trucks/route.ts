@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       data: {
         companyId,
         name: body.name.trim(),
+        type: (body as any).type?.trim() || 'Box Truck',
         plateNumber: body.plateNumber.trim(),
         weightCapacity: body.weightCapacity,
         status: body.status ?? 'AVAILABLE',
@@ -74,6 +75,8 @@ export async function POST(request: NextRequest) {
 
     const { revalidatePath } = await import('next/cache');
     revalidatePath('/trucks');
+    revalidatePath('/schedule');
+    revalidatePath('/loads');
 
     return NextResponse.json(truck, { status: 201 })
   } catch (error) {
