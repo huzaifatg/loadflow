@@ -13,10 +13,6 @@ export async function PATCH(request: NextRequest) {
     }
     
     const company = await prisma.company.findFirst();
-    if (!company) {
-      return NextResponse.json({ error: 'No company found' }, { status: 403 });
-    }
-
     const body = await request.json();
 
     if (!body.name?.trim()) {
@@ -26,20 +22,29 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const updatedCompany = await prisma.company.update({
-      where: { id: company.id },
-      data: {
-        name: body.name.trim(),
-        timezone: body.timezone,
-        units: body.units,
-        emailNotifications: body.emailNotifications,
-        dispatchAlerts: body.dispatchAlerts,
-        weeklyReport: body.weeklyReport,
-        fullName: body.fullName,
-        displayName: body.displayName,
-        phone: body.phone,
-      },
-    });
+    const dataPayload = {
+      name: body.name.trim(),
+      timezone: body.timezone,
+      units: body.units,
+      emailNotifications: body.emailNotifications,
+      dispatchAlerts: body.dispatchAlerts,
+      weeklyReport: body.weeklyReport,
+      fullName: body.fullName,
+      displayName: body.displayName,
+      phone: body.phone,
+    };
+
+    let updatedCompany;
+    if (!company) {
+      updatedCompany = await prisma.company.create({
+        data: dataPayload,
+      });
+    } else {
+      updatedCompany = await prisma.company.update({
+        where: { id: company.id },
+        data: dataPayload,
+      });
+    }
 
     // Revalidate paths that depend on company data
     revalidatePath('/settings');
