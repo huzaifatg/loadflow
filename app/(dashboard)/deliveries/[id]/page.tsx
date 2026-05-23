@@ -67,7 +67,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
               <span className="text-gray-500 flex items-center gap-1.5">
                 <Weight className="h-3.5 w-3.5" /> Weight
               </span>
-              <span className="font-medium text-gray-900">{delivery.weight.toLocaleString()} lbs</span>
+              <span className="font-medium text-gray-900">{delivery.weight.toLocaleString()} kg</span>
             </div>
             {delivery.scheduledDate && (
               <div className="flex justify-between items-center py-2 border-b border-gray-100">

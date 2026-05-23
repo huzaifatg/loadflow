@@ -32,7 +32,7 @@ export function TruckCard({ id, name, plateNumber, type, weightCapacity, status 
         
         <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center text-sm">
           <span className="text-gray-500">Capacity</span>
-          <span className="font-medium text-gray-900">{weightCapacity.toLocaleString()} lbs</span>
+          <span className="font-medium text-gray-900">{weightCapacity.toLocaleString()} kg</span>
         </div>
       </Card>
     </Link>

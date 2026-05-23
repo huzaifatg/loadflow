@@ -22,7 +22,7 @@ export function DeliveriesTable({ data }: { data: Delivery[] }) {
     { key: 'deliveryAddress', label: 'Destination' },
     { 
       key: 'weight', 
-      label: 'Weight (lbs)',
+      label: 'Weight (kg)',
       render: (row) => row.weight.toLocaleString()
     },
     {

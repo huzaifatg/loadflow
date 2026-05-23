@@ -88,7 +88,7 @@ export function DeliveryForm() {
           <div>
             <Input
               name="weight"
-              label="Weight (lbs)"
+              label="Weight (kg)"
               type="number"
               min="0"
               step="0.1"

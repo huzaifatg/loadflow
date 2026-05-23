@@ -81,7 +81,7 @@ function SortableItem({ item }: { item: DeliveryItem }) {
         <p className="text-xs text-gray-500 truncate">{item.deliveryAddress}</p>
       </div>
       <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
-        {item.weight.toLocaleString()} lbs
+        {item.weight.toLocaleString()} kg
       </div>
     </div>
   );
@@ -309,7 +309,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
               <div className="mt-4">
                 <div className="flex justify-between text-sm mb-1">
                   <span className={cn("font-medium", isOverweight ? "text-red-600" : "text-gray-700")}>
-                    {currentWeight.toLocaleString()} / {truckCapacity.toLocaleString()} lbs
+                    {currentWeight.toLocaleString()} / {truckCapacity.toLocaleString()} kg
                   </span>
                   <span className="text-gray-500">{percentFull.toFixed(1)}% Full</span>
                 </div>
@@ -359,7 +359,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                     <p className="text-sm font-medium text-gray-900 truncate">{activeItem.customerName}</p>
                   </div>
                   <div className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded">
-                    {activeItem.weight.toLocaleString()} lbs
+                    {activeItem.weight.toLocaleString()} kg
                   </div>
                 </div>
               </div>

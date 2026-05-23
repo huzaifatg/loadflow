@@ -75,3 +75,18 @@
 [2026-05-23T20:14:21.498Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":null,"hasOver":false}
 [2026-05-23T20:14:21.750Z] HOVER_ABORT: {"reason":"No overId or active === over"}
 [2026-05-23T20:14:24.919Z] DROP_COMMIT: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":null,"activeContainer":"unassigned","overContainer":null,"eventOver":false}
+[2026-05-23T20:17:41.953Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","hasOver":true}
+[2026-05-23T20:17:42.151Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:17:42.357Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:17:42.543Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:17:42.705Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"ca53dbe9-8d8f-4aef-a7f7-f6c95f22a6f9","hasOver":true}
+[2026-05-23T20:17:42.915Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:17:43.120Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:17:43.310Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:17:44.842Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"ca53dbe9-8d8f-4aef-a7f7-f6c95f22a6f9","hasOver":true}
+[2026-05-23T20:17:45.021Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:17:45.191Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:17:45.407Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:17:45.601Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","hasOver":true}
+[2026-05-23T20:17:45.779Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:17:47.401Z] DROP_COMMIT: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","activeContainer":"unassigned","overContainer":"unassigned","eventOver":true}

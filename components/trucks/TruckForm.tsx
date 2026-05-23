@@ -79,7 +79,7 @@ export function TruckForm() {
           <div>
             <Input
               name="weightCapacity"
-              label="Weight Capacity (lbs)"
+              label="Weight Capacity (kg)"
               type="number"
               min="0"
               step="0.1"

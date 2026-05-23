@@ -67,7 +67,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
               <span className="text-sm text-gray-500 flex items-center gap-1.5">
                 <Gauge className="h-3.5 w-3.5" /> Capacity
               </span>
-              <span className="text-sm font-semibold text-gray-900">{truck.weightCapacity.toLocaleString()} lbs</span>
+              <span className="text-sm font-semibold text-gray-900">{truck.weightCapacity.toLocaleString()} kg</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-500 flex items-center gap-1.5">

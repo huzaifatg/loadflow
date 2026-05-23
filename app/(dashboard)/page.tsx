@@ -2,67 +2,20 @@ import React from 'react';
 import { Package, Truck, Clock, CheckCircle2, TrendingUp, AlertTriangle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-
-// --- Mock Data ---
-
-const stats = [
-  {
-    name: 'Total Deliveries',
-    value: '142',
-    change: '+12%',
-    changeType: 'positive',
-    icon: Package,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100',
-  },
-  {
-    name: 'Active Trucks',
-    value: '24',
-    change: '3 on break',
-    changeType: 'neutral',
-    icon: Truck,
-    color: 'text-indigo-600',
-    bgColor: 'bg-indigo-100',
-  },
-  {
-    name: 'On Time Rate',
-    value: '94.2%',
-    change: '+2.1%',
-    changeType: 'positive',
-    icon: CheckCircle2,
-    color: 'text-emerald-600',
-    bgColor: 'bg-emerald-100',
-  },
-  {
-    name: 'Delayed',
-    value: '3',
-    change: '-2',
-    changeType: 'positive',
-    icon: Clock,
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-100',
-  },
-];
-
-const todaysDispatches = [
-  { id: 'TRK-102', driver: 'Marcus Johnson', destination: 'Chicago, IL', status: 'In Transit', time: '08:00 AM', progress: 65 },
-  { id: 'TRK-094', driver: 'Sarah Connor', destination: 'Detroit, MI', status: 'Loading', time: '09:30 AM', progress: 10 },
-  { id: 'TRK-115', driver: 'David Chen', destination: 'Indianapolis, IN', status: 'Delivered', time: '06:15 AM', progress: 100 },
-  { id: 'TRK-088', driver: 'Elena Rodriguez', destination: 'Columbus, OH', status: 'In Transit', time: '07:45 AM', progress: 40 },
-];
-
-const pendingDeliveries = [
-  { id: 'DEL-4921', client: 'Acme Corp', items: 24, weight: '4,200 lbs', priority: 'High', date: 'Today, 2:00 PM' },
-  { id: 'DEL-4922', client: 'Stark Industries', items: 12, weight: '1,800 lbs', priority: 'Medium', date: 'Today, 4:30 PM' },
-  { id: 'DEL-4923', client: 'Wayne Tech', items: 8, weight: '950 lbs', priority: 'Low', date: 'Tomorrow, 9:00 AM' },
-  { id: 'DEL-4924', client: 'Global Logistics', items: 36, weight: '8,400 lbs', priority: 'High', date: 'Tomorrow, 11:00 AM' },
-];
+import { prisma } from '@/lib/prisma';
+import { format, isToday, startOfDay, endOfDay } from 'date-fns';
 
 const statusStyles: Record<string, string> = {
-  'In Transit': 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10',
-  'Loading': 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20',
-  'Delivered': 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20',
+  'IN_TRANSIT': 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10',
+  'DISPATCHED': 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10',
+  'ALLOCATED': 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20',
+  'CONFIRMED': 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20',
+  'DELIVERED': 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20',
+  'COMPLETED': 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20',
+  'PENDING': 'bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-500/10',
+  'DRAFT': 'bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-500/10',
 };
+
 
 const priorityStyles: Record<string, string> = {
   'High': 'text-red-700 bg-red-50 ring-red-600/10 ring-1 ring-inset',
@@ -70,7 +23,82 @@ const priorityStyles: Record<string, string> = {
   'Low': 'text-slate-700 bg-slate-50 ring-slate-500/10 ring-1 ring-inset',
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const todayStart = startOfDay(new Date());
+  const todayEnd = endOfDay(new Date());
+
+  // 1. Fetch Stats
+  const totalDeliveries = await prisma.delivery.count();
+  const deliveredDeliveries = await prisma.delivery.count({ where: { status: 'DELIVERED' } });
+  const pendingDeliveriesCount = await prisma.delivery.count({ where: { status: 'PENDING' } });
+  const activeTrucks = await prisma.truck.count({ where: { status: 'IN_USE' } });
+
+  const completionRate = totalDeliveries > 0 
+    ? Math.round((deliveredDeliveries / totalDeliveries) * 100) 
+    : 0;
+
+  const stats = [
+    {
+      name: 'Total Deliveries',
+      value: totalDeliveries.toString(),
+      change: 'Lifetime total',
+      changeType: 'neutral',
+      icon: Package,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100',
+    },
+    {
+      name: 'Active Trucks',
+      value: activeTrucks.toString(),
+      change: 'Currently in use',
+      changeType: 'positive',
+      icon: Truck,
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-100',
+    },
+    {
+      name: 'Completed Rate',
+      value: `${completionRate}%`,
+      change: `${deliveredDeliveries} completed`,
+      changeType: 'positive',
+      icon: CheckCircle2,
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-100',
+    },
+    {
+      name: 'Pending',
+      value: pendingDeliveriesCount.toString(),
+      change: 'Needs allocation',
+      changeType: 'neutral',
+      icon: Clock,
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-100',
+    },
+  ];
+
+  // 2. Fetch Today's Dispatches (Load Plans)
+  const todaysDispatches = await prisma.loadPlan.findMany({
+    where: {
+      date: {
+        gte: todayStart,
+        lte: todayEnd,
+      }
+    },
+    include: {
+      truck: true,
+      driver: true,
+    },
+    take: 5,
+    orderBy: { date: 'asc' }
+  });
+
+  // 3. Fetch Pending Deliveries
+  const pendingDeliveriesList = await prisma.delivery.findMany({
+    where: { status: 'PENDING' },
+    take: 5,
+    orderBy: { createdAt: 'desc' }
+  });
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Page Header */}
@@ -133,6 +161,13 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
+                {todaysDispatches.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-8 text-center text-sm text-gray-500">
+                      No loads scheduled for today.
+                    </td>
+                  </tr>
+                )}
                 {todaysDispatches.map((dispatch) => (
                   <tr key={dispatch.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="whitespace-nowrap py-4 pl-6 pr-3">
@@ -141,16 +176,18 @@ export default function DashboardPage() {
                           <Truck className="h-5 w-5 text-gray-500" />
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">{dispatch.id}</div>
-                          <div className="text-xs text-gray-500">{dispatch.driver}</div>
+                          <Link href={`/loads/${dispatch.id}`} className="font-medium text-gray-900 hover:text-primary-600">
+                            {dispatch.truck.name}
+                          </Link>
+                          <div className="text-xs text-gray-500">{dispatch.driver?.name || 'Unassigned Driver'}</div>
                         </div>
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {dispatch.destination}
+                      {format(dispatch.date, 'h:mm a')}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm">
-                      <span className={cn("inline-flex items-center rounded-md px-2 py-1 text-xs font-medium", statusStyles[dispatch.status])}>
+                      <span className={cn("inline-flex items-center rounded-md px-2 py-1 text-xs font-medium", statusStyles[dispatch.status] || statusStyles['PENDING'])}>
                         {dispatch.status}
                       </span>
                     </td>
@@ -179,19 +216,28 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {pendingDeliveries.map((delivery) => (
+                {pendingDeliveriesList.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-8 text-center text-sm text-gray-500">
+                      No pending deliveries at this time.
+                    </td>
+                  </tr>
+                )}
+                {pendingDeliveriesList.map((delivery) => (
                   <tr key={delivery.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="whitespace-nowrap py-4 pl-6 pr-3 text-sm">
-                      <div className="font-medium text-gray-900">{delivery.id}</div>
-                      <div className="text-xs text-gray-500">{delivery.client}</div>
+                      <Link href={`/deliveries/${delivery.id}`} className="font-medium text-gray-900 hover:text-primary-600">
+                        {delivery.customerName}
+                      </Link>
+                      <div className="text-xs text-gray-500 truncate max-w-[200px]">{delivery.deliveryAddress}</div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      <div className="text-gray-900">{delivery.date}</div>
-                      <div className="text-xs">{delivery.items} items • {delivery.weight}</div>
+                      <div className="text-gray-900">{delivery.scheduledDate ? format(delivery.scheduledDate, 'MMM d, h:mm a') : 'Unscheduled'}</div>
+                      <div className="text-xs font-semibold mt-0.5">{Math.round(delivery.weight).toLocaleString()} kg</div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm">
-                      <span className={cn("inline-flex items-center rounded-md px-2 py-1 text-xs font-medium", priorityStyles[delivery.priority])}>
-                        {delivery.priority}
+                      <span className={cn("inline-flex items-center rounded-md px-2 py-1 text-xs font-medium", statusStyles[delivery.status] || statusStyles['PENDING'])}>
+                        {delivery.status}
                       </span>
                     </td>
                   </tr>

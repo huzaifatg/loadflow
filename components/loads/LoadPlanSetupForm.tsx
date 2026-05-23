@@ -91,7 +91,7 @@ export function LoadPlanSetupForm({ trucks, drivers }: Props) {
             <option value="">-- Choose a truck --</option>
             {trucks.map(t => (
               <option key={t.id} value={t.id}>
-                {t.name} ({t.plateNumber}) - {t.weightCapacity.toLocaleString()} lbs capacity
+                {t.name} ({t.plateNumber}) - {t.weightCapacity.toLocaleString()} kg capacity
               </option>
             ))}
           </select>
