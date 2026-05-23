@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   DndContext,
   closestCenter,
@@ -83,8 +84,14 @@ function SortableItem({ item }: { item: DeliveryItem }) {
 }
 
 export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned, truckCapacity }: AllocationPanelProps) {
-  const [unassigned, setUnassigned] = useState(initialUnassigned);
-  const [assigned, setAssigned] = useState(initialAssigned);
+  const router = useRouter();
+  
+  // Unified state dictionary prevents race conditions where an item is duplicated or lost
+  const [items, setItems] = useState<{ unassigned: DeliveryItem[], assigned: DeliveryItem[] }>({
+    unassigned: initialUnassigned,
+    assigned: initialAssigned,
+  });
+  
   const [activeId, setActiveId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -99,15 +106,9 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     })
   );
 
-  const currentWeight = assigned.reduce((sum, item) => sum + item.weight, 0);
+  const currentWeight = items.assigned.reduce((sum, item) => sum + item.weight, 0);
   const percentFull = Math.min((currentWeight / truckCapacity) * 100, 100);
   const isOverweight = currentWeight > truckCapacity;
-
-  function findContainer(id: string) {
-    if (unassigned.find((item) => item.id === id)) return 'unassigned';
-    if (assigned.find((item) => item.id === id)) return 'assigned';
-    return null;
-  }
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id));
@@ -120,33 +121,36 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
 
     if (!overId || activeId === overId) return;
 
-    const activeContainer = findContainer(activeId);
-    const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
+    setItems((prev) => {
+      // Find the containers based purely on current state representation
+      const activeContainer = prev.unassigned.find(i => i.id === activeId) ? 'unassigned' : 
+                              prev.assigned.find(i => i.id === activeId) ? 'assigned' : null;
 
-    if (!activeContainer || !overContainer || activeContainer === overContainer) return;
+      const overContainer = prev.unassigned.find(i => i.id === overId) ? 'unassigned' : 
+                            prev.assigned.find(i => i.id === overId) ? 'assigned' : 
+                            overId === 'unassigned-container' ? 'unassigned' : 
+                            overId === 'assigned-container' ? 'assigned' : null;
 
-    // Moving between containers
-    if (activeContainer === 'unassigned') {
-      const activeItem = unassigned.find(i => i.id === activeId)!;
-      setUnassigned(prev => prev.filter(i => i.id !== activeId));
-      setAssigned(prev => {
-        const overIndex = prev.findIndex(i => i.id === overId);
-        const newIndex = overIndex >= 0 ? overIndex : prev.length;
-        const newArr = [...prev];
-        newArr.splice(newIndex, 0, activeItem);
-        return newArr;
-      });
-    } else {
-      const activeItem = assigned.find(i => i.id === activeId)!;
-      setAssigned(prev => prev.filter(i => i.id !== activeId));
-      setUnassigned(prev => {
-        const overIndex = prev.findIndex(i => i.id === overId);
-        const newIndex = overIndex >= 0 ? overIndex : prev.length;
-        const newArr = [...prev];
-        newArr.splice(newIndex, 0, activeItem);
-        return newArr;
-      });
-    }
+      if (!activeContainer || !overContainer || activeContainer === overContainer) {
+        return prev;
+      }
+
+      const activeItem = prev[activeContainer].find(i => i.id === activeId)!;
+      const overIndex = prev[overContainer].findIndex(i => i.id === overId);
+      
+      // If dropping onto an empty container, place it at the end
+      const newIndex = overIndex >= 0 ? overIndex : prev[overContainer].length;
+
+      return {
+        ...prev,
+        [activeContainer]: prev[activeContainer].filter(i => i.id !== activeId),
+        [overContainer]: [
+          ...prev[overContainer].slice(0, newIndex),
+          activeItem,
+          ...prev[overContainer].slice(newIndex)
+        ]
+      };
+    });
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -158,33 +162,41 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const activeId = String(active.id);
     const overId = String(over.id);
 
-    const activeContainer = findContainer(activeId);
-    const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
+    setItems((prev) => {
+      const activeContainer = prev.unassigned.find(i => i.id === activeId) ? 'unassigned' : 
+                              prev.assigned.find(i => i.id === activeId) ? 'assigned' : null;
 
-    if (activeContainer && activeContainer === overContainer) {
-      if (activeContainer === 'unassigned') {
-        const oldIndex = unassigned.findIndex(i => i.id === activeId);
-        const newIndex = unassigned.findIndex(i => i.id === overId);
-        if (oldIndex !== newIndex) {
-          setUnassigned(arrayMove(unassigned, oldIndex, newIndex));
-        }
-      } else {
-        const oldIndex = assigned.findIndex(i => i.id === activeId);
-        const newIndex = assigned.findIndex(i => i.id === overId);
-        if (oldIndex !== newIndex) {
-          setAssigned(arrayMove(assigned, oldIndex, newIndex));
-        }
+      const overContainer = prev.unassigned.find(i => i.id === overId) ? 'unassigned' : 
+                            prev.assigned.find(i => i.id === overId) ? 'assigned' : 
+                            overId === 'unassigned-container' ? 'unassigned' : 
+                            overId === 'assigned-container' ? 'assigned' : null;
+
+      if (!activeContainer || !overContainer || activeContainer !== overContainer) {
+        return prev;
       }
-    }
+
+      const oldIndex = prev[activeContainer].findIndex(i => i.id === activeId);
+      const newIndex = prev[activeContainer].findIndex(i => i.id === overId);
+
+      // Guard against passing -1 to arrayMove if dropping over an empty container
+      if (oldIndex !== newIndex && newIndex >= 0) {
+        return {
+          ...prev,
+          [activeContainer]: arrayMove(prev[activeContainer], oldIndex, newIndex)
+        };
+      }
+
+      return prev;
+    });
   }
 
-  const activeItem = activeId ? [...unassigned, ...assigned].find(i => i.id === activeId) : null;
+  const activeItem = activeId ? [...items.unassigned, ...items.assigned].find(i => i.id === activeId) : null;
 
   async function handleSave() {
     setSaving(true);
     setSaved(false);
     try {
-      const assignedDeliveryIds = assigned.map(a => a.id);
+      const assignedDeliveryIds = items.assigned.map(a => a.id);
       const res = await fetch(`/api/loads/${loadPlanId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -194,6 +206,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       if (!res.ok) throw new Error('Failed to save plan');
       
       setSaved(true);
+      router.refresh(); // Crucial synchronization step
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error(err);
@@ -214,7 +227,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
         <button
           onClick={handleSave}
           disabled={saving}
-          className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
+          className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50 transition-colors"
         >
           {saving ? 'Saving...' : 'Save Plan'}
         </button>
@@ -232,17 +245,17 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
           <Card className="flex flex-col h-full bg-gray-50/50">
             <div className="p-4 border-b border-gray-200 bg-white rounded-t-xl">
               <h3 className="font-semibold text-gray-900">Unassigned Deliveries</h3>
-              <p className="text-sm text-gray-500">{unassigned.length} items available</p>
+              <p className="text-sm text-gray-500">{items.unassigned.length} items available</p>
             </div>
             <div ref={setUnassignedRef} className="flex-1 p-4 overflow-y-auto space-y-3" id="unassigned-container">
               <SortableContext
-                items={unassigned.map(i => i.id)}
+                items={items.unassigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {unassigned.map(item => (
+                {items.unassigned.map(item => (
                   <SortableItem key={item.id} item={item} />
                 ))}
-                {unassigned.length === 0 && (
+                {items.unassigned.length === 0 && (
                   <div className="h-24 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-sm text-gray-400">
                     No unassigned deliveries
                   </div>
@@ -276,10 +289,10 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             </div>
             <div ref={setAssignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30" id="assigned-container">
               <SortableContext
-                items={assigned.map(i => i.id)}
+                items={items.assigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {assigned.map((item, index) => (
+                {items.assigned.map((item, index) => (
                   <div key={item.id} className="relative">
                     <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-800 text-white rounded-full flex items-center justify-center text-xs font-bold z-10 shadow-sm border-2 border-white">
                       {index + 1}
@@ -289,7 +302,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                     </div>
                   </div>
                 ))}
-                {assigned.length === 0 && (
+                {items.assigned.length === 0 && (
                   <div className="h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-400 bg-white">
                     Drag deliveries here
                   </div>
