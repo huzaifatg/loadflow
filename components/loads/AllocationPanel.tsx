@@ -26,6 +26,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/Card';
 import { GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { logToServer } from '@/app/actions/log';
 
 interface DeliveryItem {
   id: string;
@@ -111,7 +112,19 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const isOverweight = currentWeight > truckCapacity;
 
   function handleDragStart(event: DragStartEvent) {
-    setActiveId(String(event.active.id));
+    const activeId = String(event.active.id);
+    setActiveId(activeId);
+    
+    // Find container to log
+    const activeContainer = items.unassigned.find(i => i.id === activeId) ? 'unassigned' : 
+                            items.assigned.find(i => i.id === activeId) ? 'assigned' : 'unknown';
+                            
+    logToServer('onDragStart', {
+      activeId,
+      activeContainer,
+      assignedCount: items.assigned.length,
+      unassignedCount: items.unassigned.length
+    });
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -119,7 +132,12 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const overId = over?.id ? String(over.id) : null;
     const activeId = String(active.id);
 
-    if (!overId || activeId === overId) return;
+    logToServer('onDragOver (raw)', { activeId, overId });
+
+    if (!overId || activeId === overId) {
+      logToServer('onDragOver (abort)', { reason: 'No overId or active === over' });
+      return;
+    }
 
     setItems((prev) => {
       // Find the containers based purely on current state representation
@@ -131,7 +149,10 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                             overId === 'unassigned-container' ? 'unassigned' : 
                             overId === 'assigned-container' ? 'assigned' : null;
 
+      logToServer('onDragOver (state)', { activeId, overId, activeContainer, overContainer });
+
       if (!activeContainer || !overContainer || activeContainer === overContainer) {
+        logToServer('onDragOver (abort)', { reason: 'Same container or null', activeContainer, overContainer });
         return prev;
       }
 
@@ -140,6 +161,13 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       
       // If dropping onto an empty container, place it at the end
       const newIndex = overIndex >= 0 ? overIndex : prev[overContainer].length;
+
+      logToServer('onDragOver (move)', { 
+        activeId, 
+        from: activeContainer, 
+        to: overContainer, 
+        newIndex 
+      });
 
       return {
         ...prev,
@@ -157,11 +185,16 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const { active, over } = event;
     setActiveId(null);
 
-    if (!over) return;
-    
     const activeId = String(active.id);
-    const overId = String(over.id);
+    const overId = over?.id ? String(over.id) : null;
 
+    logToServer('onDragEnd (raw)', { activeId, overId });
+
+    if (!over) {
+      logToServer('onDragEnd (abort)', { reason: 'No over element' });
+      return;
+    }
+    
     setItems((prev) => {
       const activeContainer = prev.unassigned.find(i => i.id === activeId) ? 'unassigned' : 
                               prev.assigned.find(i => i.id === activeId) ? 'assigned' : null;
@@ -171,15 +204,21 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                             overId === 'unassigned-container' ? 'unassigned' : 
                             overId === 'assigned-container' ? 'assigned' : null;
 
+      logToServer('onDragEnd (state)', { activeId, overId, activeContainer, overContainer });
+
       if (!activeContainer || !overContainer || activeContainer !== overContainer) {
+        logToServer('onDragEnd (abort)', { reason: 'Different containers or null' });
         return prev;
       }
 
       const oldIndex = prev[activeContainer].findIndex(i => i.id === activeId);
       const newIndex = prev[activeContainer].findIndex(i => i.id === overId);
 
+      logToServer('onDragEnd (reorder)', { activeContainer, oldIndex, newIndex });
+
       // Guard against passing -1 to arrayMove if dropping over an empty container
       if (oldIndex !== newIndex && newIndex >= 0) {
+        logToServer('onDragEnd (commit)', { activeContainer, oldIndex, newIndex });
         return {
           ...prev,
           [activeContainer]: arrayMove(prev[activeContainer], oldIndex, newIndex)
