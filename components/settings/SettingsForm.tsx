@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import { User, Building2, Bell, Shield, LogOut, Save, Check } from 'lucide-react';
 import type { Company } from '@prisma/client';
+import { toast } from 'sonner';
 
 function SettingsSection({
   icon: Icon,
@@ -85,37 +86,54 @@ export function SettingsForm({ email, company }: SettingsFormProps) {
   const [saved, setSaved] = useState(false);
 
   // Profile
-  const [fullName, setFullName] = useState('Admin User');
-  const [displayName, setDisplayName] = useState('Admin');
-  const [phone, setPhone] = useState('');
+  const [fullName, setFullName] = useState(company?.fullName || 'Admin User');
+  const [displayName, setDisplayName] = useState(company?.displayName || 'Admin');
+  const [phone, setPhone] = useState(company?.phone || '');
 
   // Company
   const [companyName, setCompanyName] = useState(company?.name || '');
-  const [timezone, setTimezone] = useState('America/Chicago');
+  const [timezone, setTimezone] = useState(company?.timezone || 'America/Chicago');
 
   // Preferences
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [dispatchAlerts, setDispatchAlerts] = useState(true);
-  const [weeklyReport, setWeeklyReport] = useState(false);
-  const [units, setUnits] = useState<'imperial' | 'metric'>('imperial');
+  const [emailNotifications, setEmailNotifications] = useState(company?.emailNotifications ?? true);
+  const [dispatchAlerts, setDispatchAlerts] = useState(company?.dispatchAlerts ?? true);
+  const [weeklyReport, setWeeklyReport] = useState(company?.weeklyReport ?? false);
+  const [units, setUnits] = useState<'imperial' | 'metric'>((company?.units as 'imperial' | 'metric') || 'imperial');
 
   async function handleSave() {
     setSaving(true);
     setSaved(false);
     
     try {
+      const payload = {
+        name: companyName,
+        fullName,
+        displayName,
+        phone,
+        timezone,
+        units,
+        emailNotifications,
+        dispatchAlerts,
+        weeklyReport,
+      };
+
       const res = await fetch('/api/company', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: companyName }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
+        toast.success('Settings saved successfully');
         router.refresh();
+      } else {
+        const data = await res.json();
+        toast.error(data.error?.message || 'Failed to save settings');
       }
     } catch (err) {
       console.error(err);
+      toast.error('An unexpected error occurred');
     } finally {
       setSaving(false);
     }

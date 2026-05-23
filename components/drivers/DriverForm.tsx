@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { toast } from 'sonner';
 
 export function DriverForm() {
   const router = useRouter();
@@ -30,13 +31,14 @@ export function DriverForm() {
         throw new Error('Failed to add driver');
       }
 
+      toast.success('Driver added successfully');
       router.push('/drivers');
       router.refresh();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message || 'An unexpected error occurred');
+        toast.error(err.message || 'An unexpected error occurred');
       } else {
-        setError('An unexpected error occurred');
+        toast.error('An unexpected error occurred');
       }
     } finally {
       setLoading(false);

@@ -58,6 +58,18 @@ model Company {
   deliveries Delivery[]
   loadPlans  LoadPlan[]
 
+  // Settings
+  timezone           String   @default("America/Chicago") @map("timezone")
+  units              String   @default("imperial") @map("units")
+  emailNotifications Boolean  @default(true) @map("email_notifications")
+  dispatchAlerts     Boolean  @default(true) @map("dispatch_alerts")
+  weeklyReport       Boolean  @default(false) @map("weekly_report")
+
+  // Profile
+  fullName           String   @default("Admin User") @map("full_name")
+  displayName        String   @default("Admin") @map("display_name")
+  phone              String   @default("") @map("phone")
+
   @@map("companies")
 }
 

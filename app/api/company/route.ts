@@ -30,6 +30,14 @@ export async function PATCH(request: NextRequest) {
       where: { id: company.id },
       data: {
         name: body.name.trim(),
+        timezone: body.timezone,
+        units: body.units,
+        emailNotifications: body.emailNotifications,
+        dispatchAlerts: body.dispatchAlerts,
+        weeklyReport: body.weeklyReport,
+        fullName: body.fullName,
+        displayName: body.displayName,
+        phone: body.phone,
       },
     });
 

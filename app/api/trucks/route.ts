@@ -72,6 +72,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/trucks');
+
     return NextResponse.json(truck, { status: 201 })
   } catch (error) {
     console.error('POST /api/trucks error:', error)

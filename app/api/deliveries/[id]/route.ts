@@ -153,6 +153,9 @@ export async function PUT(
       data: updateData,
     })
 
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/deliveries');
+
     return NextResponse.json({ data: delivery, error: null })
   } catch (error) {
     console.error('PUT /api/deliveries/[id] error:', error)
@@ -207,6 +210,9 @@ export async function DELETE(
     }
 
     await prisma.delivery.delete({ where: { id } })
+
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/deliveries');
 
     return NextResponse.json({ data: { id }, error: null })
   } catch (error) {

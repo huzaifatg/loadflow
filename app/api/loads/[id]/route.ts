@@ -157,6 +157,9 @@ export async function DELETE(
       },
     });
 
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/loads');
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[load_DELETE]', error);

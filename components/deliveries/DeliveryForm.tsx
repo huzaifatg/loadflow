@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { toast } from 'sonner';
 
 export function DeliveryForm() {
   const router = useRouter();
@@ -36,13 +37,14 @@ export function DeliveryForm() {
         throw new Error('Failed to create delivery');
       }
 
+      toast.success('Delivery created successfully');
       router.push('/deliveries');
       router.refresh();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message || 'An unexpected error occurred');
+        toast.error(err.message || 'An unexpected error occurred');
       } else {
-        setError('An unexpected error occurred');
+        toast.error('An unexpected error occurred');
       }
     } finally {
       setLoading(false);
