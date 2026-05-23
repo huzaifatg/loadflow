@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -26,7 +26,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/Card';
 import { GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { logToServer } from '@/app/actions/log';
 
 interface DeliveryItem {
   id: string;
@@ -87,7 +86,6 @@ function SortableItem({ item }: { item: DeliveryItem }) {
 export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned, truckCapacity }: AllocationPanelProps) {
   const router = useRouter();
   
-  // Unified state dictionary prevents race conditions where an item is duplicated or lost
   const [items, setItems] = useState<{ unassigned: DeliveryItem[], assigned: DeliveryItem[] }>({
     unassigned: initialUnassigned,
     assigned: initialAssigned,
@@ -100,6 +98,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const { setNodeRef: setUnassignedRef } = useDroppable({ id: 'unassigned-container' });
   const { setNodeRef: setAssignedRef } = useDroppable({ id: 'assigned-container' });
 
+  // Memoize sensors to prevent infinite render loops caused by inline initialization tearing down DndContext
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -111,20 +110,12 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const percentFull = Math.min((currentWeight / truckCapacity) * 100, 100);
   const isOverweight = currentWeight > truckCapacity;
 
+  // Memoize item arrays to prevent SortableContext from constantly recalculating layout and memory allocations
+  const unassignedIds = useMemo(() => items.unassigned.map(i => i.id), [items.unassigned]);
+  const assignedIds = useMemo(() => items.assigned.map(i => i.id), [items.assigned]);
+
   function handleDragStart(event: DragStartEvent) {
-    const activeId = String(event.active.id);
-    setActiveId(activeId);
-    
-    // Find container to log
-    const activeContainer = items.unassigned.find(i => i.id === activeId) ? 'unassigned' : 
-                            items.assigned.find(i => i.id === activeId) ? 'assigned' : 'unknown';
-                            
-    logToServer('onDragStart', {
-      activeId,
-      activeContainer,
-      assignedCount: items.assigned.length,
-      unassignedCount: items.unassigned.length
-    });
+    setActiveId(String(event.active.id));
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -132,15 +123,11 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const overId = over?.id ? String(over.id) : null;
     const activeId = String(active.id);
 
-    logToServer('onDragOver (raw)', { activeId, overId });
-
     if (!overId || activeId === overId) {
-      logToServer('onDragOver (abort)', { reason: 'No overId or active === over' });
       return;
     }
 
     setItems((prev) => {
-      // Find the containers based purely on current state representation
       const activeContainer = prev.unassigned.find(i => i.id === activeId) ? 'unassigned' : 
                               prev.assigned.find(i => i.id === activeId) ? 'assigned' : null;
 
@@ -149,25 +136,14 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                             overId === 'unassigned-container' ? 'unassigned' : 
                             overId === 'assigned-container' ? 'assigned' : null;
 
-      logToServer('onDragOver (state)', { activeId, overId, activeContainer, overContainer });
-
       if (!activeContainer || !overContainer || activeContainer === overContainer) {
-        logToServer('onDragOver (abort)', { reason: 'Same container or null', activeContainer, overContainer });
         return prev;
       }
 
       const activeItem = prev[activeContainer].find(i => i.id === activeId)!;
       const overIndex = prev[overContainer].findIndex(i => i.id === overId);
       
-      // If dropping onto an empty container, place it at the end
       const newIndex = overIndex >= 0 ? overIndex : prev[overContainer].length;
-
-      logToServer('onDragOver (move)', { 
-        activeId, 
-        from: activeContainer, 
-        to: overContainer, 
-        newIndex 
-      });
 
       return {
         ...prev,
@@ -188,10 +164,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const activeId = String(active.id);
     const overId = over?.id ? String(over.id) : null;
 
-    logToServer('onDragEnd (raw)', { activeId, overId });
-
     if (!over) {
-      logToServer('onDragEnd (abort)', { reason: 'No over element' });
       return;
     }
     
@@ -204,21 +177,14 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                             overId === 'unassigned-container' ? 'unassigned' : 
                             overId === 'assigned-container' ? 'assigned' : null;
 
-      logToServer('onDragEnd (state)', { activeId, overId, activeContainer, overContainer });
-
       if (!activeContainer || !overContainer || activeContainer !== overContainer) {
-        logToServer('onDragEnd (abort)', { reason: 'Different containers or null' });
         return prev;
       }
 
       const oldIndex = prev[activeContainer].findIndex(i => i.id === activeId);
       const newIndex = prev[activeContainer].findIndex(i => i.id === overId);
 
-      logToServer('onDragEnd (reorder)', { activeContainer, oldIndex, newIndex });
-
-      // Guard against passing -1 to arrayMove if dropping over an empty container
       if (oldIndex !== newIndex && newIndex >= 0) {
-        logToServer('onDragEnd (commit)', { activeContainer, oldIndex, newIndex });
         return {
           ...prev,
           [activeContainer]: arrayMove(prev[activeContainer], oldIndex, newIndex)
@@ -245,7 +211,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       if (!res.ok) throw new Error('Failed to save plan');
       
       setSaved(true);
-      router.refresh(); // Crucial synchronization step
+      router.refresh(); 
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error(err);
@@ -288,7 +254,8 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             </div>
             <div ref={setUnassignedRef} className="flex-1 p-4 overflow-y-auto space-y-3" id="unassigned-container">
               <SortableContext
-                items={items.unassigned.map(i => i.id)}
+                id="unassigned-list"
+                items={unassignedIds}
                 strategy={verticalListSortingStrategy}
               >
                 {items.unassigned.map(item => (
@@ -328,7 +295,8 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             </div>
             <div ref={setAssignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30" id="assigned-container">
               <SortableContext
-                items={items.assigned.map(i => i.id)}
+                id="assigned-list"
+                items={assignedIds}
                 strategy={verticalListSortingStrategy}
               >
                 {items.assigned.map((item, index) => (

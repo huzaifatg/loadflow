@@ -1,0 +1,49 @@
+[2026-05-23T12:23:42.753Z] onDragStart: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","activeContainer":"unassigned","assignedCount":0,"unassignedCount":2}
+[2026-05-23T12:23:42.954Z] onDragOver (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1"}
+[2026-05-23T12:23:43.142Z] onDragOver (abort): {"reason":"No overId or active === over"}
+[2026-05-23T12:23:43.355Z] onDragOver (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":null}
+[2026-05-23T12:23:43.557Z] onDragOver (abort): {"reason":"No overId or active === over"}
+[2026-05-23T12:23:43.756Z] onDragOver (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447"}
+[2026-05-23T12:23:43.940Z] onDragOver (state): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:44.110Z] onDragOver (abort): {"reason":"Same container or null","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:44.321Z] onDragOver (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":null}
+[2026-05-23T12:23:44.503Z] onDragOver (abort): {"reason":"No overId or active === over"}
+[2026-05-23T12:23:48.815Z] onDragOver (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447"}
+[2026-05-23T12:23:48.992Z] onDragOver (state): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:49.175Z] onDragOver (abort): {"reason":"Same container or null","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:49.359Z] onDragOver (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":null}
+[2026-05-23T12:23:49.551Z] onDragOver (abort): {"reason":"No overId or active === over"}
+[2026-05-23T12:23:49.757Z] onDragOver (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1"}
+[2026-05-23T12:23:49.956Z] onDragOver (abort): {"reason":"No overId or active === over"}
+[2026-05-23T12:23:50.138Z] onDragOver (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":null}
+[2026-05-23T12:23:50.327Z] onDragOver (abort): {"reason":"No overId or active === over"}
+[2026-05-23T12:23:51.275Z] onDragOver (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447"}
+[2026-05-23T12:23:51.472Z] onDragOver (state): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:51.684Z] onDragOver (abort): {"reason":"Same container or null","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:51.865Z] onDragOver (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":null}
+[2026-05-23T12:23:52.039Z] onDragOver (abort): {"reason":"No overId or active === over"}
+[2026-05-23T12:23:52.255Z] onDragOver (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1"}
+[2026-05-23T12:23:52.416Z] onDragOver (abort): {"reason":"No overId or active === over"}
+[2026-05-23T12:23:52.588Z] onDragEnd (raw): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1"}
+[2026-05-23T12:23:52.793Z] onDragEnd (state): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:52.975Z] onDragEnd (reorder): {"activeContainer":"unassigned","oldIndex":0,"newIndex":0}
+[2026-05-23T12:23:53.142Z] onDragEnd (state): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:53.362Z] onDragEnd (reorder): {"activeContainer":"unassigned","oldIndex":0,"newIndex":0}
+[2026-05-23T12:23:53.533Z] onDragOver (state): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:53.709Z] onDragOver (abort): {"reason":"Same container or null","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:53.911Z] onDragOver (state): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:54.105Z] onDragOver (abort): {"reason":"Same container or null","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:54.306Z] onDragOver (state): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:54.491Z] onDragOver (abort): {"reason":"Same container or null","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:54.662Z] onDragEnd (state): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:54.878Z] onDragEnd (reorder): {"activeContainer":"unassigned","oldIndex":0,"newIndex":0}
+[2026-05-23T12:23:55.060Z] onDragEnd (state): {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:55.261Z] onDragEnd (reorder): {"activeContainer":"unassigned","oldIndex":0,"newIndex":0}
+[2026-05-23T12:23:57.238Z] onDragStart: {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","assignedCount":0,"unassignedCount":2}
+[2026-05-23T12:23:57.410Z] onDragOver (raw): {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447"}
+[2026-05-23T12:23:57.578Z] onDragOver (abort): {"reason":"No overId or active === over"}
+[2026-05-23T12:23:57.762Z] onDragEnd (raw): {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447"}
+[2026-05-23T12:23:57.941Z] onDragEnd (state): {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:58.098Z] onDragEnd (reorder): {"activeContainer":"unassigned","oldIndex":1,"newIndex":1}
+[2026-05-23T12:23:58.276Z] onDragEnd (state): {"activeId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T12:23:58.466Z] onDragEnd (reorder): {"activeContainer":"unassigned","oldIndex":1,"newIndex":1}
