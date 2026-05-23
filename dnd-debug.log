@@ -90,3 +90,28 @@
 [2026-05-23T20:17:45.601Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","hasOver":true}
 [2026-05-23T20:17:45.779Z] HOVER_ABORT: {"reason":"No overId or active === over"}
 [2026-05-23T20:17:47.401Z] DROP_COMMIT: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","activeContainer":"unassigned","overContainer":"unassigned","eventOver":true}
+[2026-05-23T20:30:26.642Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","hasOver":true}
+[2026-05-23T20:30:26.832Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:30:27.045Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:30:27.234Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:30:27.425Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","hasOver":true}
+[2026-05-23T20:30:27.708Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:30:29.308Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:30:29.507Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:30:30.961Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"ca53dbe9-8d8f-4aef-a7f7-f6c95f22a6f9","hasOver":true}
+[2026-05-23T20:30:31.134Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:30:31.303Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:30:31.549Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:30:31.737Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","hasOver":true}
+[2026-05-23T20:30:31.895Z] HOVER_ABORT: {"reason":"No overId or active === over"}
+[2026-05-23T20:30:32.078Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:30:32.258Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:30:32.469Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"ca53dbe9-8d8f-4aef-a7f7-f6c95f22a6f9","hasOver":true}
+[2026-05-23T20:30:32.653Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:30:32.825Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:30:33.020Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:30:33.191Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"ca53dbe9-8d8f-4aef-a7f7-f6c95f22a6f9","hasOver":true}
+[2026-05-23T20:30:33.391Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:30:33.584Z] HOVER_TICK: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","hasOver":true}
+[2026-05-23T20:30:33.790Z] HOVER_ABORT: {"reason":"Same container or null container","activeContainer":"unassigned","overContainer":"unassigned"}
+[2026-05-23T20:30:34.192Z] DROP_COMMIT: {"activeId":"7f9a2277-7cc2-4b0d-9712-42822a1a52f1","overId":"cc4e20eb-1d10-4a35-acf5-12dc91931447","activeContainer":"unassigned","overContainer":"unassigned","eventOver":true}

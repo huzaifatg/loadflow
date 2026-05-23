@@ -99,7 +99,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     data: { type: 'container' }
   });
   const { setNodeRef: setAssignedRef } = useDroppable({ 
-    id: 'assigned',
+    id: 'truck-allocation',
     data: { type: 'container' }
   });
 
@@ -130,9 +130,10 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   };
 
   function findContainer(id: string) {
-    if (id === 'unassigned' || id === 'assigned') return id;
+    if (id === 'truck-allocation') return 'truck-allocation';
+    if (id === 'unassigned') return 'unassigned';
     if (unassigned.find((item) => item.id === id)) return 'unassigned';
-    if (assigned.find((item) => item.id === id)) return 'assigned';
+    if (assigned.find((item) => item.id === id)) return 'truck-allocation';
     return null;
   }
 
@@ -206,6 +207,8 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       overContainer,
       eventOver: over ? true : false
     });
+
+    console.log({ activeContainer, overContainer });
 
     setActiveId(null);
 
@@ -325,9 +328,9 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                 {isOverweight && <p className="text-xs text-red-500 mt-1">Warning: Truck is over capacity</p>}
               </div>
             </div>
-            <div ref={setAssignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30" id="assigned-container">
+            <div ref={setAssignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30 min-h-[150px]" id="truck-allocation">
               <SortableContext
-                id="assigned"
+                id="truck-allocation"
                 items={assigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
