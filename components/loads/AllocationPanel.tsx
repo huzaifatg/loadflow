@@ -90,8 +90,14 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const { setNodeRef: setUnassignedRef } = useDroppable({ id: 'unassigned-container' });
-  const { setNodeRef: setAssignedRef } = useDroppable({ id: 'assigned-container' });
+  const { setNodeRef: setUnassignedRef } = useDroppable({ 
+    id: 'unassigned',
+    data: { type: 'container' }
+  });
+  const { setNodeRef: setAssignedRef } = useDroppable({ 
+    id: 'assigned',
+    data: { type: 'container' }
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -105,8 +111,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const isOverweight = currentWeight > truckCapacity;
 
   function findContainer(id: string) {
-    if (id === 'unassigned-container' || id === 'unassigned-list') return 'unassigned';
-    if (id === 'assigned-container' || id === 'assigned-list') return 'assigned';
+    if (id === 'unassigned' || id === 'assigned') return id;
     if (unassigned.find((item) => item.id === id)) return 'unassigned';
     if (assigned.find((item) => item.id === id)) return 'assigned';
     return null;
@@ -262,7 +267,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             </div>
             <div ref={setUnassignedRef} className="flex-1 p-4 overflow-y-auto space-y-3" id="unassigned-container">
               <SortableContext
-                id="unassigned-list"
+                id="unassigned"
                 items={unassigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
@@ -303,7 +308,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             </div>
             <div ref={setAssignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30" id="assigned-container">
               <SortableContext
-                id="assigned-list"
+                id="assigned"
                 items={assigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
