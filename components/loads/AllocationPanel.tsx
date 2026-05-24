@@ -119,14 +119,21 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const overId = over?.id ? String(over.id) : null;
     const activeId = String(active.id);
 
-    if (!overId || activeId === overId) return;
+    if (!overId || activeId === overId) {
+      console.log("RETURN:", "!overId || activeId === overId");
+      return;
+    }
 
     const activeContainer = findContainer(activeId);
     const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
 
-    if (!activeContainer || !overContainer || activeContainer === overContainer) return;
+    if (!activeContainer || !overContainer || activeContainer === overContainer) {
+      console.log("RETURN:", "!activeContainer || !overContainer || activeContainer === overContainer", { activeContainer, overContainer });
+      return;
+    }
 
     // Moving between containers
+    console.log("BEFORE:", { unassigned, assigned });
     if (activeContainer === 'unassigned') {
       const activeItem = unassigned.find(i => i.id === activeId)!;
       setUnassigned(prev => prev.filter(i => i.id !== activeId));
@@ -148,13 +155,20 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
         return newArr;
       });
     }
+    console.log("AFTER:", "handleDragOver cross-container mutation completed");
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    console.log("onDragEnd fired");
     const { active, over } = event;
+    console.log("OVER ID:", over?.id);
+
     setActiveId(null);
 
-    if (!over) return;
+    if (!over) {
+      console.log("RETURN:", "!over");
+      return;
+    }
     
     const activeId = String(active.id);
     const overId = String(over.id);
@@ -162,20 +176,42 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const activeContainer = findContainer(activeId);
     const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
 
+    const activeIndex = activeContainer === 'unassigned' ? unassigned.findIndex(i => i.id === activeId) : assigned.findIndex(i => i.id === activeId);
+    const overIndex = overContainer === 'unassigned' ? unassigned.findIndex(i => i.id === overId) : assigned.findIndex(i => i.id === overId);
+
+    console.log({
+      activeId: active.id,
+      overId: over?.id,
+      activeContainer,
+      overContainer,
+      activeIndex,
+      overIndex,
+    });
+
     if (activeContainer && activeContainer === overContainer) {
       if (activeContainer === 'unassigned') {
         const oldIndex = unassigned.findIndex(i => i.id === activeId);
         const newIndex = unassigned.findIndex(i => i.id === overId);
         if (oldIndex !== newIndex) {
+          console.log("BEFORE:", { unassigned });
           setUnassigned(arrayMove(unassigned, oldIndex, newIndex));
+          console.log("AFTER:", "unassigned arrayMove completed");
+        } else {
+          console.log("RETURN:", "oldIndex === newIndex in unassigned");
         }
       } else {
         const oldIndex = assigned.findIndex(i => i.id === activeId);
         const newIndex = assigned.findIndex(i => i.id === overId);
         if (oldIndex !== newIndex) {
+          console.log("BEFORE:", { assigned });
           setAssigned(arrayMove(assigned, oldIndex, newIndex));
+          console.log("AFTER:", "assigned arrayMove completed");
+        } else {
+          console.log("RETURN:", "oldIndex === newIndex in assigned");
         }
       }
+    } else {
+      console.log("RETURN:", "activeContainer !== overContainer");
     }
   }
 
