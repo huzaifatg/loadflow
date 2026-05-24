@@ -1,31 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  DndContext,
-  pointerWithin,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragOverlay,
-  DragStartEvent,
-  DragOverEvent,
-  DragEndEvent,
-  useDroppable,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/Card';
-import { GripVertical } from 'lucide-react';
+import { Plus, Minus, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { logToServer } from '@/app/actions/log';
 
 interface DeliveryItem {
   id: string;
@@ -41,183 +19,47 @@ interface AllocationPanelProps {
   truckCapacity: number;
 }
 
-function SortableItem({ item }: { item: DeliveryItem }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        'flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm',
-        isDragging && 'opacity-50 border-primary-500'
-      )}
-    >
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab hover:text-gray-900 text-gray-400 touch-none"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
-        <p className="text-xs text-gray-500 truncate">{item.deliveryAddress}</p>
-      </div>
-      <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
-        {item.weight.toLocaleString()} kg
-      </div>
-    </div>
-  );
-}
-
 export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned, truckCapacity }: AllocationPanelProps) {
   const [unassigned, setUnassigned] = useState(initialUnassigned);
   const [assigned, setAssigned] = useState(initialAssigned);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-
-  // RULE 2: CONSISTENT CONTAINER IDS
-  const { setNodeRef: setUnassignedRef } = useDroppable({ 
-    id: 'unassigned',
-    data: { type: 'container' }
-  });
-  const { setNodeRef: setAssignedRef } = useDroppable({ 
-    id: 'assigned',
-    data: { type: 'container' }
-  });
-
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
 
   const currentWeight = assigned.reduce((sum, item) => sum + item.weight, 0);
   const percentFull = Math.min((currentWeight / truckCapacity) * 100, 100);
   const isOverweight = currentWeight > truckCapacity;
 
-  // RULE 4: FINDCONTAINER RESOLVES CONTAINERS FIRST
-  function findContainer(id: string, overData?: any) {
-    if (id === 'unassigned') return 'unassigned';
-    if (id === 'assigned') return 'assigned';
-    
-    if (overData?.sortable?.containerId) {
-      return overData.sortable.containerId;
-    }
-    
-    if (unassigned.find((item) => item.id === id)) return 'unassigned';
-    if (assigned.find((item) => item.id === id)) return 'assigned';
-    return null;
+  function handleAssign(item: DeliveryItem) {
+    setUnassigned(prev => prev.filter(i => i.id !== item.id));
+    setAssigned(prev => [...prev, item]);
   }
 
-  function handleDragStart(event: DragStartEvent) {
-    setActiveId(String(event.active.id));
+  function handleRemove(item: DeliveryItem) {
+    setAssigned(prev => prev.filter(i => i.id !== item.id));
+    setUnassigned(prev => [...prev, item]);
   }
 
-  // RULE 1: NO STATE MUTATION IN handleDragOver
-  function handleDragOver(event: DragOverEvent) {
-    const { active, over } = event;
-    console.log("handleDragOver:", {
-      overId: over?.id,
-      overData: over?.data.current,
-      activeId: active?.id,
+  function handleMoveUp(index: number) {
+    if (index === 0) return;
+    setAssigned(prev => {
+      const newArr = [...prev];
+      const temp = newArr[index];
+      newArr[index] = newArr[index - 1];
+      newArr[index - 1] = temp;
+      return newArr;
     });
-    // Purely observational. Do not mutate arrays during hover.
   }
 
-  function handleDragEnd(event: DragEndEvent) {
-    console.log("onDragEnd fired");
-    const { active, over } = event;
-    
-    console.log("handleDragEnd:", {
-      overId: over?.id,
-      overData: over?.data.current,
-      activeId: active?.id,
+  function handleMoveDown(index: number) {
+    if (index === assigned.length - 1) return;
+    setAssigned(prev => {
+      const newArr = [...prev];
+      const temp = newArr[index];
+      newArr[index] = newArr[index + 1];
+      newArr[index + 1] = temp;
+      return newArr;
     });
-
-    setActiveId(null);
-
-    if (!over) {
-      console.log("RETURN:", "!over");
-      return;
-    }
-    
-    const activeId = String(active.id);
-    const overId = String(over.id);
-
-    const activeContainer = findContainer(activeId);
-    const overContainer = findContainer(overId, over.data.current);
-
-    const activeIndex = activeContainer === 'unassigned' ? unassigned.findIndex(i => i.id === activeId) : assigned.findIndex(i => i.id === activeId);
-    const overIndex = overContainer === 'unassigned' ? unassigned.findIndex(i => i.id === overId) : assigned.findIndex(i => i.id === overId);
-
-    // RULE 5: KEEP LOGGING ACTIVE
-    console.log({
-      activeId,
-      overId,
-      activeContainer,
-      overContainer,
-      activeIndex,
-      overIndex,
-    });
-
-    if (!activeContainer || !overContainer) {
-      console.log("RETURN:", "Missing container resolution");
-      return;
-    }
-
-    if (activeContainer === overContainer) {
-      // Same container sorting
-      if (activeContainer === 'unassigned') {
-        if (activeIndex !== overIndex && overIndex !== -1) {
-          setUnassigned(arrayMove(unassigned, activeIndex, overIndex));
-        }
-      } else {
-        if (activeIndex !== overIndex && overIndex !== -1) {
-          setAssigned(arrayMove(assigned, activeIndex, overIndex));
-        }
-      }
-    } else {
-      // Cross container moving
-      console.log("CROSS CONTAINER MOVE DETECTED");
-      if (activeContainer === 'unassigned') {
-        const activeItem = unassigned[activeIndex];
-        setUnassigned(prev => prev.filter(i => i.id !== activeId));
-        setAssigned(prev => {
-          const newIndex = overIndex >= 0 ? overIndex : prev.length;
-          const newArr = [...prev];
-          newArr.splice(newIndex, 0, activeItem);
-          return newArr;
-        });
-      } else {
-        const activeItem = assigned[activeIndex];
-        setAssigned(prev => prev.filter(i => i.id !== activeId));
-        setUnassigned(prev => {
-          const newIndex = overIndex >= 0 ? overIndex : prev.length;
-          const newArr = [...prev];
-          newArr.splice(newIndex, 0, activeItem);
-          return newArr;
-        });
-      }
-    }
   }
-
-  const activeItem = activeId ? [...unassigned, ...assigned].find(i => i.id === activeId) : null;
 
   async function handleSave() {
     setSaving(true);
@@ -260,103 +102,111 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={pointerWithin}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-        >
-          {/* Unassigned Panel */}
-          <Card className="flex flex-col h-full bg-gray-50/50">
-            <div className="p-4 border-b border-gray-200 bg-white rounded-t-xl">
-              <h3 className="font-semibold text-gray-900">Unassigned Deliveries</h3>
-              <p className="text-sm text-gray-500">{unassigned.length} items available</p>
-            </div>
-            {/* RULE 3: DROPPABLE CONTAINERS HAVE REAL AREA */}
-            <div ref={setUnassignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[150px]" id="unassigned">
-              <SortableContext
-                id="unassigned"
-                items={unassigned.map(i => i.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {unassigned.map(item => (
-                  <SortableItem key={item.id} item={item} />
-                ))}
-                {unassigned.length === 0 && (
-                  <div className="h-24 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-sm text-gray-400">
-                    No unassigned deliveries
-                  </div>
-                )}
-              </SortableContext>
-            </div>
-          </Card>
-
-          {/* Assigned Panel */}
-          <Card className="flex flex-col h-full bg-white ring-1 ring-gray-200">
-            <div className="p-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">Truck Allocation</h3>
-              <div className="mt-4">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className={cn("font-medium", isOverweight ? "text-red-600" : "text-gray-700")}>
-                    {currentWeight.toLocaleString()} / {truckCapacity.toLocaleString()} kg
-                  </span>
-                  <span className="text-gray-500">{percentFull.toFixed(1)}% Full</span>
+        {/* Unassigned Panel */}
+        <Card className="flex flex-col h-full bg-gray-50/50">
+          <div className="p-4 border-b border-gray-200 bg-white rounded-t-xl">
+            <h3 className="font-semibold text-gray-900">Unassigned Deliveries</h3>
+            <p className="text-sm text-gray-500">{unassigned.length} items available</p>
+          </div>
+          <div className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[150px]">
+            {unassigned.map(item => (
+              <div key={item.id} className="flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm hover:border-emerald-200 transition-colors">
+                <button
+                  onClick={() => handleAssign(item)}
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-colors"
+                  title="Assign to truck"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
+                  <p className="text-xs text-gray-500 truncate">{item.deliveryAddress}</p>
                 </div>
-                <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                  <div 
-                    className={cn(
-                      "h-full transition-all duration-300", 
-                      isOverweight ? "bg-red-500" : percentFull > 90 ? "bg-amber-500" : "bg-emerald-500"
-                    )}
-                    style={{ width: `${Math.min(percentFull, 100)}%` }}
-                  />
+                <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
+                  {item.weight.toLocaleString()} kg
                 </div>
-                {isOverweight && <p className="text-xs text-red-500 mt-1">Warning: Truck is over capacity</p>}
               </div>
-            </div>
-            {/* RULE 3: DROPPABLE CONTAINERS HAVE REAL AREA */}
-            <div ref={setAssignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30 min-h-[150px]" id="assigned">
-              <SortableContext
-                id="assigned"
-                items={assigned.map(i => i.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {assigned.map((item, index) => (
-                  <div key={item.id} className="relative">
-                    <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-800 text-white rounded-full flex items-center justify-center text-xs font-bold z-10 shadow-sm border-2 border-white">
-                      {index + 1}
-                    </div>
-                    <div className="ml-4">
-                      <SortableItem item={item} />
-                    </div>
-                  </div>
-                ))}
-                {assigned.length === 0 && (
-                  <div className="h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-400 bg-white">
-                    Drag deliveries here
-                  </div>
-                )}
-              </SortableContext>
-            </div>
-          </Card>
+            ))}
+            {unassigned.length === 0 && (
+              <div className="h-24 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-sm text-gray-400">
+                No unassigned deliveries
+              </div>
+            )}
+          </div>
+        </Card>
 
-          <DragOverlay>
-            {activeItem ? (
-              <div className="opacity-80 rotate-2 scale-105">
-                <div className="flex items-center gap-3 rounded-lg border border-primary-500 bg-white p-3 shadow-lg">
-                  <GripVertical className="h-4 w-4 text-gray-400" />
+        {/* Assigned Panel */}
+        <Card className="flex flex-col h-full bg-white ring-1 ring-gray-200">
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-900">Truck Allocation</h3>
+            <div className="mt-4">
+              <div className="flex justify-between text-sm mb-1">
+                <span className={cn("font-medium", isOverweight ? "text-red-600" : "text-gray-700")}>
+                  {currentWeight.toLocaleString()} / {truckCapacity.toLocaleString()} kg
+                </span>
+                <span className="text-gray-500">{percentFull.toFixed(1)}% Full</span>
+              </div>
+              <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full transition-all duration-300", 
+                    isOverweight ? "bg-red-500" : percentFull > 90 ? "bg-amber-500" : "bg-emerald-500"
+                  )}
+                  style={{ width: `${Math.min(percentFull, 100)}%` }}
+                />
+              </div>
+              {isOverweight && <p className="text-xs text-red-500 mt-1">Warning: Truck is over capacity</p>}
+            </div>
+          </div>
+          <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30 min-h-[150px]">
+            {assigned.map((item, index) => (
+              <div key={item.id} className="relative">
+                <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-800 text-white rounded-full flex items-center justify-center text-xs font-bold z-10 shadow-sm border-2 border-white">
+                  {index + 1}
+                </div>
+                <div className="ml-4 flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm hover:border-gray-300 transition-colors">
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => handleMoveUp(index)}
+                      disabled={index === 0}
+                      className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      title="Move up"
+                    >
+                      <ArrowUp className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => handleMoveDown(index)}
+                      disabled={index === assigned.length - 1}
+                      className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      title="Move down"
+                    >
+                      <ArrowDown className="h-3 w-3" />
+                    </button>
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{activeItem.customerName}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
+                    <p className="text-xs text-gray-500 truncate">{item.deliveryAddress}</p>
                   </div>
-                  <div className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded">
-                    {activeItem.weight.toLocaleString()} kg
+                  <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
+                    {item.weight.toLocaleString()} kg
                   </div>
+                  <button
+                    onClick={() => handleRemove(item)}
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors ml-1"
+                    title="Remove from truck"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+            ))}
+            {assigned.length === 0 && (
+              <div className="h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-400 bg-white">
+                No deliveries allocated
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
     </div>
   );
