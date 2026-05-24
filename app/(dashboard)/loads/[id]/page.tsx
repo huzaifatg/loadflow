@@ -98,6 +98,7 @@ export default async function LoadPlanBuilderPage({ params }: { params: Promise<
         initialUnassigned={initialUnassigned}
         initialAssigned={initialAssigned}
         truckCapacity={truckCapacity}
+        isFinalized={loadPlan?.status === 'DISPATCHED' || loadPlan?.status === 'COMPLETED'}
       />
     </div>
   );

@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Truck as TruckIcon, Gauge, Calendar, Edit2, Archive, Save, X } from 'lucide-react';
 import type { Truck } from '@prisma/client';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export function TruckDetailClient({ truck }: { truck: Truck }) {
   const router = useRouter();
@@ -39,15 +40,16 @@ export function TruckDetailClient({ truck }: { truck: Truck }) {
       });
       
       if (res.ok) {
+        toast.success('Truck updated successfully');
         setIsEditing(false);
         router.refresh();
       } else {
         const err = await res.json();
-        alert(err.error?.message || 'Failed to update truck');
+        toast.error(err.error?.message || 'Failed to update truck');
       }
     } catch (e) {
       console.error(e);
-      alert('Error updating truck');
+      toast.error('Error updating truck');
     } finally {
       setLoading(false);
     }
@@ -64,14 +66,15 @@ export function TruckDetailClient({ truck }: { truck: Truck }) {
       });
       
       if (res.ok) {
+        toast.success('Truck archived successfully');
         router.push('/trucks');
         router.refresh();
       } else {
-        alert('Failed to archive truck');
+        toast.error('Failed to archive truck');
       }
     } catch (e) {
       console.error(e);
-      alert('Error archiving truck');
+      toast.error('Error archiving truck');
     } finally {
       setLoading(false);
     }

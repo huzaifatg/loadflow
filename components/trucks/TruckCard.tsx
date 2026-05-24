@@ -6,6 +6,7 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import { Truck, Archive } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface TruckCardProps {
   id: string;
@@ -36,12 +37,12 @@ export function TruckCard({ id, name, plateNumber, type, weightCapacity, status 
       if (res.ok) {
         router.refresh();
       } else {
-        alert('Failed to archive truck');
+        toast.error('Failed to archive truck');
         setArchiving(false);
       }
     } catch (err) {
       console.error(err);
-      alert('Error archiving truck');
+      toast.error('Error archiving truck');
       setArchiving(false);
     }
   }

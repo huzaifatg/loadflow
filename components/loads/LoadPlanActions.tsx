@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Truck, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export function LoadPlanActions({ loadPlanId, currentStatus }: { loadPlanId: string, currentStatus: string }) {
   const router = useRouter();
@@ -19,13 +20,15 @@ export function LoadPlanActions({ loadPlanId, currentStatus }: { loadPlanId: str
         body: JSON.stringify({ status: newStatus })
       });
       if (res.ok) {
+        toast.success(`Plan marked as ${newStatus}`);
         router.refresh();
       } else {
-        alert('Failed to update status');
+        const errData = await res.json().catch(() => null);
+        toast.error(errData?.error || 'Failed to update status');
       }
     } catch (e) {
       console.error(e);
-      alert('Error updating status');
+      toast.error('Error updating status');
     } finally {
       setLoading(false);
     }

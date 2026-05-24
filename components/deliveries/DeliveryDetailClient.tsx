@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { MapPin, Package, User, Weight, Edit2, Archive, Save, X } from 'lucide-react';
 import type { Delivery } from '@prisma/client';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export function DeliveryDetailClient({ delivery }: { delivery: Delivery }) {
   const router = useRouter();
@@ -41,15 +42,16 @@ export function DeliveryDetailClient({ delivery }: { delivery: Delivery }) {
       });
       
       if (res.ok) {
+        toast.success('Delivery updated successfully');
         setIsEditing(false);
         router.refresh();
       } else {
         const err = await res.json();
-        alert(err.error?.message || 'Failed to update delivery');
+        toast.error(err.error?.message || 'Failed to update delivery');
       }
     } catch (e) {
       console.error(e);
-      alert('Error updating delivery');
+      toast.error('Error updating delivery');
     } finally {
       setLoading(false);
     }
@@ -66,14 +68,15 @@ export function DeliveryDetailClient({ delivery }: { delivery: Delivery }) {
       });
       
       if (res.ok) {
+        toast.success('Delivery archived successfully');
         router.push('/deliveries');
         router.refresh();
       } else {
-        alert('Failed to archive delivery');
+        toast.error('Failed to archive delivery');
       }
     } catch (e) {
       console.error(e);
-      alert('Error archiving delivery');
+      toast.error('Error archiving delivery');
     } finally {
       setLoading(false);
     }

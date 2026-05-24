@@ -91,10 +91,16 @@ export async function PUT(
 
     const body = (await request.json()) as UpdateDeliveryInput & { isArchived?: boolean }
 
-    // Prevent core data editing if IN_TRANSIT or DELIVERED, but allow status updates and archival
-    if ((existing.status === 'IN_TRANSIT' || existing.status === 'DELIVERED') && body.status === undefined && body.isArchived === undefined) {
+    const isFinalized = existing.status === 'IN_TRANSIT' || existing.status === 'DELIVERED';
+    const isUpdatingCoreFields = 
+      body.customerName !== undefined || 
+      body.pickupAddress !== undefined || 
+      body.deliveryAddress !== undefined || 
+      body.weight !== undefined;
+
+    if (isFinalized && isUpdatingCoreFields) {
       return NextResponse.json(
-        { data: null, error: { message: `Cannot edit a delivery that is ${existing.status.replace('_', ' ').toLowerCase()}` } },
+        { data: null, error: { message: `Cannot edit core fields of a delivery that is ${existing.status.replace('_', ' ').toLowerCase()}` } },
         { status: 400 }
       )
     }

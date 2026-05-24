@@ -91,6 +91,7 @@ model Truck {
   company   Company    @relation(fields: [companyId], references: [id])
   loadPlans LoadPlan[] @relation("TruckLoadPlans")
 
+  @@index([companyId, isArchived])
   @@map("trucks")
 }
 
@@ -110,6 +111,7 @@ model Driver {
   company   Company    @relation(fields: [companyId], references: [id])
   loadPlans LoadPlan[] @relation("DriverLoadPlans")
 
+  @@index([companyId, isArchived])
   @@map("drivers")
 }
 
@@ -131,6 +133,8 @@ model Delivery {
   company       Company        @relation(fields: [companyId], references: [id])
   loadPlanItems LoadPlanItem[]
 
+  @@index([companyId, isArchived])
+  @@index([companyId, status])
   @@map("deliveries")
 }
 
@@ -150,6 +154,8 @@ model LoadPlan {
   driver  Driver?        @relation("DriverLoadPlans", fields: [driverId], references: [id], onDelete: Restrict)
   items   LoadPlanItem[]
 
+  @@index([companyId, date])
+  @@index([companyId, status])
   @@map("load_plans")
 }
 
@@ -164,5 +170,7 @@ model LoadPlanItem {
   delivery Delivery @relation(fields: [deliveryId], references: [id])
 
   @@unique([loadPlanId, deliveryId])
+  @@index([loadPlanId])
+  @@index([deliveryId])
   @@map("load_plan_items")
 }

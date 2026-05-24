@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { User as UserIcon, Phone, FileText, Edit2, Archive, Save, X, Calendar } from 'lucide-react';
 import type { Driver } from '@prisma/client';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export function DriverDetailClient({ driver }: { driver: Driver }) {
   const router = useRouter();
@@ -34,15 +35,16 @@ export function DriverDetailClient({ driver }: { driver: Driver }) {
       });
       
       if (res.ok) {
+        toast.success('Driver updated successfully');
         setIsEditing(false);
         router.refresh();
       } else {
         const err = await res.json();
-        alert(err.error?.message || 'Failed to update driver');
+        toast.error(err.error?.message || 'Failed to update driver');
       }
     } catch (e) {
       console.error(e);
-      alert('Error updating driver');
+      toast.error('Error updating driver');
     } finally {
       setLoading(false);
     }
@@ -59,14 +61,15 @@ export function DriverDetailClient({ driver }: { driver: Driver }) {
       });
       
       if (res.ok) {
+        toast.success('Driver archived successfully');
         router.push('/drivers');
         router.refresh();
       } else {
-        alert('Failed to archive driver');
+        toast.error('Failed to archive driver');
       }
     } catch (e) {
       console.error(e);
-      alert('Error archiving driver');
+      toast.error('Error archiving driver');
     } finally {
       setLoading(false);
     }

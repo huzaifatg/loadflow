@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
-import { Plus, Minus, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Minus, ArrowUp, ArrowDown, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface DeliveryItem {
   id: string;
@@ -17,9 +18,10 @@ interface AllocationPanelProps {
   initialUnassigned: DeliveryItem[];
   initialAssigned: DeliveryItem[];
   truckCapacity: number;
+  isFinalized?: boolean;
 }
 
-export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned, truckCapacity }: AllocationPanelProps) {
+export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned, truckCapacity, isFinalized = false }: AllocationPanelProps) {
   const [unassigned, setUnassigned] = useState(initialUnassigned);
   const [assigned, setAssigned] = useState(initialAssigned);
   const [saving, setSaving] = useState(false);
@@ -30,17 +32,19 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const isOverweight = currentWeight > truckCapacity;
 
   function handleAssign(item: DeliveryItem) {
+    if (isFinalized) return;
     setUnassigned(prev => prev.filter(i => i.id !== item.id));
     setAssigned(prev => [...prev, item]);
   }
 
   function handleRemove(item: DeliveryItem) {
+    if (isFinalized) return;
     setAssigned(prev => prev.filter(i => i.id !== item.id));
     setUnassigned(prev => [...prev, item]);
   }
 
   function handleMoveUp(index: number) {
-    if (index === 0) return;
+    if (isFinalized || index === 0) return;
     setAssigned(prev => {
       const newArr = [...prev];
       const temp = newArr[index];
@@ -51,7 +55,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   }
 
   function handleMoveDown(index: number) {
-    if (index === assigned.length - 1) return;
+    if (isFinalized || index === assigned.length - 1) return;
     setAssigned(prev => {
       const newArr = [...prev];
       const temp = newArr[index];
@@ -62,6 +66,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   }
 
   async function handleSave() {
+    if (isFinalized) return;
     setSaving(true);
     setSaved(false);
     try {
@@ -78,7 +83,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error(err);
-      alert('Failed to save load plan');
+      toast.error('Failed to save load plan');
     } finally {
       setSaving(false);
     }
@@ -86,19 +91,31 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end items-center gap-3">
-        {saved && (
-          <span className="text-sm font-medium text-emerald-600 animate-in fade-in duration-300">
-            ✓ Plan saved
-          </span>
-        )}
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
-        >
-          {saving ? 'Saving...' : 'Save Plan'}
-        </button>
+      <div className="flex justify-between items-center gap-3">
+        <div>
+          {isFinalized && (
+            <div className="inline-flex items-center gap-2 text-sm font-medium text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+              <Lock className="h-4 w-4" />
+              Load plan is locked and cannot be edited.
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {saved && (
+            <span className="text-sm font-medium text-emerald-600 animate-in fade-in duration-300">
+              ✓ Plan saved
+            </span>
+          )}
+          {!isFinalized && (
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Plan'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
@@ -110,10 +127,11 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
           </div>
           <div className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[150px]">
             {unassigned.map(item => (
-              <div key={item.id} className="flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm hover:border-emerald-200 transition-colors">
+              <div key={item.id} className={cn("flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm transition-colors", !isFinalized && "hover:border-emerald-200")}>
                 <button
                   onClick={() => handleAssign(item)}
-                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-colors"
+                  disabled={isFinalized}
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Assign to truck"
                 >
                   <Plus className="h-4 w-4" />
@@ -164,11 +182,11 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                 <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-800 text-white rounded-full flex items-center justify-center text-xs font-bold z-10 shadow-sm border-2 border-white">
                   {index + 1}
                 </div>
-                <div className="ml-4 flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm hover:border-gray-300 transition-colors">
+                <div className={cn("ml-4 flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm transition-colors", !isFinalized && "hover:border-gray-300")}>
                   <div className="flex flex-col gap-1 flex-shrink-0">
                     <button
                       onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
+                      disabled={isFinalized || index === 0}
                       className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       title="Move up"
                     >
@@ -176,7 +194,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                     </button>
                     <button
                       onClick={() => handleMoveDown(index)}
-                      disabled={index === assigned.length - 1}
+                      disabled={isFinalized || index === assigned.length - 1}
                       className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       title="Move down"
                     >
@@ -192,7 +210,8 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                   </div>
                   <button
                     onClick={() => handleRemove(item)}
-                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors ml-1"
+                    disabled={isFinalized}
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors ml-1 disabled:opacity-30 disabled:cursor-not-allowed"
                     title="Remove from truck"
                   >
                     <Minus className="h-4 w-4" />

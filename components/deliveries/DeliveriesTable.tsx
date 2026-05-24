@@ -7,6 +7,7 @@ import Link from 'next/link';
 import type { Delivery } from '@prisma/client';
 import { MoreHorizontal, Archive, CheckCircle, Truck, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 function DeliveryActions({ delivery }: { delivery: Delivery }) {
   const router = useRouter();
@@ -26,11 +27,11 @@ function DeliveryActions({ delivery }: { delivery: Delivery }) {
       if (res.ok) {
         router.refresh();
       } else {
-        alert('Action failed');
+        toast.error('Action failed');
       }
     } catch (e) {
       console.error(e);
-      alert('Error performing action');
+      toast.error('Error performing action');
     } finally {
       setLoading(false);
     }

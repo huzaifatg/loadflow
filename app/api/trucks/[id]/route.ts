@@ -66,9 +66,23 @@ export async function PUT(
     // Verify truck belongs to company
     const existing = await prisma.truck.findFirst({
       where: { id, companyId: company.id },
+      include: {
+        loadPlans: {
+          where: {
+            status: { in: ['DRAFT', 'READY', 'DISPATCHED'] }
+          }
+        }
+      }
     })
     if (!existing) {
       return NextResponse.json({ error: 'Truck not found' }, { status: 404 })
+    }
+
+    if (body.isArchived === true && existing.loadPlans.length > 0) {
+      return NextResponse.json(
+        { error: 'Cannot archive a truck that is assigned to active load plans.' },
+        { status: 400 }
+      )
     }
 
     const truck = await prisma.truck.update({

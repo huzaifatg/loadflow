@@ -1,31 +1,67 @@
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { TruckCard } from '@/components/trucks/TruckCard';
+import { PaginationClient } from '@/components/ui/PaginationClient';
+import { SearchClient } from '@/components/ui/SearchClient';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import type { Truck } from '@prisma/client';
 
-export default async function TrucksPage() {
+const ITEMS_PER_PAGE = 12; // Divisible by 1, 2, 3, 4 for grid layouts
+
+export default async function TrucksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) redirect('/login');
 
-  let company = null;
-  let trucks: Truck[] = [];
+  const resolvedParams = await searchParams;
+  const currentPage = typeof resolvedParams.page === 'string' ? Math.max(1, parseInt(resolvedParams.page, 10)) : 1;
+  const searchQuery = typeof resolvedParams.q === 'string' ? resolvedParams.q : '';
+
+  let trucks: any[] = [];
+  let totalItems = 0;
 
   try {
-    company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst();
     if (company) {
-      trucks = await prisma.truck.findMany({
-        where: { companyId: company.id, isArchived: false },
-        orderBy: { createdAt: 'desc' },
-      });
+      const skip = (currentPage - 1) * ITEMS_PER_PAGE;
+      const whereClause = {
+        companyId: company.id, 
+        isArchived: false,
+        ...(searchQuery ? {
+          OR: [
+            { name: { contains: searchQuery, mode: 'insensitive' as const } },
+            { plateNumber: { contains: searchQuery, mode: 'insensitive' as const } },
+            { type: { contains: searchQuery, mode: 'insensitive' as const } }
+          ]
+        } : {})
+      };
+      
+      const [fetchedTrucks, count] = await prisma.$transaction([
+        prisma.truck.findMany({
+          where: whereClause,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: ITEMS_PER_PAGE,
+        }),
+        prisma.truck.count({
+          where: whereClause,
+        })
+      ]);
+      
+      trucks = fetchedTrucks;
+      totalItems = count;
     }
   } catch (err) {
     console.error("Prisma Connection Error in Trucks:", err);
   }
+
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
     <div className="space-y-6">
@@ -35,6 +71,10 @@ export default async function TrucksPage() {
         actionLabel="Add Truck"
         actionHref="/trucks/new"
       />
+      
+      <div className="flex items-center justify-between">
+        <SearchClient placeholder="Search trucks by name, plate..." />
+      </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {trucks.map((truck) => (
@@ -49,6 +89,14 @@ export default async function TrucksPage() {
           />
         ))}
       </div>
+      
+      {trucks.length === 0 && (
+        <div className="text-center py-12 text-gray-500 border rounded-xl border-dashed">
+          No trucks found.
+        </div>
+      )}
+      
+      <PaginationClient currentPage={currentPage} totalPages={totalPages} />
     </div>
   );
 }

@@ -75,6 +75,24 @@ export async function PATCH(
     const body = await request.json();
     const { truckId, driverId, status, notes, items } = body;
 
+    const existingPlan = await prisma.loadPlan.findUnique({
+      where: { id, companyId: company.id }
+    });
+
+    if (!existingPlan) {
+      return NextResponse.json({ error: 'Load plan not found' }, { status: 404 });
+    }
+
+    // Guard: Prevent mutating core data of finalized plans
+    const isFinalized = existingPlan.status === 'DISPATCHED' || existingPlan.status === 'COMPLETED';
+    const isUpdatingCoreFields = items !== undefined || truckId !== undefined || driverId !== undefined;
+    
+    if (isFinalized && isUpdatingCoreFields) {
+      return NextResponse.json({ 
+        error: `Cannot modify a load plan that is ${existingPlan.status}. Please change the status back to READY first if you need to edit it.` 
+      }, { status: 400 });
+    }
+
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Handle items array update if provided
       if (items && Array.isArray(items)) {
@@ -191,6 +209,18 @@ export async function DELETE(
     }
 
     const id = (await params).id;
+
+    const existingPlan = await prisma.loadPlan.findUnique({
+      where: { id, companyId: company.id }
+    });
+
+    if (!existingPlan) {
+      return NextResponse.json({ error: 'Load plan not found' }, { status: 404 });
+    }
+
+    if (existingPlan.status === 'DISPATCHED' || existingPlan.status === 'COMPLETED') {
+      return NextResponse.json({ error: `Cannot delete a load plan that is ${existingPlan.status}.` }, { status: 400 });
+    }
 
     // Optional: when a load plan is deleted, we should probably unassign deliveries
     await prisma.$transaction(async (tx) => {
