@@ -19,7 +19,7 @@ export default async function DriversPage() {
     company = await prisma.company.findFirst();
     if (company) {
       drivers = await prisma.driver.findMany({
-        where: { companyId: company.id },
+        where: { companyId: company.id, isArchived: false },
         orderBy: { createdAt: 'desc' },
       });
     }

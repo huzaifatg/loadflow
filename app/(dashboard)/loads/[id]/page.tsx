@@ -7,6 +7,8 @@ import { redirect } from 'next/navigation';
 import { StatusPill } from '@/components/ui/StatusPill';
 import type { Delivery } from '@prisma/client';
 
+import { LoadPlanActions } from '@/components/loads/LoadPlanActions';
+
 export default async function LoadPlanBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -85,7 +87,10 @@ export default async function LoadPlanBuilderPage({ params }: { params: Promise<
         title={`Load Plan Builder`} 
         description={loadPlan ? `Plan for ${loadPlan.truck.name} on ${new Date(loadPlan.date).toLocaleDateString()}` : "Drag and drop deliveries to allocate capacity."}
       >
-        <StatusPill status={loadPlan?.status || 'DRAFT'} />
+        <div className="flex items-center gap-3">
+          <StatusPill status={loadPlan?.status || 'DRAFT'} />
+          <LoadPlanActions loadPlanId={id} currentStatus={loadPlan?.status || 'DRAFT'} />
+        </div>
       </PageHeader>
       
       <AllocationPanel 

@@ -14,7 +14,7 @@ export enum DriverStatus {
 
 export enum DeliveryStatus {
   PENDING = 'PENDING',
-  ALLOCATED = 'ALLOCATED',
+  ASSIGNED = 'ASSIGNED',
   IN_TRANSIT = 'IN_TRANSIT',
   DELIVERED = 'DELIVERED',
   CANCELLED = 'CANCELLED',
@@ -22,7 +22,7 @@ export enum DeliveryStatus {
 
 export enum LoadPlanStatus {
   DRAFT = 'DRAFT',
-  CONFIRMED = 'CONFIRMED',
+  READY = 'READY',
   DISPATCHED = 'DISPATCHED',
   COMPLETED = 'COMPLETED',
 }

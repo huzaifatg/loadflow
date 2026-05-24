@@ -28,7 +28,7 @@ enum DriverStatus {
 
 enum DeliveryStatus {
   PENDING
-  ALLOCATED
+  ASSIGNED
   IN_TRANSIT
   DELIVERED
   CANCELLED
@@ -38,7 +38,7 @@ enum DeliveryStatus {
 
 enum LoadPlanStatus {
   DRAFT
-  CONFIRMED
+  READY
   DISPATCHED
   COMPLETED
 
@@ -85,6 +85,8 @@ model Truck {
   notes          String?     @map("notes")
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
+  isArchived     Boolean     @default(false) @map("is_archived")
+  archivedAt     DateTime?   @map("archived_at")
 
   company   Company    @relation(fields: [companyId], references: [id])
   loadPlans LoadPlan[] @relation("TruckLoadPlans")
@@ -102,6 +104,8 @@ model Driver {
   notes         String?      @map("notes")
   createdAt     DateTime     @default(now()) @map("created_at")
   updatedAt     DateTime     @updatedAt @map("updated_at")
+  isArchived    Boolean      @default(false) @map("is_archived")
+  archivedAt    DateTime?    @map("archived_at")
 
   company   Company    @relation(fields: [companyId], references: [id])
   loadPlans LoadPlan[] @relation("DriverLoadPlans")
@@ -121,6 +125,8 @@ model Delivery {
   notes           String?        @map("notes")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
+  isArchived      Boolean        @default(false) @map("is_archived")
+  archivedAt      DateTime?      @map("archived_at")
 
   company       Company        @relation(fields: [companyId], references: [id])
   loadPlanItems LoadPlanItem[]

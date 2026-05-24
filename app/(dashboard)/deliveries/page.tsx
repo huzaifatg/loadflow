@@ -19,7 +19,7 @@ export default async function DeliveriesPage() {
     company = await prisma.company.findFirst();
     if (company) {
       deliveries = await prisma.delivery.findMany({
-        where: { companyId: company.id },
+        where: { companyId: company.id, isArchived: false },
         orderBy: { createdAt: 'desc' },
       });
     }

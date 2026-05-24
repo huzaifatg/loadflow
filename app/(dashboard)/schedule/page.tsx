@@ -112,9 +112,10 @@ export default async function SchedulePage({
                       <span className={cn(
                         "text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase",
                         plan.status === 'DRAFT' ? "bg-gray-200 text-gray-700" :
-                        plan.status === 'CONFIRMED' ? "bg-amber-100 text-amber-800" :
-                        plan.status === 'DISPATCHED' ? "bg-emerald-100 text-emerald-800" :
-                        "bg-blue-100 text-blue-800"
+                        plan.status === 'READY' ? "bg-amber-100 text-amber-800" :
+                        plan.status === 'DISPATCHED' ? "bg-blue-100 text-blue-800" :
+                        plan.status === 'COMPLETED' ? "bg-emerald-100 text-emerald-800" :
+                        "bg-gray-100 text-gray-800"
                       )}>
                         {plan.status}
                       </span>

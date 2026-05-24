@@ -61,7 +61,7 @@ export async function PUT(
     }
 
     const { id } = await params
-    const body: UpdateDriverInput = await request.json()
+    const body = await request.json()
 
     // Verify driver belongs to company
     const existing = await prisma.driver.findFirst({
@@ -79,6 +79,7 @@ export async function PUT(
         ...(body.licenseNumber !== undefined ? { licenseNumber: body.licenseNumber } : {}),
         ...(body.status !== undefined ? { status: body.status } : {}),
         ...(body.notes !== undefined ? { notes: body.notes } : {}),
+        ...(body.isArchived !== undefined ? { isArchived: body.isArchived, archivedAt: body.isArchived ? new Date() : null } : {}),
       },
     })
 

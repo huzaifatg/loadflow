@@ -9,7 +9,9 @@ const statusStyles: Record<string, string> = {
   'IN_TRANSIT': 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10',
   'DISPATCHED': 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10',
   'ALLOCATED': 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20',
+  'ASSIGNED': 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20',
   'CONFIRMED': 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20',
+  'READY': 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20',
   'DELIVERED': 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20',
   'COMPLETED': 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20',
   'PENDING': 'bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-500/10',
@@ -28,10 +30,10 @@ export default async function DashboardPage() {
   const todayEnd = endOfDay(new Date());
 
   // 1. Fetch Stats
-  const totalDeliveries = await prisma.delivery.count();
-  const deliveredDeliveries = await prisma.delivery.count({ where: { status: 'DELIVERED' } });
-  const pendingDeliveriesCount = await prisma.delivery.count({ where: { status: 'PENDING' } });
-  const activeTrucks = await prisma.truck.count({ where: { status: 'IN_USE' } });
+  const totalDeliveries = await prisma.delivery.count({ where: { isArchived: false } });
+  const deliveredDeliveries = await prisma.delivery.count({ where: { status: 'DELIVERED', isArchived: false } });
+  const pendingDeliveriesCount = await prisma.delivery.count({ where: { status: 'PENDING', isArchived: false } });
+  const activeTrucks = await prisma.truck.count({ where: { status: 'IN_USE', isArchived: false } });
 
   const completionRate = totalDeliveries > 0 
     ? Math.round((deliveredDeliveries / totalDeliveries) * 100) 
@@ -94,7 +96,7 @@ export default async function DashboardPage() {
 
   // 3. Fetch Pending Deliveries
   const pendingDeliveriesList = await prisma.delivery.findMany({
-    where: { status: 'PENDING' },
+    where: { status: 'PENDING', isArchived: false },
     take: 5,
     orderBy: { createdAt: 'desc' }
   });

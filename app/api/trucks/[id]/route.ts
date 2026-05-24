@@ -61,7 +61,7 @@ export async function PUT(
     }
 
     const { id } = await params
-    const body: UpdateTruckInput = await request.json()
+    const body = await request.json()
 
     // Verify truck belongs to company
     const existing = await prisma.truck.findFirst({
@@ -75,11 +75,12 @@ export async function PUT(
       where: { id },
       data: {
         ...(body.name !== undefined ? { name: body.name.trim() } : {}),
-        ...((body as any).type !== undefined ? { type: (body as any).type.trim() } : {}),
+        ...(body.type !== undefined ? { type: body.type.trim() } : {}),
         ...(body.plateNumber !== undefined ? { plateNumber: body.plateNumber.trim() } : {}),
         ...(body.weightCapacity !== undefined ? { weightCapacity: body.weightCapacity } : {}),
         ...(body.status !== undefined ? { status: body.status } : {}),
         ...(body.notes !== undefined ? { notes: body.notes } : {}),
+        ...(body.isArchived !== undefined ? { isArchived: body.isArchived, archivedAt: body.isArchived ? new Date() : null } : {}),
       },
     })
 

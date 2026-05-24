@@ -75,10 +75,17 @@ export async function PATCH(
     const body = await request.json();
     const { truckId, driverId, status, notes, items } = body;
 
-    // Optional: update items if provided
-    // This assumes items is an array of deliveryIds in the new sorted order
-    if (items && Array.isArray(items)) {
-      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // 1. Handle items array update if provided
+      if (items && Array.isArray(items)) {
+        const existingItems = await tx.loadPlanItem.findMany({
+          where: { loadPlanId: id }
+        });
+        const existingDeliveryIds = existingItems.map(i => i.deliveryId);
+        
+        const toUnassign = existingDeliveryIds.filter(dId => !items.includes(dId));
+        const toAssign = items.filter(dId => !existingDeliveryIds.includes(dId));
+
         // Delete old items
         await tx.loadPlanItem.deleteMany({
           where: { loadPlanId: id }
@@ -94,20 +101,54 @@ export async function PATCH(
             }
           });
         }
-      });
-    }
 
-    const load = await prisma.loadPlan.update({
-      where: { 
-        id,
-        companyId: company.id 
-      },
-      data: {
-        ...(truckId && { truckId }),
-        ...(driverId && { driverId }),
-        ...(status && { status }),
-        ...(notes !== undefined && { notes }),
-      },
+        // Update delivery statuses for lifecycle (PENDING / ASSIGNED)
+        if (toUnassign.length > 0) {
+          await tx.delivery.updateMany({
+            where: { id: { in: toUnassign } },
+            data: { status: 'PENDING' }
+          });
+        }
+        if (toAssign.length > 0) {
+          await tx.delivery.updateMany({
+            where: { id: { in: toAssign } },
+            data: { status: 'ASSIGNED' }
+          });
+        }
+      }
+
+      // 2. Handle Load Plan status transitions
+      if (status) {
+        if (status === 'DISPATCHED') {
+          // Find all current items for this load plan
+          const currentItems = await tx.loadPlanItem.findMany({
+            where: { loadPlanId: id }
+          });
+          const deliveryIds = currentItems.map(i => i.deliveryId);
+          if (deliveryIds.length > 0) {
+            await tx.delivery.updateMany({
+              where: { id: { in: deliveryIds } },
+              data: { status: 'IN_TRANSIT' }
+            });
+          }
+        }
+      }
+      
+      // 3. Update the load plan itself
+      await tx.loadPlan.update({
+        where: { id, companyId: company.id },
+        data: {
+          ...(truckId && { truckId }),
+          ...(driverId && { driverId }),
+          ...(status && { status }),
+          ...(notes !== undefined && { notes }),
+        }
+      });
+    });
+
+    // Fetch the updated load plan to return
+    const updatedLoad = await prisma.loadPlan.findUnique({
+      where: { id, companyId: company.id },
       include: {
         truck: true,
         driver: true,
@@ -124,7 +165,7 @@ export async function PATCH(
     revalidatePath('/schedule');
     revalidatePath('/deliveries'); // Refresh deliveries list since they may now be assigned
 
-    return NextResponse.json(load);
+    return NextResponse.json(updatedLoad);
   } catch (error) {
     console.error('[load_PATCH]', error);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
@@ -151,11 +192,26 @@ export async function DELETE(
 
     const id = (await params).id;
 
-    await prisma.loadPlan.delete({
-      where: { 
-        id,
-        companyId: company.id 
-      },
+    // Optional: when a load plan is deleted, we should probably unassign deliveries
+    await prisma.$transaction(async (tx) => {
+      const existingItems = await tx.loadPlanItem.findMany({
+        where: { loadPlanId: id }
+      });
+      const deliveryIds = existingItems.map(i => i.deliveryId);
+      
+      if (deliveryIds.length > 0) {
+        await tx.delivery.updateMany({
+          where: { id: { in: deliveryIds } },
+          data: { status: 'PENDING' }
+        });
+      }
+
+      await tx.loadPlan.delete({
+        where: { 
+          id,
+          companyId: company.id 
+        },
+      });
     });
 
     const { revalidatePath } = await import('next/cache');

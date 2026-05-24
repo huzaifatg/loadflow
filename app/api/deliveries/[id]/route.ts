@@ -58,7 +58,7 @@ export async function GET(
 }
 
 // ─── PUT /api/deliveries/[id] ────────────────────────────────────────────────
-// Update delivery. Prevent editing if status is IN_TRANSIT or DELIVERED.
+// Update delivery. Prevent editing if status is IN_TRANSIT or DELIVERED (unless updating status or archiving).
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -89,15 +89,15 @@ export async function PUT(
       )
     }
 
-    // Prevent editing if IN_TRANSIT or DELIVERED
-    if (existing.status === 'IN_TRANSIT' || existing.status === 'DELIVERED') {
+    const body = (await request.json()) as UpdateDeliveryInput & { isArchived?: boolean }
+
+    // Prevent core data editing if IN_TRANSIT or DELIVERED, but allow status updates and archival
+    if ((existing.status === 'IN_TRANSIT' || existing.status === 'DELIVERED') && body.status === undefined && body.isArchived === undefined) {
       return NextResponse.json(
         { data: null, error: { message: `Cannot edit a delivery that is ${existing.status.replace('_', ' ').toLowerCase()}` } },
         { status: 400 }
       )
     }
-
-    const body = (await request.json()) as UpdateDeliveryInput
 
     // Build update data — only include fields that were provided
     const updateData: Record<string, unknown> = {}
@@ -147,6 +147,10 @@ export async function PUT(
     if (body.notes !== undefined) {
       updateData.notes = body.notes?.trim() || null
     }
+    if (body.isArchived !== undefined) {
+      updateData.isArchived = body.isArchived
+      updateData.archivedAt = body.isArchived ? new Date() : null
+    }
 
     const delivery = await prisma.delivery.update({
       where: { id },
@@ -155,6 +159,7 @@ export async function PUT(
 
     const { revalidatePath } = await import('next/cache');
     revalidatePath('/deliveries');
+    revalidatePath('/schedule');
 
     return NextResponse.json({ data: delivery, error: null })
   } catch (error) {
