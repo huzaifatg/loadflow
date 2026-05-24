@@ -1,15 +1,13 @@
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { StatusPill } from '@/components/ui/StatusPill';
 import { Card } from '@/components/ui/Card';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { Truck as TruckIcon, Gauge, Calendar } from 'lucide-react';
-import { TruckDetailClient } from '@/components/trucks/TruckDetailClient';
+import { User } from 'lucide-react';
+import { DriverDetailClient } from '@/components/drivers/DriverDetailClient';
 
-
-export default async function TruckDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DriverDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -17,31 +15,31 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
 
   const id = (await params).id;
 
-  let truck = null;
+  let driver = null;
   try {
     const company = await prisma.company.findFirst();
     if (company) {
-      truck = await prisma.truck.findUnique({
+      driver = await prisma.driver.findUnique({
         where: { id, companyId: company.id },
       });
     }
   } catch (err) {
-    console.error("Prisma Connection Error in TruckDetail:", err);
+    console.error("Prisma Connection Error in DriverDetail:", err);
   }
 
-  if (!truck) {
+  if (!driver) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Truck Not Found" />
+        <PageHeader title="Driver Not Found" />
         <Card className="p-8 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-            <TruckIcon className="h-8 w-8 text-gray-400" />
+            <User className="h-8 w-8 text-gray-400" />
           </div>
-          <p className="text-gray-500">The requested truck could not be found or you don&apos;t have access.</p>
+          <p className="text-gray-500">The requested driver could not be found or you don't have access.</p>
         </Card>
       </div>
     );
   }
 
-  return <TruckDetailClient truck={truck} />;
+  return <DriverDetailClient driver={driver} />;
 }

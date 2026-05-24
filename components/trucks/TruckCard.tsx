@@ -57,13 +57,6 @@ export function TruckCard({ id, name, plateNumber, type, weightCapacity, status 
   return (
     <Link href={`/trucks/${id}`}>
       <Card className="hover:shadow-md transition-shadow group cursor-pointer p-5 flex flex-col h-full animate-in fade-in zoom-in-95 duration-300 relative">
-        <button 
-          onClick={handleArchive}
-          className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-          title="Archive Truck"
-        >
-          <Archive className="h-4 w-4" />
-        </button>
         
         <div className="flex justify-between items-start mb-4 pr-6">
           <div className="flex items-center gap-3">

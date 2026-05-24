@@ -72,16 +72,6 @@ function DeliveryActions({ delivery }: { delivery: Delivery }) {
                 <XCircle className="h-4 w-4 mr-2" /> Cancel Delivery
               </button>
             )}
-            <button
-              onClick={() => {
-                if (confirm('Are you sure you want to archive this delivery?')) {
-                  handleAction('archive', { isArchived: true });
-                }
-              }}
-              className="w-full text-left px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 flex items-center border-t mt-1"
-            >
-              <Archive className="h-4 w-4 mr-2" /> Archive
-            </button>
           </div>
         </div>
       )}
