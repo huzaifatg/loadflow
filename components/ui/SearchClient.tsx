@@ -22,7 +22,12 @@ export function SearchClient({ placeholder = 'Search...' }: { placeholder?: stri
       params.delete('q');
     }
     
-    router.replace(`${pathname}?${params.toString()}`);
+    const newQueryString = params.toString();
+    const currentQueryString = searchParams.toString();
+    
+    if (newQueryString !== currentQueryString) {
+      router.replace(`${pathname}?${newQueryString}`);
+    }
   }, [query, pathname, router, searchParams]);
 
   return (

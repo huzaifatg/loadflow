@@ -137,16 +137,50 @@ export async function PATCH(
 
       // 2. Handle Load Plan status transitions
       if (status) {
+        const currentItems = await tx.loadPlanItem.findMany({
+          where: { loadPlanId: id }
+        });
+        const deliveryIds = currentItems.map(i => i.deliveryId);
+        
+        const finalTruckId = truckId || existingPlan.truckId;
+        const finalDriverId = driverId || existingPlan.driverId;
+
         if (status === 'DISPATCHED') {
-          // Find all current items for this load plan
-          const currentItems = await tx.loadPlanItem.findMany({
-            where: { loadPlanId: id }
-          });
-          const deliveryIds = currentItems.map(i => i.deliveryId);
           if (deliveryIds.length > 0) {
             await tx.delivery.updateMany({
               where: { id: { in: deliveryIds } },
               data: { status: 'IN_TRANSIT' }
+            });
+          }
+          if (finalTruckId) {
+            await tx.truck.update({
+              where: { id: finalTruckId },
+              data: { status: 'IN_USE' }
+            });
+          }
+          if (finalDriverId) {
+            await tx.driver.update({
+              where: { id: finalDriverId },
+              data: { status: 'ON_TRIP' }
+            });
+          }
+        } else if (status === 'COMPLETED') {
+          if (deliveryIds.length > 0) {
+            await tx.delivery.updateMany({
+              where: { id: { in: deliveryIds } },
+              data: { status: 'DELIVERED' }
+            });
+          }
+          if (finalTruckId) {
+            await tx.truck.update({
+              where: { id: finalTruckId },
+              data: { status: 'AVAILABLE' }
+            });
+          }
+          if (finalDriverId) {
+            await tx.driver.update({
+              where: { id: finalDriverId },
+              data: { status: 'AVAILABLE' }
             });
           }
         }
