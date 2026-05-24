@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import {
   DndContext,
-  closestCenter,
+  pointerWithin,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -91,8 +91,14 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const [saved, setSaved] = useState(false);
 
   // RULE 2: CONSISTENT CONTAINER IDS
-  const { setNodeRef: setUnassignedRef } = useDroppable({ id: 'unassigned' });
-  const { setNodeRef: setAssignedRef } = useDroppable({ id: 'assigned' });
+  const { setNodeRef: setUnassignedRef } = useDroppable({ 
+    id: 'unassigned',
+    data: { type: 'container' }
+  });
+  const { setNodeRef: setAssignedRef } = useDroppable({ 
+    id: 'assigned',
+    data: { type: 'container' }
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -106,9 +112,14 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const isOverweight = currentWeight > truckCapacity;
 
   // RULE 4: FINDCONTAINER RESOLVES CONTAINERS FIRST
-  function findContainer(id: string) {
+  function findContainer(id: string, overData?: any) {
     if (id === 'unassigned') return 'unassigned';
     if (id === 'assigned') return 'assigned';
+    
+    if (overData?.sortable?.containerId) {
+      return overData.sortable.containerId;
+    }
+    
     if (unassigned.find((item) => item.id === id)) return 'unassigned';
     if (assigned.find((item) => item.id === id)) return 'assigned';
     return null;
@@ -120,13 +131,24 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
 
   // RULE 1: NO STATE MUTATION IN handleDragOver
   function handleDragOver(event: DragOverEvent) {
+    const { active, over } = event;
+    console.log("handleDragOver:", {
+      overId: over?.id,
+      overData: over?.data.current,
+      activeId: active?.id,
+    });
     // Purely observational. Do not mutate arrays during hover.
   }
 
   function handleDragEnd(event: DragEndEvent) {
     console.log("onDragEnd fired");
     const { active, over } = event;
-    console.log("OVER ID:", over?.id);
+    
+    console.log("handleDragEnd:", {
+      overId: over?.id,
+      overData: over?.data.current,
+      activeId: active?.id,
+    });
 
     setActiveId(null);
 
@@ -139,7 +161,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const overId = String(over.id);
 
     const activeContainer = findContainer(activeId);
-    const overContainer = findContainer(overId);
+    const overContainer = findContainer(overId, over.data.current);
 
     const activeIndex = activeContainer === 'unassigned' ? unassigned.findIndex(i => i.id === activeId) : assigned.findIndex(i => i.id === activeId);
     const overIndex = overContainer === 'unassigned' ? unassigned.findIndex(i => i.id === overId) : assigned.findIndex(i => i.id === overId);
@@ -240,7 +262,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
@@ -254,6 +276,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             {/* RULE 3: DROPPABLE CONTAINERS HAVE REAL AREA */}
             <div ref={setUnassignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[150px]" id="unassigned">
               <SortableContext
+                id="unassigned"
                 items={unassigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
@@ -295,6 +318,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
             {/* RULE 3: DROPPABLE CONTAINERS HAVE REAL AREA */}
             <div ref={setAssignedRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30 min-h-[150px]" id="assigned">
               <SortableContext
+                id="assigned"
                 items={assigned.map(i => i.id)}
                 strategy={verticalListSortingStrategy}
               >
