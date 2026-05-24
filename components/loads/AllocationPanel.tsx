@@ -3,10 +3,7 @@
 import React, { useState } from 'react';
 import {
   DndContext,
-  closestCorners,
-  rectIntersection,
-  pointerWithin,
-  getFirstCollision,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -16,7 +13,6 @@ import {
   DragOverEvent,
   DragEndEvent,
   useDroppable,
-  CollisionDetection,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -94,14 +90,8 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const { setNodeRef: setUnassignedRef } = useDroppable({ 
-    id: 'unassigned',
-    data: { type: 'container' }
-  });
-  const { setNodeRef: setAssignedRef } = useDroppable({ 
-    id: 'truck-allocation',
-    data: { type: 'container' }
-  });
+  const { setNodeRef: setUnassignedRef } = useDroppable({ id: 'unassigned-container' });
+  const { setNodeRef: setAssignedRef } = useDroppable({ id: 'assigned-container' });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -114,34 +104,9 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const percentFull = Math.min((currentWeight / truckCapacity) * 100, 100);
   const isOverweight = currentWeight > truckCapacity;
 
-  const customCollisionDetection: CollisionDetection = (args) => {
-    // LOG ONLY ONCE per drag (to avoid spam, maybe just log to console)
-    console.log('Droppables:', args.droppableContainers.map(d => d.id));
-    
-    // 1. Try pointer intersection first
-    let pointerCollisions = pointerWithin(args);
-    pointerCollisions = pointerCollisions.filter(c => c.id !== args.active.id);
-    if (pointerCollisions.length > 0) {
-      return pointerCollisions;
-    }
-    
-    // 2. Try rectangle intersection
-    let rectCollisions = rectIntersection(args);
-    rectCollisions = rectCollisions.filter(c => c.id !== args.active.id);
-    if (rectCollisions.length > 0) {
-      return rectCollisions;
-    }
-    
-    // 3. Fallback to closest corners
-    let closest = closestCorners(args);
-    return closest.filter(c => c.id !== args.active.id);
-  };
-
   function findContainer(id: string) {
-    if (id === 'truck-allocation') return 'truck-allocation';
-    if (id === 'unassigned') return 'unassigned';
     if (unassigned.find((item) => item.id === id)) return 'unassigned';
-    if (assigned.find((item) => item.id === id)) return 'truck-allocation';
+    if (assigned.find((item) => item.id === id)) return 'assigned';
     return null;
   }
 
@@ -154,26 +119,12 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     const overId = over?.id ? String(over.id) : null;
     const activeId = String(active.id);
 
-    logToServer('HOVER_TICK', {
-      activeId,
-      overId,
-      hasOver: !!over
-    });
-
-    if (!overId || activeId === overId) {
-       logToServer('HOVER_ABORT', { reason: 'No overId or active === over' });
-       return;
-    }
+    if (!overId || activeId === overId) return;
 
     const activeContainer = findContainer(activeId);
-    const overContainer = findContainer(overId);
+    const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
 
-    if (!activeContainer || !overContainer || activeContainer === overContainer) {
-       logToServer('HOVER_ABORT', { reason: 'Same container or null container', activeContainer, overContainer });
-       return;
-    }
-
-    logToServer('HOVER_MOVE', { from: activeContainer, to: overContainer });
+    if (!activeContainer || !overContainer || activeContainer === overContainer) return;
 
     // Moving between containers
     if (activeContainer === 'unassigned') {
@@ -201,38 +152,27 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-
-    const activeId = String(active.id);
-    const overId = over ? String(over.id) : null;
-
-    const activeContainer = findContainer(activeId);
-    const overContainer = overId ? findContainer(overId) : null;
-
-    logToServer('DROP_COMMIT', {
-      activeId,
-      overId,
-      activeContainer,
-      overContainer,
-      eventOver: over ? true : false
-    });
-
-    console.log({ activeContainer, overContainer });
-
     setActiveId(null);
 
     if (!over) return;
+    
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    const activeContainer = findContainer(activeId);
+    const overContainer = findContainer(overId) || (overId === 'assigned-container' ? 'assigned' : 'unassigned');
 
     if (activeContainer && activeContainer === overContainer) {
       if (activeContainer === 'unassigned') {
         const oldIndex = unassigned.findIndex(i => i.id === activeId);
         const newIndex = unassigned.findIndex(i => i.id === overId);
-        if (newIndex !== -1 && oldIndex !== newIndex) {
+        if (oldIndex !== newIndex) {
           setUnassigned(arrayMove(unassigned, oldIndex, newIndex));
         }
       } else {
         const oldIndex = assigned.findIndex(i => i.id === activeId);
         const newIndex = assigned.findIndex(i => i.id === overId);
-        if (newIndex !== -1 && oldIndex !== newIndex) {
+        if (oldIndex !== newIndex) {
           setAssigned(arrayMove(assigned, oldIndex, newIndex));
         }
       }
@@ -284,7 +224,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
         <DndContext
           sensors={sensors}
-          collisionDetection={customCollisionDetection}
+          collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
