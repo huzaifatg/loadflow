@@ -33,9 +33,12 @@ const navItems = [
 export interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  userName: string;
+  userEmail: string;
+  userInitial: string;
 }
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, userName, userEmail, userInitial }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -132,14 +135,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-600/20 text-xs font-semibold text-primary-300">
-              U
+              {userInitial}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-gray-200">
-                User
+                {userName}
               </p>
               <p className="truncate text-xs text-gray-500 mb-1">
-                user@loadflow.app
+                {userEmail}
               </p>
               <span className="inline-flex items-center rounded-md bg-primary-500/10 px-1.5 py-0.5 text-[10px] font-medium text-primary-400 ring-1 ring-inset ring-primary-500/20">
                 Dispatcher / Admin

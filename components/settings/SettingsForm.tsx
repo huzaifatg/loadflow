@@ -86,8 +86,10 @@ export function SettingsForm({ email, company }: SettingsFormProps) {
   const [saved, setSaved] = useState(false);
 
   // Profile
-  const [fullName, setFullName] = useState(company?.fullName || 'Admin User');
-  const [displayName, setDisplayName] = useState(company?.displayName || 'Admin');
+  const emailPrefix = email ? email.split('@')[0] : 'User';
+  const defaultName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+  const [fullName, setFullName] = useState(company?.fullName || defaultName);
+  const [displayName, setDisplayName] = useState(company?.displayName || defaultName);
   const [phone, setPhone] = useState(company?.phone || '');
 
   // Company

@@ -29,8 +29,14 @@ function getPageTitle(pathname: string): string {
 /* ── Layout component ────────────────────────────── */
 export function DashboardLayoutShell({
   children,
+  userName,
+  userEmail,
+  userInitial,
 }: {
   children: React.ReactNode;
+  userName: string;
+  userEmail: string;
+  userInitial: string;
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -46,12 +52,22 @@ export function DashboardLayoutShell({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        onClose={closeSidebar} 
+        userName={userName}
+        userEmail={userEmail}
+        userInitial={userInitial}
+      />
 
       {/* Main area – offset by sidebar on desktop */}
       <div className="flex flex-col md:pl-[260px]">
         {/* Topbar */}
-        <Topbar title={title} onMenuToggle={toggleSidebar} />
+        <Topbar 
+          title={title} 
+          onMenuToggle={toggleSidebar} 
+          userInitial={userInitial}
+        />
 
         {/* Content */}
         <main className="flex-1 px-4 py-6 md:px-8 md:py-8 pb-20 md:pb-8">

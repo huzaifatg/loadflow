@@ -8,9 +8,10 @@ export interface TopbarProps {
   title: string;
   onMenuToggle: () => void;
   className?: string;
+  userInitial: string;
 }
 
-export function Topbar({ title, onMenuToggle, className }: TopbarProps) {
+export function Topbar({ title, onMenuToggle, className, userInitial }: TopbarProps) {
   return (
     <header
       className={cn(
@@ -37,7 +38,7 @@ export function Topbar({ title, onMenuToggle, className }: TopbarProps) {
 
       {/* User avatar */}
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700 ring-2 ring-white">
-        U
+        {userInitial}
       </div>
     </header>
   );
