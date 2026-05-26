@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Truck, Flag } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export function LoadPlanActions({ loadPlanId, currentStatus }: { loadPlanId: string, currentStatus: string }) {
@@ -38,7 +37,6 @@ export function LoadPlanActions({ loadPlanId, currentStatus }: { loadPlanId: str
     return (
       <button
         onClick={() => updateStatus('READY')}
-        disabled={loading}
         className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 shadow-sm ring-1 ring-inset ring-indigo-600/20 hover:bg-indigo-100 disabled:opacity-50"
       >
         <CheckCircle2 className="h-4 w-4" />
@@ -49,21 +47,35 @@ export function LoadPlanActions({ loadPlanId, currentStatus }: { loadPlanId: str
 
   if (currentStatus === 'READY') {
     return (
-      <button
-        onClick={() => updateStatus('DISPATCHED')}
-        disabled={loading}
-        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
-      >
-        <Truck className="h-4 w-4" />
-        Dispatch Truck
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => updateStatus('DRAFT')}
+          className="inline-flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-100 disabled:opacity-50"
+        >
+          Revert to Draft
+        </button>
+        <button
+          onClick={() => {
+            if (!confirm('Are you sure you want to dispatch this truck? This will mark deliveries as In Transit.')) return;
+            updateStatus('DISPATCHED');
+          }}
+          disabled={loading}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
+        >
+          <Truck className="h-4 w-4" />
+          Dispatch Truck
+        </button>
+      </div>
     );
   }
 
   if (currentStatus === 'DISPATCHED') {
     return (
       <button
-        onClick={() => updateStatus('COMPLETED')}
+        onClick={() => {
+          if (!confirm('Are you sure you want to complete this plan? This will mark all deliveries as Delivered.')) return;
+          updateStatus('COMPLETED');
+        }}
         disabled={loading}
         className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
       >

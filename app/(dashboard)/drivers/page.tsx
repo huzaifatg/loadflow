@@ -6,6 +6,7 @@ import { SearchClient } from '@/components/ui/SearchClient';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import type { Driver } from '@prisma/client';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -23,7 +24,7 @@ export default async function DriversPage({
   const currentPage = typeof resolvedParams.page === 'string' ? Math.max(1, parseInt(resolvedParams.page, 10)) : 1;
   const searchQuery = typeof resolvedParams.q === 'string' ? resolvedParams.q : '';
 
-  let drivers: any[] = [];
+  let drivers: Driver[] = [];
   let totalItems = 0;
 
   try {

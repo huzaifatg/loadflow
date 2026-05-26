@@ -21,13 +21,13 @@ export default async function NewLoadPlanPage() {
     const company = await prisma.company.findFirst();
     if (company) {
       trucks = await prisma.truck.findMany({
-        where: { companyId: company.id, status: 'AVAILABLE' },
+        where: { companyId: company.id, status: 'AVAILABLE', isArchived: false },
         select: { id: true, name: true, plateNumber: true, weightCapacity: true },
         orderBy: { name: 'asc' }
       });
 
       drivers = await prisma.driver.findMany({
-        where: { companyId: company.id, status: 'AVAILABLE' },
+        where: { companyId: company.id, status: 'AVAILABLE', isArchived: false },
         select: { id: true, name: true },
         orderBy: { name: 'asc' }
       });

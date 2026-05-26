@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     const drivers = await prisma.driver.findMany({
       where: {
         companyId,
+        isArchived: false,
         ...(status ? { status } : {}),
       },
       orderBy: { createdAt: 'desc' },

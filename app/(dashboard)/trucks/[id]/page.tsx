@@ -1,11 +1,10 @@
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { StatusPill } from '@/components/ui/StatusPill';
 import { Card } from '@/components/ui/Card';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { Truck as TruckIcon, Gauge, Calendar } from 'lucide-react';
+import { Truck as TruckIcon } from 'lucide-react';
 import { TruckDetailClient } from '@/components/trucks/TruckDetailClient';
 
 
@@ -18,12 +17,21 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
   const id = (await params).id;
 
   let truck = null;
+  let loadPlans: { id: string; date: Date; status: string; _count: { items: number } }[] = [];
   try {
     const company = await prisma.company.findFirst();
     if (company) {
       truck = await prisma.truck.findUnique({
         where: { id, companyId: company.id },
       });
+      if (truck) {
+        loadPlans = await prisma.loadPlan.findMany({
+          where: { truckId: truck.id, companyId: company.id },
+          orderBy: { date: 'desc' },
+          take: 10,
+          select: { id: true, date: true, status: true, _count: { select: { items: true } } }
+        });
+      }
     }
   } catch (err) {
     console.error("Prisma Connection Error in TruckDetail:", err);
@@ -43,5 +51,5 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
     );
   }
 
-  return <TruckDetailClient truck={truck} />;
+  return <TruckDetailClient truck={truck} loadPlans={loadPlans} />;
 }

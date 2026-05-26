@@ -5,16 +5,23 @@ import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusPill } from '@/components/ui/StatusPill';
 import Link from 'next/link';
 import type { Delivery } from '@prisma/client';
-import { MoreHorizontal, Archive, CheckCircle, Truck, XCircle } from 'lucide-react';
+import { MoreHorizontal, CheckCircle, Truck, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { toNumber, getItemSummary } from '@/lib/delivery-items';
 
-function DeliveryActions({ delivery }: { delivery: Delivery }) {
+type DeliveryWithCounts = Omit<Delivery, 'weight'> & {
+  weight: number;
+  _count?: { items?: number; loadPlanItems?: number };
+  items?: { productName: string }[];
+};
+
+function DeliveryActions({ delivery }: { delivery: DeliveryWithCounts }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  async function handleAction(action: string, data: any) {
+  async function handleAction(action: string, data: Record<string, unknown>) {
     if (loading) return;
     setLoading(true);
     setIsOpen(false);
@@ -84,8 +91,8 @@ function DeliveryActions({ delivery }: { delivery: Delivery }) {
   );
 }
 
-export function DeliveriesTable({ data }: { data: Delivery[] }) {
-  const columns: Column<Delivery>[] = [
+export function DeliveriesTable({ data }: { data: DeliveryWithCounts[] }) {
+  const columns: Column<DeliveryWithCounts>[] = [
     {
       key: 'id',
       label: 'Order ID',
@@ -98,10 +105,27 @@ export function DeliveriesTable({ data }: { data: Delivery[] }) {
     { key: 'customerName', label: 'Customer' },
     { key: 'pickupAddress', label: 'Pickup' },
     { key: 'deliveryAddress', label: 'Destination' },
+    {
+      key: 'items',
+      label: 'Items',
+      render: (row) => {
+        const count = row._count?.items || 0;
+        if (count === 0) return <span className="text-gray-400">—</span>;
+        const summary = getItemSummary(row.items || [], 2);
+        return (
+          <div>
+            <span className="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700 ring-1 ring-inset ring-primary-600/20">
+              {count} {count === 1 ? 'item' : 'items'}
+            </span>
+            {summary && <p className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[150px]">{summary}</p>}
+          </div>
+        );
+      },
+    },
     { 
       key: 'weight', 
       label: 'Weight (kg)',
-      render: (row) => row.weight.toLocaleString()
+      render: (row) => toNumber(row.weight).toLocaleString(undefined, { maximumFractionDigits: 2 })
     },
     {
       key: 'status',
@@ -123,3 +147,4 @@ export function DeliveriesTable({ data }: { data: Delivery[] }) {
     />
   );
 }
+

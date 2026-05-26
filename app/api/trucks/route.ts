@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     const trucks = await prisma.truck.findMany({
       where: {
         companyId,
+        isArchived: false,
         ...(status ? { status } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       data: {
         companyId,
         name: body.name.trim(),
-        type: (body as any).type?.trim() || 'Box Truck',
+        type: body.type?.trim() || 'Box Truck',
         plateNumber: body.plateNumber.trim(),
         weightCapacity: body.weightCapacity,
         status: body.status ?? 'AVAILABLE',

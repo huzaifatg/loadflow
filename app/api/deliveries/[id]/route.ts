@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import type { UpdateDeliveryInput } from '@/types'
+import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items'
 
 // ─── GET /api/deliveries/[id] ────────────────────────────────────────────────
 // Get single delivery with load plan items (include loadPlan with truck info)
@@ -26,6 +27,9 @@ export async function GET(
     const delivery = await prisma.delivery.findFirst({
       where: { id, companyId },
       include: {
+        items: {
+          orderBy: { sortOrder: 'asc' },
+        },
         loadPlanItems: {
           include: {
             loadPlan: {
@@ -96,7 +100,8 @@ export async function PUT(
       body.customerName !== undefined || 
       body.pickupAddress !== undefined || 
       body.deliveryAddress !== undefined || 
-      body.weight !== undefined;
+      body.weight !== undefined ||
+      body.items !== undefined;
 
     if (isFinalized && isUpdatingCoreFields) {
       return NextResponse.json(
@@ -158,9 +163,46 @@ export async function PUT(
       updateData.archivedAt = body.isArchived ? new Date() : null
     }
 
+    // Handle items upsert if provided
+    if (body.items !== undefined) {
+      // Delete existing items and recreate
+      await prisma.deliveryItem.deleteMany({ where: { deliveryId: id } })
+
+      if (body.items.length > 0) {
+        const itemsToCreate = body.items.map((item, i) => {
+          const computedWeight = computeItemWeight({
+            unitType: item.unitType || 'STANDARD_WEIGHT',
+            quantity: item.quantity,
+            unitWeight: item.unitWeight ?? null,
+            totalWeight: item.totalWeight ?? null,
+          })
+          return {
+            deliveryId: id,
+            productName: item.productName.trim(),
+            sku: item.sku?.trim() || null,
+            quantity: item.quantity,
+            quantityUnit: item.quantityUnit || 'cartons',
+            unitType: (item.unitType || 'STANDARD_WEIGHT') as 'STANDARD_WEIGHT' | 'VARIABLE_WEIGHT' | 'PIECE_BASED',
+            unitWeight: item.unitWeight ?? null,
+            totalWeight: computedWeight,
+            notes: item.notes?.trim() || null,
+            sortOrder: item.sortOrder ?? i,
+          }
+        })
+
+        await prisma.deliveryItem.createMany({ data: itemsToCreate })
+
+        // Recompute delivery weight from items
+        updateData.weight = recomputeDeliveryWeight(itemsToCreate)
+      }
+    }
+
     const delivery = await prisma.delivery.update({
       where: { id },
       data: updateData,
+      include: {
+        items: { orderBy: { sortOrder: 'asc' } },
+      },
     })
 
     const { revalidatePath } = await import('next/cache');

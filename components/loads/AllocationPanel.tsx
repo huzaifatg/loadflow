@@ -11,6 +11,8 @@ interface DeliveryItem {
   customerName: string;
   deliveryAddress: string;
   weight: number;
+  itemCount: number;
+  itemSummary: string;
 }
 
 interface AllocationPanelProps {
@@ -139,9 +141,17 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
                   <p className="text-xs text-gray-500 truncate">{item.deliveryAddress}</p>
+                  {item.itemSummary && <p className="text-[11px] text-gray-400 truncate mt-0.5">{item.itemSummary}</p>}
                 </div>
-                <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
-                  {item.weight.toLocaleString()} kg
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
+                    {item.weight.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg
+                  </div>
+                  {item.itemCount > 0 && (
+                    <span className="text-[10px] font-medium text-primary-600 whitespace-nowrap">
+                      {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -204,9 +214,17 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
                     <p className="text-xs text-gray-500 truncate">{item.deliveryAddress}</p>
+                    {item.itemSummary && <p className="text-[11px] text-gray-400 truncate mt-0.5">{item.itemSummary}</p>}
                   </div>
-                  <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
-                    {item.weight.toLocaleString()} kg
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
+                      {item.weight.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg
+                    </div>
+                    {item.itemCount > 0 && (
+                      <span className="text-[10px] font-medium text-primary-600 whitespace-nowrap">
+                        {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => handleRemove(item)}

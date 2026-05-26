@@ -3,7 +3,7 @@ import { Package, Truck, Clock, CheckCircle2, TrendingUp, AlertTriangle, ArrowRi
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { prisma } from '@/lib/prisma';
-import { format, isToday, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 
 const statusStyles: Record<string, string> = {
   'IN_TRANSIT': 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10',
@@ -19,21 +19,31 @@ const statusStyles: Record<string, string> = {
 };
 
 
-const priorityStyles: Record<string, string> = {
-  'High': 'text-red-700 bg-red-50 ring-red-600/10 ring-1 ring-inset',
-  'Medium': 'text-amber-700 bg-amber-50 ring-amber-600/20 ring-1 ring-inset',
-  'Low': 'text-slate-700 bg-slate-50 ring-slate-500/10 ring-1 ring-inset',
-};
-
 export default async function DashboardPage() {
   const todayStart = startOfDay(new Date());
   const todayEnd = endOfDay(new Date());
 
-  // 1. Fetch Stats
-  const totalDeliveries = await prisma.delivery.count({ where: { isArchived: false } });
-  const deliveredDeliveries = await prisma.delivery.count({ where: { status: 'DELIVERED', isArchived: false } });
-  const pendingDeliveriesCount = await prisma.delivery.count({ where: { status: 'PENDING', isArchived: false } });
-  const activeTrucks = await prisma.truck.count({ where: { status: 'IN_USE', isArchived: false } });
+  // Resolve company for scoping
+  const company = await prisma.company.findFirst();
+  const companyId = company?.id;
+
+  // If no company exists yet, show zeros
+  if (!companyId) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-gray-500">Set up your company in Settings to get started.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 1. Fetch Stats — scoped to company
+  const totalDeliveries = await prisma.delivery.count({ where: { companyId, isArchived: false } });
+  const deliveredDeliveries = await prisma.delivery.count({ where: { companyId, status: 'DELIVERED', isArchived: false } });
+  const pendingDeliveriesCount = await prisma.delivery.count({ where: { companyId, status: 'PENDING', isArchived: false } });
+  const activeTrucks = await prisma.truck.count({ where: { companyId, status: 'IN_USE', isArchived: false } });
 
   const completionRate = totalDeliveries > 0 
     ? Math.round((deliveredDeliveries / totalDeliveries) * 100) 
@@ -81,6 +91,7 @@ export default async function DashboardPage() {
   // 2. Fetch Today's Dispatches (Load Plans)
   const todaysDispatches = await prisma.loadPlan.findMany({
     where: {
+      companyId,
       date: {
         gte: todayStart,
         lte: todayEnd,
@@ -96,7 +107,7 @@ export default async function DashboardPage() {
 
   // 3. Fetch Pending Deliveries
   const pendingDeliveriesList = await prisma.delivery.findMany({
-    where: { status: 'PENDING', isArchived: false },
+    where: { companyId, status: 'PENDING', isArchived: false },
     take: 5,
     orderBy: { createdAt: 'desc' }
   });
@@ -149,7 +160,7 @@ export default async function DashboardPage() {
         <div className="flex flex-col rounded-2xl bg-white shadow-sm ring-1 ring-gray-900/5">
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
             <h2 className="text-lg font-semibold text-gray-900">Today&apos;s Dispatches</h2>
-            <Link href="/deliveries" className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center">
+            <Link href="/schedule" className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center">
               View all <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </div>
@@ -158,7 +169,7 @@ export default async function DashboardPage() {
               <thead>
                 <tr className="bg-gray-50/50">
                   <th scope="col" className="whitespace-nowrap py-3.5 pl-6 pr-3 text-left text-xs font-semibold text-gray-500">Truck / Driver</th>
-                  <th scope="col" className="whitespace-nowrap px-3 py-3.5 text-left text-xs font-semibold text-gray-500">Destination</th>
+                  <th scope="col" className="whitespace-nowrap px-3 py-3.5 text-left text-xs font-semibold text-gray-500">Scheduled</th>
                   <th scope="col" className="whitespace-nowrap px-3 py-3.5 text-left text-xs font-semibold text-gray-500">Status</th>
                 </tr>
               </thead>
@@ -214,7 +225,7 @@ export default async function DashboardPage() {
                 <tr className="bg-gray-50/50">
                   <th scope="col" className="whitespace-nowrap py-3.5 pl-6 pr-3 text-left text-xs font-semibold text-gray-500">Order</th>
                   <th scope="col" className="whitespace-nowrap px-3 py-3.5 text-left text-xs font-semibold text-gray-500">Details</th>
-                  <th scope="col" className="whitespace-nowrap px-3 py-3.5 text-left text-xs font-semibold text-gray-500">Priority</th>
+                  <th scope="col" className="whitespace-nowrap px-3 py-3.5 text-left text-xs font-semibold text-gray-500">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
@@ -235,7 +246,7 @@ export default async function DashboardPage() {
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       <div className="text-gray-900">{delivery.scheduledDate ? format(delivery.scheduledDate, 'MMM d, h:mm a') : 'Unscheduled'}</div>
-                      <div className="text-xs font-semibold mt-0.5">{Math.round(delivery.weight).toLocaleString()} kg</div>
+                      <div className="text-xs font-semibold mt-0.5">{Math.round(Number(delivery.weight)).toLocaleString()} kg</div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm">
                       <span className={cn("inline-flex items-center rounded-md px-2 py-1 text-xs font-medium", statusStyles[delivery.status] || statusStyles['PENDING'])}>

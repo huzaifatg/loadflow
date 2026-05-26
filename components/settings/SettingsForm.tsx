@@ -100,7 +100,7 @@ export function SettingsForm({ email, company }: SettingsFormProps) {
   const [emailNotifications, setEmailNotifications] = useState(company?.emailNotifications ?? true);
   const [dispatchAlerts, setDispatchAlerts] = useState(company?.dispatchAlerts ?? true);
   const [weeklyReport, setWeeklyReport] = useState(company?.weeklyReport ?? false);
-  const [units, setUnits] = useState<'imperial' | 'metric'>((company?.units as 'imperial' | 'metric') || 'imperial');
+  const [units] = useState<'imperial' | 'metric'>((company?.units as 'imperial' | 'metric') || 'imperial');
 
   async function handleSave() {
     setSaving(true);

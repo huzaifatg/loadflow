@@ -4,12 +4,20 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { User as UserIcon, Phone, FileText, Edit2, Archive, Save, X, Calendar } from 'lucide-react';
+import { User as UserIcon, Phone, FileText, Edit2, Archive, Save, X, Calendar, ClipboardList } from 'lucide-react';
 import type { Driver } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
-export function DriverDetailClient({ driver }: { driver: Driver }) {
+interface LoadPlanSummary {
+  id: string;
+  date: string | Date;
+  status: string;
+  _count?: { items: number };
+}
+
+export function DriverDetailClient({ driver, loadPlans = [] }: { driver: Driver; loadPlans?: LoadPlanSummary[] }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -199,12 +207,33 @@ export function DriverDetailClient({ driver }: { driver: Driver }) {
 
         <Card className="p-6 md:col-span-2">
           <h3 className="text-base font-semibold text-gray-900 mb-4">Recent Load Plans</h3>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-              <UserIcon className="h-6 w-6 text-gray-400" />
+          {loadPlans.length > 0 ? (
+            <div className="space-y-3">
+              {loadPlans.map((plan) => (
+                <Link key={plan.id} href={`/loads/${plan.id}`} className="block">
+                  <div className="flex items-center justify-between rounded-lg border border-gray-100 p-3 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <ClipboardList className="h-4 w-4 text-gray-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{new Date(plan.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                        <p className="text-xs text-gray-500">{plan._count?.items || 0} deliveries</p>
+                      </div>
+                    </div>
+                    <StatusPill status={plan.status} />
+                  </div>
+                </Link>
+              ))}
             </div>
-            <p className="text-sm text-gray-500">Load plan history will appear here once connected to the database.</p>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                <UserIcon className="h-6 w-6 text-gray-400" />
+              </div>
+              <p className="text-sm text-gray-500">No load plans assigned to this driver yet.</p>
+            </div>
+          )}
         </Card>
       </div>
     </div>

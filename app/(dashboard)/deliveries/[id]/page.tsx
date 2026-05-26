@@ -3,11 +3,10 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { StatusPill } from '@/components/ui/StatusPill';
 import { Card } from '@/components/ui/Card';
-import { MapPin, Package, User, Weight } from 'lucide-react';
-import type { Delivery } from '@prisma/client';
+import { Package } from 'lucide-react';
 import { DeliveryDetailClient } from '@/components/deliveries/DeliveryDetailClient';
+import { serializeDelivery } from '@/lib/delivery-items';
 
 export default async function DeliveryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -23,6 +22,9 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
     if (company) {
       delivery = await prisma.delivery.findUnique({
         where: { id, companyId: company.id },
+        include: {
+          items: { orderBy: { sortOrder: 'asc' } },
+        },
       });
     }
   } catch (err) {
@@ -44,5 +46,5 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
     );
   }
 
-  return <DeliveryDetailClient delivery={delivery} />;
+  return <DeliveryDetailClient delivery={serializeDelivery(delivery)} />;
 }

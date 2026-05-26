@@ -6,6 +6,7 @@ import { SearchClient } from '@/components/ui/SearchClient';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { serializeDelivery } from '@/lib/delivery-items';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -23,7 +24,7 @@ export default async function DeliveriesPage({
   const currentPage = typeof resolvedParams.page === 'string' ? Math.max(1, parseInt(resolvedParams.page, 10)) : 1;
   const searchQuery = typeof resolvedParams.q === 'string' ? resolvedParams.q : '';
 
-  let deliveries: any[] = [];
+  let deliveries: ReturnType<typeof serializeDelivery>[] = [];
   let totalItems = 0;
   
   try {
@@ -54,7 +55,7 @@ export default async function DeliveriesPage({
         })
       ]);
       
-      deliveries = fetchedDeliveries;
+      deliveries = fetchedDeliveries.map(d => serializeDelivery(d));
       totalItems = count;
     }
   } catch (err) {

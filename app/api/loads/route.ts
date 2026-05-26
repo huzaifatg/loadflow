@@ -24,9 +24,17 @@ export async function GET() {
         driver: true,
         items: {
           include: {
-            delivery: true
-          }
-        }
+            delivery: {
+              include: {
+                items: {
+                  orderBy: { sortOrder: 'asc' },
+                  take: 3,
+                },
+                _count: { select: { items: true } },
+              },
+            },
+          },
+        },
       },
       orderBy: { date: 'desc' },
     });

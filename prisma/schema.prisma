@@ -45,6 +45,14 @@ enum LoadPlanStatus {
   @@map("load_plan_status")
 }
 
+enum UnitType {
+  STANDARD_WEIGHT
+  VARIABLE_WEIGHT
+  PIECE_BASED
+
+  @@map("unit_type")
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model Company {
@@ -121,7 +129,7 @@ model Delivery {
   customerName    String         @map("customer_name")
   pickupAddress   String         @map("pickup_address")
   deliveryAddress String         @map("delivery_address")
-  weight          Float          @map("weight")
+  weight          Decimal        @default(0) @map("weight") @db.Decimal(12, 4)
   status          DeliveryStatus @default(PENDING) @map("status")
   scheduledDate   DateTime?      @map("scheduled_date")
   notes           String?        @map("notes")
@@ -132,10 +140,32 @@ model Delivery {
 
   company       Company        @relation(fields: [companyId], references: [id])
   loadPlanItems LoadPlanItem[]
+  items         DeliveryItem[]
 
   @@index([companyId, isArchived])
   @@index([companyId, status])
   @@map("deliveries")
+}
+
+model DeliveryItem {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deliveryId   String   @map("delivery_id") @db.Uuid
+  productName  String   @map("product_name")
+  sku          String?  @map("sku")
+  quantity     Decimal  @map("quantity") @db.Decimal(12, 4)
+  quantityUnit String   @default("cartons") @map("quantity_unit")
+  unitType     UnitType @default(STANDARD_WEIGHT) @map("unit_type")
+  unitWeight   Decimal? @map("unit_weight") @db.Decimal(12, 4)
+  totalWeight  Decimal  @map("total_weight") @db.Decimal(12, 4)
+  notes        String?  @map("notes")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId])
+  @@map("delivery_items")
 }
 
 model LoadPlan {

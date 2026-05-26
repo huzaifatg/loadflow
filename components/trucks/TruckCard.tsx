@@ -1,12 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card } from '@/components/ui/Card';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { Truck, Archive } from 'lucide-react';
+import { Truck } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 
 interface TruckCardProps {
   id: string;
@@ -18,43 +16,6 @@ interface TruckCardProps {
 }
 
 export function TruckCard({ id, name, plateNumber, type, weightCapacity, status }: TruckCardProps) {
-  const router = useRouter();
-  const [archiving, setArchiving] = useState(false);
-
-  async function handleArchive(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!confirm('Are you sure you want to archive this truck?')) return;
-    
-    setArchiving(true);
-    try {
-      const res = await fetch(`/api/trucks/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isArchived: true }),
-      });
-      if (res.ok) {
-        router.refresh();
-      } else {
-        toast.error('Failed to archive truck');
-        setArchiving(false);
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error('Error archiving truck');
-      setArchiving(false);
-    }
-  }
-
-  if (archiving) {
-    return (
-      <Card className="p-5 flex flex-col h-full animate-pulse bg-gray-50 border-gray-100">
-        <div className="h-full flex items-center justify-center text-sm text-gray-400">Archiving...</div>
-      </Card>
-    );
-  }
-
   return (
     <Link href={`/trucks/${id}`}>
       <Card className="hover:shadow-md transition-shadow group cursor-pointer p-5 flex flex-col h-full animate-in fade-in zoom-in-95 duration-300 relative">

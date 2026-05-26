@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import type { UpdateDriverInput } from '@/types'
 
 async function authenticate() {
   const supabase = await createClient()

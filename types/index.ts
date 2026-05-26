@@ -27,6 +27,12 @@ export enum LoadPlanStatus {
   COMPLETED = 'COMPLETED',
 }
 
+export enum UnitType {
+  STANDARD_WEIGHT = 'STANDARD_WEIGHT',
+  VARIABLE_WEIGHT = 'VARIABLE_WEIGHT',
+  PIECE_BASED = 'PIECE_BASED',
+}
+
 // ─── Base Model Types ────────────────────────────────────────────────────────
 
 export interface Company {
@@ -42,10 +48,13 @@ export interface Truck {
   companyId: string
   name: string
   plateNumber: string
+  type: string | null
   /** Weight capacity in kilograms */
   weightCapacity: number
   status: TruckStatus
   notes: string | null
+  isArchived: boolean
+  archivedAt: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -58,6 +67,8 @@ export interface Driver {
   licenseNumber: string | null
   status: DriverStatus
   notes: string | null
+  isArchived: boolean
+  archivedAt: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -68,11 +79,32 @@ export interface Delivery {
   customerName: string
   pickupAddress: string
   deliveryAddress: string
-  /** Weight in kilograms */
+  /** Weight in kilograms. Decimal(12,4) — parsed to number on the client. */
   weight: number
   status: DeliveryStatus
   scheduledDate: Date | null
   notes: string | null
+  isArchived: boolean
+  archivedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface DeliveryItem {
+  id: string
+  deliveryId: string
+  productName: string
+  sku: string | null
+  /** Decimal(12,4) — supports fractional quantities (e.g., 1.5 pallets) */
+  quantity: number
+  quantityUnit: string
+  unitType: UnitType
+  /** Weight per single unit in kg. Decimal(12,4). Null for VARIABLE_WEIGHT. */
+  unitWeight: number | null
+  /** Actual total weight for this line in kg. Decimal(12,4). */
+  totalWeight: number
+  notes: string | null
+  sortOrder: number
   createdAt: Date
   updatedAt: Date
 }
@@ -131,6 +163,16 @@ export interface DeliveryWithLoadPlanItems extends Delivery {
   })[]
 }
 
+export interface DeliveryWithItems extends Delivery {
+  items: DeliveryItem[]
+}
+
+export interface DeliveryWithItemsAndLoadPlan extends DeliveryWithItems {
+  loadPlanItems: (LoadPlanItem & {
+    loadPlan: LoadPlan
+  })[]
+}
+
 // ─── API Response Types ──────────────────────────────────────────────────────
 
 export interface ApiResponse<T> {
@@ -165,6 +207,7 @@ export interface CreateCompanyInput {
 export interface CreateTruckInput {
   name: string
   plateNumber: string
+  type?: string | null
   /** Weight capacity in kilograms */
   weightCapacity: number
   status?: TruckStatus
@@ -183,11 +226,25 @@ export interface CreateDeliveryInput {
   customerName: string
   pickupAddress: string
   deliveryAddress: string
-  /** Weight in kilograms */
-  weight: number
+  /** Weight in kilograms. Used for legacy mode (no items). */
+  weight?: number
   status?: DeliveryStatus
   scheduledDate?: Date | string | null
   notes?: string | null
+  /** Optional delivery items. If provided, weight is auto-computed. */
+  items?: CreateDeliveryItemInput[]
+}
+
+export interface CreateDeliveryItemInput {
+  productName: string
+  sku?: string | null
+  quantity: number
+  quantityUnit?: string
+  unitType?: UnitType | string
+  unitWeight?: number | null
+  totalWeight?: number | null
+  notes?: string | null
+  sortOrder?: number
 }
 
 export interface CreateLoadPlanInput {
@@ -213,9 +270,11 @@ export interface UpdateCompanyInput {
 export interface UpdateTruckInput {
   name?: string
   plateNumber?: string
+  type?: string | null
   weightCapacity?: number
   status?: TruckStatus
   notes?: string | null
+  isArchived?: boolean
 }
 
 export interface UpdateDriverInput {
@@ -224,6 +283,7 @@ export interface UpdateDriverInput {
   licenseNumber?: string | null
   status?: DriverStatus
   notes?: string | null
+  isArchived?: boolean
 }
 
 export interface UpdateDeliveryInput {
@@ -234,6 +294,9 @@ export interface UpdateDeliveryInput {
   status?: DeliveryStatus
   scheduledDate?: Date | string | null
   notes?: string | null
+  isArchived?: boolean
+  /** If provided, replaces all items (upsert strategy). */
+  items?: CreateDeliveryItemInput[]
 }
 
 export interface UpdateLoadPlanInput {

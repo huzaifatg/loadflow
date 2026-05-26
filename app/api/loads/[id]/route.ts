@@ -33,7 +33,14 @@ export async function GET(
         driver: true,
         items: {
           include: {
-            delivery: true
+            delivery: {
+              include: {
+                items: {
+                  orderBy: { sortOrder: 'asc' },
+                },
+                _count: { select: { items: true } },
+              },
+            },
           },
           orderBy: {
             sortOrder: 'asc'
@@ -93,6 +100,22 @@ export async function PATCH(
       }, { status: 400 });
     }
 
+    // Validate status transitions (state machine)
+    if (status && status !== existingPlan.status) {
+      const validTransitions: Record<string, string[]> = {
+        'DRAFT': ['READY'],
+        'READY': ['DRAFT', 'DISPATCHED'],
+        'DISPATCHED': ['COMPLETED'],
+        'COMPLETED': [],
+      };
+      const allowed = validTransitions[existingPlan.status] || [];
+      if (!allowed.includes(status)) {
+        return NextResponse.json({
+          error: `Cannot transition from ${existingPlan.status} to ${status}. Allowed transitions: ${allowed.join(', ') || 'none'}.`
+        }, { status: 400 });
+      }
+    }
+
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Handle items array update if provided
       if (items && Array.isArray(items)) {
@@ -142,8 +165,8 @@ export async function PATCH(
         });
         const deliveryIds = currentItems.map(i => i.deliveryId);
         
-        const finalTruckId = truckId || existingPlan.truckId;
-        const finalDriverId = driverId || existingPlan.driverId;
+        const finalTruckId = truckId ?? existingPlan.truckId;
+        const finalDriverId = driverId !== undefined ? driverId : existingPlan.driverId;
 
         if (status === 'DISPATCHED') {
           if (deliveryIds.length > 0) {
@@ -190,10 +213,10 @@ export async function PATCH(
       await tx.loadPlan.update({
         where: { id, companyId: company.id },
         data: {
-          ...(truckId && { truckId }),
-          ...(driverId && { driverId }),
-          ...(status && { status }),
-          ...(notes !== undefined && { notes }),
+          ...(truckId !== undefined ? { truckId } : {}),
+          ...(driverId !== undefined ? { driverId } : {}),
+          ...(status ? { status } : {}),
+          ...(notes !== undefined ? { notes } : {}),
         }
       });
     });
@@ -205,7 +228,14 @@ export async function PATCH(
         truck: true,
         driver: true,
         items: {
-          include: { delivery: true },
+          include: {
+            delivery: {
+              include: {
+                items: { orderBy: { sortOrder: 'asc' } },
+                _count: { select: { items: true } },
+              },
+            },
+          },
           orderBy: { sortOrder: 'asc' }
         }
       }

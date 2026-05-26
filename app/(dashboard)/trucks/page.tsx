@@ -6,6 +6,7 @@ import { SearchClient } from '@/components/ui/SearchClient';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import type { Truck } from '@prisma/client';
 
 const ITEMS_PER_PAGE = 12; // Divisible by 1, 2, 3, 4 for grid layouts
 
@@ -23,7 +24,7 @@ export default async function TrucksPage({
   const currentPage = typeof resolvedParams.page === 'string' ? Math.max(1, parseInt(resolvedParams.page, 10)) : 1;
   const searchQuery = typeof resolvedParams.q === 'string' ? resolvedParams.q : '';
 
-  let trucks: any[] = [];
+  let trucks: Truck[] = [];
   let totalItems = 0;
 
   try {

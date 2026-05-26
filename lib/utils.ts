@@ -5,11 +5,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatWeight(weightKg: number): string {
-  if (weightKg >= 1000) {
-    return `${(weightKg / 1000).toFixed(1)}t`
+export function formatWeight(weightKg: number | string): string {
+  const w = typeof weightKg === 'string' ? Number(weightKg) : weightKg
+  if (w >= 1000) {
+    return `${(w / 1000).toFixed(1)}t`
   }
-  return `${weightKg.toFixed(0)}kg`
+  return `${w.toFixed(0)}kg`
 }
 
 export function formatDate(date: Date | string): string {
