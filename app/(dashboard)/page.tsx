@@ -39,11 +39,40 @@ export default async function DashboardPage() {
     );
   }
 
-  // 1. Fetch Stats — scoped to company
-  const totalDeliveries = await prisma.delivery.count({ where: { companyId, isArchived: false } });
-  const deliveredDeliveries = await prisma.delivery.count({ where: { companyId, status: 'DELIVERED', isArchived: false } });
-  const pendingDeliveriesCount = await prisma.delivery.count({ where: { companyId, status: 'PENDING', isArchived: false } });
-  const activeTrucks = await prisma.truck.count({ where: { companyId, status: 'IN_USE', isArchived: false } });
+  // 1. Batch Stats + Lists — all in one transaction for performance (P-1)
+  const [
+    totalDeliveries,
+    deliveredDeliveries,
+    pendingDeliveriesCount,
+    activeTrucks,
+    todaysDispatches,
+    pendingDeliveriesList,
+  ] = await prisma.$transaction([
+    prisma.delivery.count({ where: { companyId, isArchived: false } }),
+    prisma.delivery.count({ where: { companyId, status: 'DELIVERED', isArchived: false } }),
+    prisma.delivery.count({ where: { companyId, status: 'PENDING', isArchived: false } }),
+    prisma.truck.count({ where: { companyId, status: 'IN_USE', isArchived: false } }),
+    prisma.loadPlan.findMany({
+      where: {
+        companyId,
+        date: {
+          gte: todayStart,
+          lte: todayEnd,
+        }
+      },
+      include: {
+        truck: true,
+        driver: true,
+      },
+      take: 5,
+      orderBy: { date: 'asc' }
+    }),
+    prisma.delivery.findMany({
+      where: { companyId, status: 'PENDING', isArchived: false },
+      take: 5,
+      orderBy: { createdAt: 'desc' }
+    }),
+  ]);
 
   const completionRate = totalDeliveries > 0 
     ? Math.round((deliveredDeliveries / totalDeliveries) * 100) 
@@ -87,30 +116,6 @@ export default async function DashboardPage() {
       bgColor: 'bg-amber-100',
     },
   ];
-
-  // 2. Fetch Today's Dispatches (Load Plans)
-  const todaysDispatches = await prisma.loadPlan.findMany({
-    where: {
-      companyId,
-      date: {
-        gte: todayStart,
-        lte: todayEnd,
-      }
-    },
-    include: {
-      truck: true,
-      driver: true,
-    },
-    take: 5,
-    orderBy: { date: 'asc' }
-  });
-
-  // 3. Fetch Pending Deliveries
-  const pendingDeliveriesList = await prisma.delivery.findMany({
-    where: { companyId, status: 'PENDING', isArchived: false },
-    take: 5,
-    orderBy: { createdAt: 'desc' }
-  });
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

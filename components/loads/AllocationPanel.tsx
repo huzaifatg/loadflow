@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Plus, Minus, ArrowUp, ArrowDown, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ interface AllocationPanelProps {
 }
 
 export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned, truckCapacity, isFinalized = false }: AllocationPanelProps) {
+  const router = useRouter();
   const [unassigned, setUnassigned] = useState(initialUnassigned);
   const [assigned, setAssigned] = useState(initialAssigned);
   const [saving, setSaving] = useState(false);
@@ -83,6 +85,8 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+      // C-4: Re-sync with server to prevent stale state
+      router.refresh();
     } catch (err) {
       console.error(err);
       toast.error('Failed to save load plan');
@@ -132,7 +136,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
               <div key={item.id} className={cn("flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm transition-colors", !isFinalized && "hover:border-emerald-200")}>
                 <button
                   onClick={() => handleAssign(item)}
-                  disabled={isFinalized}
+                  disabled={isFinalized || saving}
                   className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Assign to truck"
                 >
@@ -228,7 +232,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                   </div>
                   <button
                     onClick={() => handleRemove(item)}
-                    disabled={isFinalized}
+                    disabled={isFinalized || saving}
                     className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors ml-1 disabled:opacity-30 disabled:cursor-not-allowed"
                     title="Remove from truck"
                   >

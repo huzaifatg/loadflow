@@ -55,6 +55,13 @@ export function DeliveryForm() {
         totalWeight: item.totalWeight,
         sortOrder: i,
       }));
+
+      // H-7: Validate items have meaningful weight
+      if (itemsWeight <= 0) {
+        toast.error('Items must have a total weight greater than zero. Check your item weights.');
+        setLoading(false);
+        return;
+      }
     } else {
       // Legacy mode: manual weight entry
       payload.weight = parseFloat(data.weight as string) || 0;

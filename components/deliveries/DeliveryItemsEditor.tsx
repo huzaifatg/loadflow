@@ -6,6 +6,7 @@ import { DEFAULT_QUANTITY_UNITS, UNIT_TYPE_LABELS, UNIT_TYPE_DESCRIPTIONS } from
 import { computeItemWeight } from '@/lib/delivery-items';
 
 export interface DeliveryItemFormData {
+  _key: string; // Stable client-side key for React rendering
   productName: string;
   sku: string;
   quantity: number;
@@ -24,6 +25,7 @@ interface DeliveryItemsEditorProps {
 
 function createEmptyItem(): DeliveryItemFormData {
   return {
+    _key: crypto.randomUUID(),
     productName: '',
     sku: '',
     quantity: 1,
@@ -104,7 +106,7 @@ export function DeliveryItemsEditor({ items, onChange, readOnly = false }: Deliv
         <div className="space-y-3">
           {items.map((item, index) => (
             <ItemRow
-              key={index}
+              key={item._key}
               item={item}
               index={index}
               onUpdate={(field, value) => updateItem(index, field, value)}

@@ -1,21 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth';
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    const auth = await getAuthContext();
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const company = await prisma.company.findFirst();
-
-    if (!company) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
+    const company = auth.company;
 
     const loads = await prisma.loadPlan.findMany({
       where: { companyId: company.id },
@@ -48,18 +41,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    const auth = await getAuthContext();
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const company = await prisma.company.findFirst();
-
-    if (!company) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
+    const company = auth.company;
 
     const body = await request.json();
     const { truckId, driverId, date, notes } = body;

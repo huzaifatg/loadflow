@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthContext } from '@/lib/auth'
 import type { CreateDeliveryInput } from '@/types'
 import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items'
 
@@ -10,16 +10,11 @@ import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items
 // Sorted by scheduledDate ASC, createdAt DESC.
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const auth = await getAuthContext()
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const company = await prisma.company.findFirst()
-    if (!company) {
-      return NextResponse.json({ error: 'No company found' }, { status: 403 })
-    }
-    const companyId = company.id
+    const { companyId } = auth
 
     // Parse query filters
     const searchParams = request.nextUrl.searchParams
@@ -78,16 +73,11 @@ export async function GET(request: NextRequest) {
 // If items are provided, weight is auto-computed from items.
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const auth = await getAuthContext()
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const company = await prisma.company.findFirst()
-    if (!company) {
-      return NextResponse.json({ error: 'No company found' }, { status: 403 })
-    }
-    const companyId = company.id
+    const { companyId } = auth
 
     const body = (await request.json()) as CreateDeliveryInput
 

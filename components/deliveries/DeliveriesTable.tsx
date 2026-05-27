@@ -56,22 +56,8 @@ function DeliveryActions({ delivery }: { delivery: DeliveryWithCounts }) {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-10">
           <div className="py-1">
-            {delivery.status === 'ASSIGNED' && (
-              <button
-                onClick={() => handleAction('status', { status: 'IN_TRANSIT' })}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-              >
-                <Truck className="h-4 w-4 mr-2" /> Mark In Transit
-              </button>
-            )}
-            {delivery.status === 'IN_TRANSIT' && (
-              <button
-                onClick={() => handleAction('status', { status: 'DELIVERED' })}
-                className="w-full text-left px-4 py-2 text-sm text-emerald-700 hover:bg-gray-100 flex items-center"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" /> Mark Delivered
-              </button>
-            )}
+            {/* C-3: Only CANCELLED is allowed as a direct status transition.
+                IN_TRANSIT and DELIVERED must go through the Load Plan dispatch flow. */}
             {(delivery.status === 'PENDING' || delivery.status === 'ASSIGNED') && (
               <button
                 onClick={() => handleAction('status', { status: 'CANCELLED' })}

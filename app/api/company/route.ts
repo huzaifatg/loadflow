@@ -1,18 +1,16 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { getAuthContext } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const auth = await getAuthContext();
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const company = await prisma.company.findFirst();
+    const company = auth.company;
     const body = await request.json();
 
     if (!body.name?.trim()) {

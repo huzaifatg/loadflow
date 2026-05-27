@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth';
 import { Prisma } from '@prisma/client';
 
 export async function GET(
@@ -8,18 +8,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    const auth = await getAuthContext();
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const company = await prisma.company.findFirst();
-
-    if (!company) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
+    const company = auth.company;
 
     const id = (await params).id;
 
@@ -65,18 +58,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    const auth = await getAuthContext();
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const company = await prisma.company.findFirst();
-
-    if (!company) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
+    const company = auth.company;
 
     const id = (await params).id;
     const body = await request.json();
@@ -144,15 +130,16 @@ export async function PATCH(
         }
 
         // Update delivery statuses for lifecycle (PENDING / ASSIGNED)
+        // H-5: Only update deliveries that are not CANCELLED
         if (toUnassign.length > 0) {
           await tx.delivery.updateMany({
-            where: { id: { in: toUnassign } },
+            where: { id: { in: toUnassign }, status: { not: 'CANCELLED' } },
             data: { status: 'PENDING' }
           });
         }
         if (toAssign.length > 0) {
           await tx.delivery.updateMany({
-            where: { id: { in: toAssign } },
+            where: { id: { in: toAssign }, status: { not: 'CANCELLED' } },
             data: { status: 'ASSIGNED' }
           });
         }
@@ -170,8 +157,9 @@ export async function PATCH(
 
         if (status === 'DISPATCHED') {
           if (deliveryIds.length > 0) {
+            // H-5: Only transition non-cancelled deliveries
             await tx.delivery.updateMany({
-              where: { id: { in: deliveryIds } },
+              where: { id: { in: deliveryIds }, status: { not: 'CANCELLED' } },
               data: { status: 'IN_TRANSIT' }
             });
           }
@@ -189,8 +177,9 @@ export async function PATCH(
           }
         } else if (status === 'COMPLETED') {
           if (deliveryIds.length > 0) {
+            // H-5: Only transition non-cancelled deliveries
             await tx.delivery.updateMany({
-              where: { id: { in: deliveryIds } },
+              where: { id: { in: deliveryIds }, status: { not: 'CANCELLED' } },
               data: { status: 'DELIVERED' }
             });
           }
@@ -259,18 +248,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    const auth = await getAuthContext();
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const company = await prisma.company.findFirst();
-
-    if (!company) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
+    const company = auth.company;
 
     const id = (await params).id;
 

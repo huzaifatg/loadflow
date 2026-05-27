@@ -1,26 +1,18 @@
-import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthContext } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-
-async function authenticate() {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return null
-  const company = await prisma.company.findFirst()
-  if (!company) return null
-  return company
-}
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const company = await authenticate()
-    if (!company) {
+    const auth = await getAuthContext()
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const company = auth.company
 
     const { id } = await params
 
@@ -54,10 +46,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const company = await authenticate()
-    if (!company) {
+    const auth = await getAuthContext()
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const company = auth.company
 
     const { id } = await params
     const body = await request.json()
@@ -113,10 +106,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const company = await authenticate()
-    if (!company) {
+    const auth = await getAuthContext()
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const company = auth.company
 
     const { id } = await params
 

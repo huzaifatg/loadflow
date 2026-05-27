@@ -44,6 +44,7 @@ export function DeliveryDetailClient({ delivery }: { delivery: DeliveryWithItems
   // Convert Prisma items to form data
   const [editItems, setEditItems] = useState<DeliveryItemFormData[]>(
     deliveryItems.map(item => ({
+      _key: item.id, // Use Prisma ID as stable key for existing items
       productName: item.productName,
       sku: item.sku || '',
       quantity: toNumber(item.quantity),
@@ -164,7 +165,31 @@ export function DeliveryDetailClient({ delivery }: { delivery: DeliveryWithItems
                 <Save className="h-4 w-4" /> Save
               </button>
               <button 
-                onClick={() => setIsEditing(false)}
+                onClick={() => {
+                  // H-1: Reset form state to original values on cancel
+                  setFormData({
+                    customerName: delivery.customerName,
+                    weight: weightValue,
+                    pickupAddress: delivery.pickupAddress,
+                    deliveryAddress: delivery.deliveryAddress,
+                    notes: delivery.notes || '',
+                    scheduledDate: delivery.scheduledDate ? new Date(delivery.scheduledDate).toISOString().slice(0, 16) : ''
+                  });
+                  setEditItems(
+                    deliveryItems.map(item => ({
+                      _key: item.id,
+                      productName: item.productName,
+                      sku: item.sku || '',
+                      quantity: toNumber(item.quantity),
+                      quantityUnit: item.quantityUnit,
+                      unitType: item.unitType,
+                      unitWeight: item.unitWeight ? toNumber(item.unitWeight) : null,
+                      totalWeight: toNumber(item.totalWeight),
+                      notes: item.notes || '',
+                    }))
+                  );
+                  setIsEditing(false);
+                }}
                 disabled={loading}
                 className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
               >

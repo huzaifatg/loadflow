@@ -49,6 +49,10 @@ export default async function DeliveriesPage({
           orderBy: { createdAt: 'desc' },
           skip,
           take: ITEMS_PER_PAGE,
+          include: {
+            items: { orderBy: { sortOrder: 'asc' }, take: 3 },
+            _count: { select: { items: true, loadPlanItems: true } },
+          },
         }),
         prisma.delivery.count({
           where: whereClause,
