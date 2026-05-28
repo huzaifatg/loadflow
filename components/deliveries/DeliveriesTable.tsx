@@ -100,7 +100,7 @@ export function DeliveriesTable({ data }: { data: DeliveryWithCounts[] }) {
         const summary = getItemSummary(row.items || [], 2);
         return (
           <div>
-            <span className="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700 ring-1 ring-inset ring-primary-600/20">
+            <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
               {count} {count === 1 ? 'item' : 'items'}
             </span>
             {summary && <p className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[150px]">{summary}</p>}

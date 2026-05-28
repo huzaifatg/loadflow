@@ -139,7 +139,7 @@ export function DeliveryForm() {
             <div>
               <Input
                 name="weight"
-                label="Weight (kg)"
+                label="Total Weight (kg)"
                 type="number"
                 min="0"
                 step="0.1"
@@ -150,12 +150,12 @@ export function DeliveryForm() {
           )}
           {/* Show computed weight if items exist */}
           {hasItems && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Total Weight</label>
-              <div className="flex items-center h-[38px] px-3 rounded-md bg-gray-100 text-sm font-semibold text-gray-900">
+            <div className="flex flex-col justify-end">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Total Delivery Weight</label>
+              <div className="flex items-center h-[38px] px-3 rounded-md bg-primary-50/50 text-sm font-semibold text-primary-900 ring-1 ring-inset ring-primary-500/20">
                 {itemsWeight > 0
                   ? `${itemsWeight.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`
-                  : 'Add items to compute weight'
+                  : 'Add items below to compute'
                 }
               </div>
             </div>
@@ -163,11 +163,11 @@ export function DeliveryForm() {
         </div>
 
         {/* Delivery Items Editor */}
-        <div className="pt-4 border-t border-gray-100">
+        <div className="pt-6 mt-2 border-t border-gray-200">
           <DeliveryItemsEditor items={items} onChange={setItems} />
         </div>
         
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+        <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-gray-200">
           <Button
             type="button"
             variant="secondary"
