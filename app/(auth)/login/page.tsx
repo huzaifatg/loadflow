@@ -149,6 +149,11 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
+
+      {/* Access Notice */}
+      <p className="mt-8 text-center text-[13px] leading-relaxed text-slate-400/80 mx-auto px-4">
+        LoadFlow is currently operating in a private preview phase. New organizations are being onboarded selectively while the platform continues to evolve.
+      </p>
     </div>
   );
 }
