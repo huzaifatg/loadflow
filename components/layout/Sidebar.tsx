@@ -16,6 +16,7 @@ import {
   LogOut,
   X,
   BoxesIcon,
+  BookOpen,
 } from 'lucide-react';
 
 /* ── Nav items ───────────────────────────────────── */
@@ -26,7 +27,6 @@ const navItems = [
   { label: 'Drivers', href: '/drivers', icon: Users },
   { label: 'Load Plans', href: '/loads', icon: ClipboardList },
   { label: 'Schedule', href: '/schedule', icon: Calendar },
-  { label: 'Settings', href: '/settings', icon: Settings },
 ] as const;
 
 /* ── Props ───────────────────────────────────────── */
@@ -130,6 +130,30 @@ export function Sidebar({ isOpen, onClose, userName, userEmail, userInitial }: S
             })}
           </ul>
         </nav>
+
+        {/* ── Settings ─────────────────────────────── */}
+        <div className="px-3 pb-3">
+          <Link
+            href="/settings"
+            onClick={onClose}
+            className={cn(
+              'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150',
+              pathname.startsWith('/settings')
+                ? 'bg-sidebar-active text-white'
+                : 'text-gray-400 hover:bg-sidebar-hover hover:text-gray-200'
+            )}
+          >
+            <Settings
+              className={cn(
+                'h-[18px] w-[18px] shrink-0 transition-colors',
+                pathname.startsWith('/settings')
+                  ? 'text-primary-400'
+                  : 'text-gray-500 group-hover:text-gray-300'
+              )}
+            />
+            Settings
+          </Link>
+        </div>
 
         {/* ── User / Sign out ────────────────────── */}
         <div className="border-t border-sidebar-border p-4">

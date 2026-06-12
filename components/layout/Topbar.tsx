@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Menu } from 'lucide-react';
+import { Menu, BookOpen } from 'lucide-react';
 
 export interface TopbarProps {
   title: string;
@@ -35,6 +36,16 @@ export function Topbar({ title, onMenuToggle, className, userInitial }: TopbarPr
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Guide Link */}
+      <Link
+        href="/guide"
+        className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors mr-1"
+        aria-label="Getting Started Guide"
+      >
+        <BookOpen className="h-4.5 w-4.5" />
+        <span className="hidden sm:inline">Guide</span>
+      </Link>
 
       {/* User avatar */}
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700 ring-2 ring-white">

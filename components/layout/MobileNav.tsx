@@ -10,6 +10,7 @@ import {
   Truck,
   ClipboardList,
   Settings,
+  BookOpen,
 } from 'lucide-react';
 
 const navItems = [
