@@ -1,9 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, DeliveryStatus, TruckStatus, DriverStatus, LoadPlanStatus, UnitType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Starting seed process...');
+  console.log('Starting demo seed process...');
 
   // Get or find the first company
   let company = await prisma.company.findFirst();
@@ -12,359 +12,163 @@ async function main() {
     console.log('No company found. Creating a default company...');
     company = await prisma.company.create({
       data: {
-        name: 'LoadFlow Meat Logistics',
+        name: 'LoadFlow Demo Logistics',
+        fullName: 'Demo Logistics',
       },
     });
   }
 
   console.log(`Using Company: ${company.name} (${company.id})`);
 
-  console.log('Checking for existing demo data...');
+  console.log('Cleaning up existing demo data...');
   // Delete any existing demo records to ensure clean slate (idempotency after failure)
+  // Delete delivery items first
   await prisma.deliveryItem.deleteMany({
     where: { delivery: { notes: { contains: '[DEMO]' } } }
   });
+  // Delete load plan deliveries
+  await prisma.loadPlanItem.deleteMany({
+    where: { delivery: { notes: { contains: '[DEMO]' } } }
+  });
+  // Delete deliveries
   await prisma.delivery.deleteMany({
     where: { companyId: company.id, notes: { contains: '[DEMO]' } }
   });
+  // Delete load plans
+  await prisma.loadPlan.deleteMany({
+    where: {
+      OR: [
+        { notes: { contains: '[DEMO]' } },
+        { truck: { notes: { contains: '[DEMO]' } } },
+        { driver: { notes: { contains: '[DEMO]' } } }
+      ]
+    }
+  });
+  // Delete trucks
   await prisma.truck.deleteMany({
     where: { companyId: company.id, notes: { contains: '[DEMO]' } }
   });
+  // Delete drivers
   await prisma.driver.deleteMany({
     where: { companyId: company.id, notes: { contains: '[DEMO]' } }
   });
-  console.log('Cleaned up any previous demo data.');
+  console.log('Cleaned up previous demo data.');
 
   console.log('Creating demo drivers...');
   const driverData = [
-    { companyId: company.id, name: 'James Harrison', phone: '555-0101', licenseNumber: 'CDL-JH-98432', notes: 'Reliable. Good with refrigerated transport. [DEMO]' },
-    { companyId: company.id, name: 'Michael Chen', phone: '555-0102', licenseNumber: 'CDL-MC-45122', notes: 'Morning shift preferred. [DEMO]' },
-    { companyId: company.id, name: 'David Torres', phone: '555-0103', licenseNumber: 'CDL-DT-77321', notes: 'Experienced with heavy loads. [DEMO]' },
-    { companyId: company.id, name: 'Robert Fox', phone: '555-0104', licenseNumber: 'CDL-RF-88210', notes: '[DEMO]' },
-    { companyId: company.id, name: 'William Wright', phone: '555-0105', licenseNumber: 'CDL-WW-33921', notes: '[DEMO]' },
-    { companyId: company.id, name: 'Thomas Anderson', phone: '555-0106', licenseNumber: 'CDL-TA-11234', notes: 'Available for weekend dispatch. [DEMO]' }
+    { companyId: company.id, name: 'Ahmed Khalil', phone: '555-0101', licenseNumber: 'CDL-AK-98432', status: DriverStatus.ON_TRIP, notes: 'Route lead, morning shifts [DEMO]' },
+    { companyId: company.id, name: 'Sarah Mitchell', phone: '555-0102', licenseNumber: 'CDL-SM-45122', status: DriverStatus.ON_TRIP, notes: 'Certified for refrigerated transport [DEMO]' },
+    { companyId: company.id, name: 'James Rodriguez', phone: '555-0103', licenseNumber: 'CDL-JR-77321', status: DriverStatus.AVAILABLE, notes: 'Flexible scheduling [DEMO]' },
+    { companyId: company.id, name: 'Maria Santos', phone: '555-0104', licenseNumber: 'CDL-MS-88210', status: DriverStatus.ON_TRIP, notes: 'Heavy load specialist [DEMO]' },
+    { companyId: company.id, name: 'David Park', phone: '555-0105', licenseNumber: 'CDL-DP-33921', status: DriverStatus.AVAILABLE, notes: 'Weekend coverage [DEMO]' },
+    { companyId: company.id, name: 'Fatima Al-Hassan', phone: '555-0106', licenseNumber: 'CDL-FA-11234', status: DriverStatus.AVAILABLE, notes: 'City deliveries expert [DEMO]' },
+    { companyId: company.id, name: 'Thomas Weber', phone: '555-0107', licenseNumber: 'CDL-TW-22345', status: DriverStatus.OFF_DUTY, notes: 'Returns Monday [DEMO]' },
+    { companyId: company.id, name: 'Rachel Kim', phone: '555-0108', licenseNumber: 'CDL-RK-33456', status: DriverStatus.AVAILABLE, notes: 'Night shift coverage [DEMO]' },
+    { companyId: company.id, name: 'Omar Farouk', phone: '555-0109', licenseNumber: 'CDL-OF-44567', status: DriverStatus.ON_TRIP, notes: 'Long-haul experienced [DEMO]' }
   ];
 
+  const drivers = [];
   for (const data of driverData) {
-    await prisma.driver.create({ data });
+    drivers.push(await prisma.driver.create({ data }));
   }
-  console.log(`✅ Created ${driverData.length} demo drivers.`);
+  console.log(`✅ Created ${drivers.length} demo drivers.`);
 
   console.log('Creating demo trucks...');
   const truckData = [
-    { companyId: company.id, name: 'Reefer Unit 01', type: 'Refrigerated Box Truck', plateNumber: 'RFR-101', weightCapacity: 12000, notes: 'Dual temp zone capable. [DEMO]' },
-    { companyId: company.id, name: 'Reefer Unit 02', type: 'Refrigerated Box Truck', plateNumber: 'RFR-102', weightCapacity: 10000, notes: 'Standard chiller. [DEMO]' },
-    { companyId: company.id, name: 'Heavy Reefer 03', type: 'Refrigerated Trailer', plateNumber: 'HRF-201', weightCapacity: 25000, notes: 'For large supermarket deliveries. [DEMO]' },
-    { companyId: company.id, name: 'Heavy Reefer 04', type: 'Refrigerated Trailer', plateNumber: 'HRF-202', weightCapacity: 25000, notes: '[DEMO]' },
-    { companyId: company.id, name: 'City Reefer 05', type: 'Refrigerated Sprinter', plateNumber: 'CRF-301', weightCapacity: 4500, notes: 'Urban deliveries. Butcheries only. [DEMO]' }
+    { companyId: company.id, name: 'Box Truck 01', type: 'Box Truck', plateNumber: 'BXT-101', weightCapacity: 8000, status: TruckStatus.AVAILABLE, notes: '[DEMO]' },
+    { companyId: company.id, name: 'Box Truck 02', type: 'Box Truck', plateNumber: 'BXT-102', weightCapacity: 8000, status: TruckStatus.IN_USE, notes: '[DEMO]' },
+    { companyId: company.id, name: 'Flatbed 03', type: 'Flatbed', plateNumber: 'FLT-201', weightCapacity: 15000, status: TruckStatus.IN_USE, notes: '[DEMO]' },
+    { companyId: company.id, name: 'Refrigerated 04', type: 'Refrigerated Truck', plateNumber: 'REF-301', weightCapacity: 10000, status: TruckStatus.IN_USE, notes: '[DEMO]' },
+    { companyId: company.id, name: 'Sprinter Van 05', type: 'Sprinter Van', plateNumber: 'SPV-401', weightCapacity: 3500, status: TruckStatus.AVAILABLE, notes: '[DEMO]' },
+    { companyId: company.id, name: 'Heavy Hauler 06', type: 'Semi Trailer', plateNumber: 'HH-501', weightCapacity: 25000, status: TruckStatus.AVAILABLE, notes: '[DEMO]' },
+    { companyId: company.id, name: 'City Runner 07', type: 'Cargo Van', plateNumber: 'CR-601', weightCapacity: 2500, status: TruckStatus.MAINTENANCE, notes: '[DEMO]' }
   ];
 
+  const trucks = [];
   for (const data of truckData) {
-    await prisma.truck.create({ data });
+    trucks.push(await prisma.truck.create({ data }));
   }
-  console.log(`✅ Created ${truckData.length} demo trucks.`);
+  console.log(`✅ Created ${trucks.length} demo trucks.`);
 
-  console.log('Creating demo deliveries and items...');
+  console.log('Creating demo deliveries...');
 
   const deliveryData = [
-    {
-      customerName: 'Lulu Hypermarket - Downtown',
-      pickupAddress: 'Main Distribution Center, Dock 4',
-      deliveryAddress: 'Lulu Hypermarket, Downtown Branch, Receiving Bay B',
-      notes: 'Morning delivery window required. [DEMO]',
-      items: [
-        {
-          productName: 'New Zealand Topside',
-          sku: 'NZ-TOP-01',
-          quantity: 45,
-          quantityUnit: 'cartons',
-          unitType: 'STANDARD_WEIGHT',
-          unitWeight: 20,
-          totalWeight: 900,
-        },
-        {
-          productName: 'Brazilian Ribeye',
-          sku: 'BR-RIB-02',
-          quantity: 30,
-          quantityUnit: 'cartons',
-          unitType: 'VARIABLE_WEIGHT',
-          unitWeight: 18.5,
-          totalWeight: 555,
-        },
-        {
-          productName: 'Australian Lamb Rack',
-          sku: 'AU-LAMB-RACK',
-          quantity: 120,
-          quantityUnit: 'pcs',
-          unitType: 'PIECE_BASED',
-          unitWeight: 1.2,
-          totalWeight: 144,
-        },
-        {
-          productName: 'Beef Tenderloin',
-          sku: 'BF-TEND-01',
-          quantity: 25,
-          quantityUnit: 'boxes',
-          unitType: 'VARIABLE_WEIGHT',
-          unitWeight: 15.3,
-          totalWeight: 382.5,
-        },
-      ],
-    },
-    {
-      customerName: 'Carrefour - City Center',
-      pickupAddress: 'Main Distribution Center, Dock 2',
-      deliveryAddress: 'Carrefour Hypermarket, City Center Mall, Loading Dock 1',
-      notes: 'Check temperature logs on arrival. [DEMO]',
-      items: [
-        {
-          productName: 'Beef Striploin',
-          sku: 'BF-STRIP-04',
-          quantity: 40,
-          quantityUnit: 'cartons',
-          unitType: 'STANDARD_WEIGHT',
-          unitWeight: 22.5,
-          totalWeight: 900,
-        },
-        {
-          productName: 'Wagyu Chuck Roll',
-          sku: 'WG-CHUCK-01',
-          quantity: 15,
-          quantityUnit: 'boxes',
-          unitType: 'VARIABLE_WEIGHT',
-          unitWeight: 16.8,
-          totalWeight: 252,
-        },
-        {
-          productName: 'Mutton Leg',
-          sku: 'MUT-LEG-01',
-          quantity: 80,
-          quantityUnit: 'pcs',
-          unitType: 'PIECE_BASED',
-          unitWeight: 2.5,
-          totalWeight: 200,
-        },
-      ],
-    },
-    {
-      customerName: 'The Prime Butchery',
-      pickupAddress: 'Main Distribution Center, Dock 1',
-      deliveryAddress: '45 Culinary Ave, The Prime Butchery',
-      notes: 'Boutique butcher. Need driver to help unload. [DEMO]',
-      items: [
-        {
-          productName: 'Wagyu Chuck Roll',
-          sku: 'WG-CHUCK-01',
-          quantity: 5,
-          quantityUnit: 'boxes',
-          unitType: 'VARIABLE_WEIGHT',
-          unitWeight: 16.5,
-          totalWeight: 82.5,
-        },
-        {
-          productName: 'Beef Brisket',
-          sku: 'BF-BRIS-02',
-          quantity: 10,
-          quantityUnit: 'cartons',
-          unitType: 'STANDARD_WEIGHT',
-          unitWeight: 25,
-          totalWeight: 250,
-        },
-        {
-          productName: 'Lamb Chops',
-          sku: 'LAMB-CHOP-01',
-          quantity: 150,
-          quantityUnit: 'pcs',
-          unitType: 'PIECE_BASED',
-          unitWeight: 0.8,
-          totalWeight: 120,
-        },
-        {
-          productName: 'Veal Leg',
-          sku: 'VL-LEG-03',
-          quantity: 8,
-          quantityUnit: 'pcs',
-          unitType: 'PIECE_BASED',
-          unitWeight: 12,
-          totalWeight: 96,
-        },
-      ],
-    },
-    {
-      customerName: 'Sultan Center - Salmiya',
-      pickupAddress: 'Main Distribution Center, Dock 3',
-      deliveryAddress: 'Sultan Center, Salmiya Salem Al Mubarak St',
-      notes: '[DEMO]',
-      items: [
-        {
-          productName: 'Beef Mince',
-          sku: 'BF-MINC-05',
-          quantity: 50,
-          quantityUnit: 'cartons',
-          unitType: 'STANDARD_WEIGHT',
-          unitWeight: 10,
-          totalWeight: 500,
-        },
-        {
-          productName: 'New Zealand Topside',
-          sku: 'NZ-TOP-01',
-          quantity: 20,
-          quantityUnit: 'cartons',
-          unitType: 'STANDARD_WEIGHT',
-          unitWeight: 20,
-          totalWeight: 400,
-        },
-        {
-          productName: 'Short Ribs',
-          sku: 'SH-RIB-02',
-          quantity: 18,
-          quantityUnit: 'boxes',
-          unitType: 'VARIABLE_WEIGHT',
-          unitWeight: 14.2,
-          totalWeight: 255.6,
-        },
-      ],
-    },
-    {
-      customerName: 'Grand Hyper',
-      pickupAddress: 'Main Distribution Center, Dock 5',
-      deliveryAddress: 'Grand Hypermarket, Industrial Area',
-      notes: 'Pallet jack required. [DEMO]',
-      items: [
-        {
-          productName: 'Beef Cubes',
-          sku: 'BF-CUB-01',
-          quantity: 60,
-          quantityUnit: 'cartons',
-          unitType: 'STANDARD_WEIGHT',
-          unitWeight: 15,
-          totalWeight: 900,
-        },
-        {
-          productName: 'Lamb Shoulder',
-          sku: 'LAMB-SHO-02',
-          quantity: 25,
-          quantityUnit: 'boxes',
-          unitType: 'VARIABLE_WEIGHT',
-          unitWeight: 18.4,
-          totalWeight: 460,
-        },
-        {
-          productName: 'Beef Shank',
-          sku: 'BF-SHK-03',
-          quantity: 40,
-          quantityUnit: 'pcs',
-          unitType: 'PIECE_BASED',
-          unitWeight: 3.5,
-          totalWeight: 140,
-        },
-      ],
-    },
-    {
-      customerName: 'Gourmet Restaurant Group',
-      pickupAddress: 'Main Distribution Center, Dock 1',
-      deliveryAddress: 'Central Kitchen, 12 Chef Lane',
-      notes: 'Strict temperature requirements. [DEMO]',
-      items: [
-        {
-          productName: 'Beef Tenderloin',
-          sku: 'BF-TEND-01',
-          quantity: 12,
-          quantityUnit: 'boxes',
-          unitType: 'VARIABLE_WEIGHT',
-          unitWeight: 15.5,
-          totalWeight: 186,
-        },
-        {
-          productName: 'Australian Lamb Rack',
-          sku: 'AU-LAMB-RACK',
-          quantity: 40,
-          quantityUnit: 'pcs',
-          unitType: 'PIECE_BASED',
-          unitWeight: 1.1,
-          totalWeight: 44,
-        },
-        {
-          productName: 'Wagyu Chuck Roll',
-          sku: 'WG-CHUCK-01',
-          quantity: 3,
-          quantityUnit: 'boxes',
-          unitType: 'VARIABLE_WEIGHT',
-          unitWeight: 16.2,
-          totalWeight: 48.6,
-        },
-      ],
-    },
-    {
-      customerName: 'Marriott City Hotel',
-      pickupAddress: 'Main Distribution Center, Dock 2',
-      deliveryAddress: 'Marriott Hotel Loading Bay, City District',
-      notes: 'Security clearance required at gate. [DEMO]',
-      items: [
-        {
-          productName: 'Beef Striploin',
-          sku: 'BF-STRIP-04',
-          quantity: 15,
-          quantityUnit: 'cartons',
-          unitType: 'STANDARD_WEIGHT',
-          unitWeight: 22.5,
-          totalWeight: 337.5,
-        },
-        {
-          productName: 'Veal Leg',
-          sku: 'VL-LEG-03',
-          quantity: 5,
-          quantityUnit: 'pcs',
-          unitType: 'PIECE_BASED',
-          unitWeight: 11.5,
-          totalWeight: 57.5,
-        },
-        {
-          productName: 'Brazilian Ribeye',
-          sku: 'BR-RIB-02',
-          quantity: 8,
-          quantityUnit: 'cartons',
-          unitType: 'VARIABLE_WEIGHT',
-          unitWeight: 19.1,
-          totalWeight: 152.8,
-        },
-        {
-          productName: 'Lamb Chops',
-          sku: 'LAMB-CHOP-01',
-          quantity: 60,
-          quantityUnit: 'pcs',
-          unitType: 'PIECE_BASED',
-          unitWeight: 0.75,
-          totalWeight: 45,
-        },
-      ],
-    }
+    { customer: 'TechVault Electronics', address: '12 Silicon Way, Tech Park', notes: 'Fragile. Use tail lift. [DEMO]', status: DeliveryStatus.DELIVERED,
+      items: [{ name: 'LED Televisions 65"', sku: 'TV-LED-65', qty: 15, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 22, tWeight: 330 }, { name: 'Laptop Computers', sku: 'LPT-01', qty: 40, unit: 'boxes', type: 'STANDARD_WEIGHT', uWeight: 3.5, tWeight: 140 }] },
+    { customer: 'FreshMart Supermarket', address: '45 Retail Ave', notes: 'Temperature controlled. [DEMO]', status: DeliveryStatus.IN_TRANSIT,
+      items: [{ name: 'Dairy Pallet', sku: 'DRY-PAL', qty: 2, unit: 'pallets', type: 'STANDARD_WEIGHT', uWeight: 450, tWeight: 900 }, { name: 'Fresh Produce', sku: 'PRD-FRSH', qty: 120, unit: 'crates', type: 'VARIABLE_WEIGHT', uWeight: 15, tWeight: 1800 }] },
+    { customer: 'BuildRight Construction', address: 'Site 4B, Industrial Zone', notes: 'Call site manager 30m before. [DEMO]', status: DeliveryStatus.ASSIGNED,
+      items: [{ name: 'Cement Bags', sku: 'CMT-BG', qty: 200, unit: 'bags', type: 'STANDARD_WEIGHT', uWeight: 25, tWeight: 5000 }, { name: 'Ceramic Tiles', sku: 'TIL-CER', qty: 4, unit: 'pallets', type: 'STANDARD_WEIGHT', uWeight: 800, tWeight: 3200 }] },
+    { customer: 'Metro Office Supplies', address: 'Downtown Business Center', notes: 'Deliver to loading dock 2. [DEMO]', status: DeliveryStatus.PENDING,
+      items: [{ name: 'Printer Paper A4', sku: 'PPR-A4', qty: 50, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 12, tWeight: 600 }, { name: 'Office Chairs', sku: 'FUR-CHR', qty: 12, unit: 'pieces', type: 'PIECE_BASED', uWeight: 15, tWeight: 180 }] },
+    { customer: 'CoolBrew Beverage Co.', address: 'Beverage Dist Center', notes: 'Verify seals. [DEMO]', status: DeliveryStatus.DELIVERED,
+      items: [{ name: 'Craft Beer Kegs', sku: 'KEG-CB', qty: 30, unit: 'units', type: 'STANDARD_WEIGHT', uWeight: 55, tWeight: 1650 }, { name: 'Sparkling Water', sku: 'WTR-SPK', qty: 5, unit: 'pallets', type: 'STANDARD_WEIGHT', uWeight: 600, tWeight: 3000 }] },
+    { customer: 'Pinnacle Manufacturing', address: 'Factory Row, Unit 8', notes: 'Heavy machinery parts. [DEMO]', status: DeliveryStatus.IN_TRANSIT,
+      items: [{ name: 'Steel Rods', sku: 'STL-RD', qty: 50, unit: 'bundles', type: 'STANDARD_WEIGHT', uWeight: 100, tWeight: 5000 }, { name: 'Industrial Bearings', sku: 'BRG-IND', qty: 10, unit: 'boxes', type: 'STANDARD_WEIGHT', uWeight: 25, tWeight: 250 }] },
+    { customer: 'Garden Grove Nursery', address: 'Greenery Lane', notes: 'Unload near greenhouse. [DEMO]', status: DeliveryStatus.PENDING,
+      items: [{ name: 'Potting Soil', sku: 'SOIL-PT', qty: 100, unit: 'bags', type: 'STANDARD_WEIGHT', uWeight: 20, tWeight: 2000 }, { name: 'Ceramic Planters', sku: 'PLN-CER', qty: 3, unit: 'pallets', type: 'STANDARD_WEIGHT', uWeight: 350, tWeight: 1050 }] },
+    { customer: 'Riverside Medical Center', address: 'Hospital Receiving Bay', notes: 'Urgent medical supplies. [DEMO]', status: DeliveryStatus.DELIVERED,
+      items: [{ name: 'PPE Kits', sku: 'MED-PPE', qty: 40, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 5, tWeight: 200 }, { name: 'Hand Sanitizer', sku: 'MED-SAN', qty: 25, unit: 'boxes', type: 'STANDARD_WEIGHT', uWeight: 12, tWeight: 300 }] },
+    { customer: 'The Daily Grind Café', address: 'High Street, Shop 4', notes: 'Morning delivery only. [DEMO]', status: DeliveryStatus.ASSIGNED,
+      items: [{ name: 'Coffee Beans', sku: 'COF-BN', qty: 20, unit: 'bags', type: 'STANDARD_WEIGHT', uWeight: 15, tWeight: 300 }, { name: 'Paper Cups', sku: 'CUP-PPR', qty: 30, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 8, tWeight: 240 }] },
+    { customer: 'Atlas Auto Parts', address: 'Auto Hub Center', notes: '[DEMO]', status: DeliveryStatus.PENDING,
+      items: [{ name: 'Brake Pads', sku: 'AUT-BRK', qty: 50, unit: 'boxes', type: 'STANDARD_WEIGHT', uWeight: 10, tWeight: 500 }, { name: 'Engine Components', sku: 'AUT-ENG', qty: 2, unit: 'pallets', type: 'STANDARD_WEIGHT', uWeight: 400, tWeight: 800 }] },
+    { customer: 'Luxe Home Furnishings', address: 'Design District Blvd', notes: 'White glove delivery needed. [DEMO]', status: DeliveryStatus.IN_TRANSIT,
+      items: [{ name: 'Dining Tables', sku: 'FUR-DT', qty: 5, unit: 'pieces', type: 'PIECE_BASED', uWeight: 45, tWeight: 225 }, { name: 'Floor Lamps', sku: 'LMP-FL', qty: 15, unit: 'boxes', type: 'STANDARD_WEIGHT', uWeight: 8, tWeight: 120 }] },
+    { customer: 'FreshMart - Westside', address: 'Westside Mall, Dock A', notes: 'Frozen goods included. [DEMO]', status: DeliveryStatus.DELIVERED,
+      items: [{ name: 'Frozen Foods', sku: 'FRZ-FD', qty: 3, unit: 'pallets', type: 'STANDARD_WEIGHT', uWeight: 500, tWeight: 1500 }, { name: 'Canned Goods', sku: 'CND-GD', qty: 60, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 18, tWeight: 1080 }] },
+    { customer: 'Summit Sports & Outdoors', address: 'Adventure Park Mall', notes: '[DEMO]', status: DeliveryStatus.PENDING,
+      items: [{ name: 'Mountain Bikes', sku: 'BIK-MTN', qty: 12, unit: 'pieces', type: 'PIECE_BASED', uWeight: 18, tWeight: 216 }, { name: 'Camping Tents', sku: 'TNT-CMP', qty: 25, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 14, tWeight: 350 }] },
+    { customer: 'Greenfield Organic Farm', address: 'Rural Route 9', notes: 'Farm pickup. [DEMO]', status: DeliveryStatus.ASSIGNED,
+      items: [{ name: 'Organic Produce', sku: 'ORG-PRD', qty: 80, unit: 'crates', type: 'VARIABLE_WEIGHT', uWeight: 12, tWeight: 960 }, { name: 'Fresh Eggs', sku: 'EGG-FR', qty: 40, unit: 'boxes', type: 'STANDARD_WEIGHT', uWeight: 15, tWeight: 600 }] },
+    { customer: 'DataCore Solutions', address: 'Tech Park, Building 3', notes: 'Server racks. [DEMO]', status: DeliveryStatus.IN_TRANSIT,
+      items: [{ name: 'Server Racks', sku: 'IT-SRV', qty: 4, unit: 'pieces', type: 'PIECE_BASED', uWeight: 120, tWeight: 480 }, { name: 'UPS Units', sku: 'IT-UPS', qty: 10, unit: 'boxes', type: 'STANDARD_WEIGHT', uWeight: 45, tWeight: 450 }] },
+    { customer: 'Harbor Seafood Market', address: 'Pier 4, Fish Market', notes: 'Must arrive before 6 AM. [DEMO]', status: DeliveryStatus.DELIVERED,
+      items: [{ name: 'Fresh Salmon', sku: 'SEA-SAL', qty: 30, unit: 'boxes', type: 'VARIABLE_WEIGHT', uWeight: 25, tWeight: 750 }, { name: 'Ice Packs', sku: 'ICE-PCK', qty: 10, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 20, tWeight: 200 }] },
+    { customer: 'Bright Spark Electrical', address: 'Industrial Park South', notes: '[DEMO]', status: DeliveryStatus.PENDING,
+      items: [{ name: 'Electrical Cables', sku: 'ELC-CBL', qty: 40, unit: 'bundles', type: 'STANDARD_WEIGHT', uWeight: 30, tWeight: 1200 }, { name: 'Distribution Panels', sku: 'ELC-PNL', qty: 8, unit: 'pieces', type: 'PIECE_BASED', uWeight: 25, tWeight: 200 }] },
+    { customer: 'King\'s Bakery Wholesale', address: 'Baker\'s Avenue', notes: '[DEMO]', status: DeliveryStatus.ASSIGNED,
+      items: [{ name: 'Bread Flour', sku: 'FLR-BRD', qty: 100, unit: 'bags', type: 'STANDARD_WEIGHT', uWeight: 25, tWeight: 2500 }, { name: 'Baking Sugar', sku: 'SGR-BAK', qty: 50, unit: 'bags', type: 'STANDARD_WEIGHT', uWeight: 25, tWeight: 1250 }] },
+    { customer: 'ProFit Gym Equipment', address: 'Fitness Plaza', notes: 'Heavy lifting required. [DEMO]', status: DeliveryStatus.IN_TRANSIT,
+      items: [{ name: 'Dumbbell Sets', sku: 'GYM-DMB', qty: 20, unit: 'boxes', type: 'STANDARD_WEIGHT', uWeight: 40, tWeight: 800 }, { name: 'Gym Mats', sku: 'GYM-MAT', qty: 50, unit: 'bundles', type: 'STANDARD_WEIGHT', uWeight: 15, tWeight: 750 }] },
+    { customer: 'Crescent Pharma Dist.', address: 'Pharma Park, Unit 1', notes: 'Temperature logs required. [DEMO]', status: DeliveryStatus.DELIVERED,
+      items: [{ name: 'OTC Medications', sku: 'PHM-OTC', qty: 60, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 10, tWeight: 600 }, { name: 'First Aid Kits', sku: 'PHM-FAK', qty: 30, unit: 'boxes', type: 'STANDARD_WEIGHT', uWeight: 5, tWeight: 150 }] },
+    { customer: 'Urban Style Clothing', address: 'Fashion Mall, Store 204', notes: '[DEMO]', status: DeliveryStatus.PENDING,
+      items: [{ name: 'Apparel Cartons', sku: 'CLO-APP', qty: 45, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 15, tWeight: 675 }, { name: 'Shoe Boxes', sku: 'CLO-SHO', qty: 100, unit: 'boxes', type: 'STANDARD_WEIGHT', uWeight: 2, tWeight: 200 }] },
+    { customer: 'GreenLeaf Landscaping', address: 'County Road 12', notes: 'Drop off in back yard. [DEMO]', status: DeliveryStatus.ASSIGNED,
+      items: [{ name: 'Pine Mulch', sku: 'LND-MUL', qty: 80, unit: 'bags', type: 'STANDARD_WEIGHT', uWeight: 20, tWeight: 1600 }, { name: 'Garden Pavers', sku: 'LND-PVR', qty: 2, unit: 'pallets', type: 'STANDARD_WEIGHT', uWeight: 900, tWeight: 1800 }] },
+    { customer: 'SavorBite Restaurant Group', address: 'Culinary District', notes: 'Multi-stop delivery. [DEMO]', status: DeliveryStatus.IN_TRANSIT,
+      items: [{ name: 'Premium Meats', sku: 'RST-MET', qty: 25, unit: 'boxes', type: 'VARIABLE_WEIGHT', uWeight: 18, tWeight: 450 }, { name: 'Sauces & Condiments', sku: 'RST-SAU', qty: 15, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 22, tWeight: 330 }] },
+    { customer: 'Pacific Paper & Packaging', address: 'Paper Mill Way', notes: '[DEMO]', status: DeliveryStatus.DELIVERED,
+      items: [{ name: 'Cardboard Boxes', sku: 'PKG-CDB', qty: 5, unit: 'pallets', type: 'STANDARD_WEIGHT', uWeight: 250, tWeight: 1250 }, { name: 'Packing Tape', sku: 'PKG-TAP', qty: 40, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 12, tWeight: 480 }] },
+    { customer: 'TechVault - Warehouse', address: 'Central Storage', notes: 'High value goods. [DEMO]', status: DeliveryStatus.PENDING,
+      items: [{ name: 'Smartphones', sku: 'PHN-SMT', qty: 10, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 15, tWeight: 150 }, { name: 'Tablets', sku: 'TAB-SMT', qty: 8, unit: 'cartons', type: 'STANDARD_WEIGHT', uWeight: 18, tWeight: 144 }] }
   ];
 
-  let deliveryCount = 0;
+  const deliveries: any[] = [];
   let itemCount = 0;
 
   for (const del of deliveryData) {
-    const totalDeliveryWeight = del.items.reduce((sum, item) => sum + item.totalWeight, 0);
+    const totalDeliveryWeight = del.items.reduce((sum, item) => sum + item.tWeight, 0);
 
     const createdDelivery = await prisma.delivery.create({
       data: {
         companyId: company.id,
-        customerName: del.customerName,
-        pickupAddress: del.pickupAddress,
-        deliveryAddress: del.deliveryAddress,
+        customerName: del.customer,
+        pickupAddress: 'Main Distribution Center',
+        deliveryAddress: del.address,
         notes: del.notes,
+        status: del.status,
         weight: totalDeliveryWeight,
         items: {
           create: del.items.map((item, index) => ({
-            productName: item.productName,
+            productName: item.name,
             sku: item.sku,
-            quantity: item.quantity,
-            quantityUnit: item.quantityUnit,
-            // @ts-ignore
-            unitType: item.unitType,
-            unitWeight: item.unitWeight,
-            totalWeight: item.totalWeight,
+            quantity: item.qty,
+            quantityUnit: item.unit,
+            unitType: UnitType[item.type as keyof typeof UnitType],
+            unitWeight: item.uWeight,
+            totalWeight: item.tWeight,
             sortOrder: index,
           }))
         }
@@ -374,20 +178,65 @@ async function main() {
       }
     });
     
-    deliveryCount++;
+    deliveries.push(createdDelivery);
     itemCount += createdDelivery.items.length;
   }
 
-  console.log(`✅ Created ${deliveryCount} demo deliveries with ${itemCount} total items.`);
+  console.log(`✅ Created ${deliveries.length} demo deliveries with ${itemCount} total items.`);
+
+  console.log('Creating demo load plans...');
+  
+  // Find specific trucks and drivers for load plans
+  const bt02 = trucks.find(t => t.plateNumber === 'BXT-102');
+  const flt03 = trucks.find(t => t.plateNumber === 'FLT-201');
+  const ref04 = trucks.find(t => t.plateNumber === 'REF-301');
+  const bt01 = trucks.find(t => t.plateNumber === 'BXT-101');
+
+  const ak = drivers.find(d => d.name === 'Ahmed Khalil');
+  const ms = drivers.find(d => d.name === 'Maria Santos');
+  const sm = drivers.find(d => d.name === 'Sarah Mitchell');
+  const jr = drivers.find(d => d.name === 'James Rodriguez');
+
+  const createLoadPlan = async (date: Date, truck: any, driver: any, status: LoadPlanStatus, delIndices: number[]) => {
+    if (!truck || !driver) return;
+    
+    const lp = await prisma.loadPlan.create({
+      data: {
+        companyId: company.id,
+        date,
+        truckId: truck.id,
+        driverId: driver.id,
+        status,
+        notes: 'Generated for demo purposes [DEMO]',
+      }
+    });
+
+    for (let i = 0; i < delIndices.length; i++) {
+      const delivery = deliveries[delIndices[i]];
+      if (delivery) {
+        await prisma.loadPlanItem.create({
+          data: {
+            loadPlanId: lp.id,
+            deliveryId: delivery.id,
+            sortOrder: i + 1
+          }
+        });
+      }
+    }
+  };
+
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  await createLoadPlan(today, bt02, ak, LoadPlanStatus.DISPATCHED, [1, 8]); // Deliveries 2, 9
+  await createLoadPlan(today, flt03, ms, LoadPlanStatus.DISPATCHED, [2, 5]); // Deliveries 3, 6
+  await createLoadPlan(tomorrow, ref04, sm, LoadPlanStatus.READY, [13, 17]); // Deliveries 14, 18
+  await createLoadPlan(tomorrow, bt01, jr, LoadPlanStatus.DRAFT, [3, 6]); // Deliveries 4, 7
+
+  console.log('✅ Created 4 demo load plans.');
   console.log('---');
-  console.log('Seed completed successfully!');
-  console.log(`Summary:
-  - Deliveries Added: ${deliveryCount}
-  - Delivery Items Added: ${itemCount}
-  - Drivers Added: ${driverData.length}
-  - Trucks Added: ${truckData.length}
-  - No existing data was removed or modified.
-  - No load plans were created (deliveries are unassigned).`);
+  console.log('Demo environment seeded successfully!');
 }
 
 main()

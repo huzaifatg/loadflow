@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { SettingsForm } from '@/components/settings/SettingsForm';
+import { getAuthContext } from '@/lib/auth';
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -12,7 +13,8 @@ export default async function SettingsPage() {
 
   let company = null;
   try {
-    company = await prisma.company.findFirst();
+    const auth = await getAuthContext();
+    company = auth?.company;
   } catch (err) {
     console.error("DB error in Settings:", err);
   }
@@ -27,7 +29,7 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      <SettingsForm email={user.email} company={company} />
+      <SettingsForm email={user.email} company={company ?? null} />
     </div>
   );
 }

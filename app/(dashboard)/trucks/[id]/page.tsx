@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Truck as TruckIcon } from 'lucide-react';
 import { TruckDetailClient } from '@/components/trucks/TruckDetailClient';
+import { getAuthContext } from '@/lib/auth';
 
 
 export default async function TruckDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,7 +20,9 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
   let truck = null;
   let loadPlans: { id: string; date: Date; status: string; _count: { items: number } }[] = [];
   try {
-    const company = await prisma.company.findFirst();
+    const auth = await getAuthContext();
+  const company = auth?.company;
+  const companyId = auth?.companyId;
     if (company) {
       truck = await prisma.truck.findUnique({
         where: { id, companyId: company.id },

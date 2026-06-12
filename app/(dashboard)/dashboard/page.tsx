@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { prisma } from '@/lib/prisma';
 import { format, startOfDay, endOfDay } from 'date-fns';
+import { getAuthContext } from '@/lib/auth';
 
 const statusStyles: Record<string, string> = {
   'IN_TRANSIT': 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10',
@@ -24,8 +25,9 @@ export default async function DashboardPage() {
   const todayEnd = endOfDay(new Date());
 
   // Resolve company for scoping
-  const company = await prisma.company.findFirst();
-  const companyId = company?.id;
+  const auth = await getAuthContext();
+  const company = auth?.company;
+  const companyId = auth?.companyId;
 
   // If no company exists yet, show zeros
   if (!companyId) {

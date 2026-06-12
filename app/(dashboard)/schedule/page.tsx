@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import type { LoadPlan, Truck, Driver } from '@prisma/client';
+import { getAuthContext } from '@/lib/auth';
 
 type LoadPlanWithRelations = LoadPlan & {
   truck: Truck | null;
@@ -33,7 +34,9 @@ export default async function SchedulePage({
 
   let loadPlans: LoadPlanWithRelations[] = [];
   try {
-    const company = await prisma.company.findFirst();
+    const auth = await getAuthContext();
+  const company = auth?.company;
+  const companyId = auth?.companyId;
     if (company) {
       loadPlans = await prisma.loadPlan.findMany({
         where: {

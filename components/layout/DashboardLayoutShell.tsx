@@ -8,7 +8,7 @@ import { MobileNav } from '@/components/layout/MobileNav';
 
 /* ── Map pathname → page title ───────────────────── */
 const pageTitles: Record<string, string> = {
-  '/': 'Dashboard',
+  '/dashboard': 'Dashboard',
   '/deliveries': 'Deliveries',
   '/trucks': 'Trucks',
   '/drivers': 'Drivers',

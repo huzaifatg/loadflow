@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Package } from 'lucide-react';
 import { DeliveryDetailClient } from '@/components/deliveries/DeliveryDetailClient';
 import { serializeDelivery } from '@/lib/delivery-items';
+import { getAuthContext } from '@/lib/auth';
 
 export default async function DeliveryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -18,7 +19,9 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
 
   let delivery = null;
   try {
-    const company = await prisma.company.findFirst();
+    const auth = await getAuthContext();
+  const company = auth?.company;
+  const companyId = auth?.companyId;
     if (company) {
       delivery = await prisma.delivery.findUnique({
         where: { id, companyId: company.id },

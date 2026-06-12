@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import type { Driver } from '@prisma/client';
+import { getAuthContext } from '@/lib/auth';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -28,7 +29,9 @@ export default async function DriversPage({
   let totalItems = 0;
 
   try {
-    const company = await prisma.company.findFirst();
+    const auth = await getAuthContext();
+  const company = auth?.company;
+  const companyId = auth?.companyId;
     if (company) {
       const skip = (currentPage - 1) * ITEMS_PER_PAGE;
       const whereClause = {

@@ -1,53 +1,8 @@
-'use client';
-
-import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { BoxesIcon, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import { Input } from '@/components/ui/Input';
+import { BoxesIcon, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 export default function SignupPage() {
-  const [fullName, setFullName] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      const supabase = createClient();
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: 'http://localhost:3000/auth/callback',
-          data: {
-            full_name: fullName,
-            company_name: companyName,
-          },
-        },
-      });
-
-      if (signUpError) {
-        setError(signUpError.message);
-        return;
-      }
-
-      setSuccess(true);
-    } catch {
-      setError('An unexpected error occurred. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <div className="w-full max-w-md">
       {/* Branding */}
@@ -60,115 +15,35 @@ export default function SignupPage() {
             LoadFlow
           </span>
         </div>
-        <h1 className="text-xl font-semibold text-white">
-          Create your account
-        </h1>
-        <p className="mt-1.5 text-sm text-slate-400">
-          Get started with intelligent logistics management
-        </p>
       </div>
 
       {/* Card */}
-      <div className="rounded-2xl border border-white/10 bg-white p-8 shadow-2xl shadow-black/20">
-        {/* Success message */}
-        {success ? (
-          <div className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-success-50">
-              <CheckCircle2 className="h-6 w-6 text-success-600" />
-            </div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Check your email
-            </h2>
-            <p className="mt-2 text-sm text-gray-500">
-              We&apos;ve sent a confirmation link to{' '}
-              <span className="font-medium text-gray-700">{email}</span>.
-              Click the link to activate your account.
-            </p>
-            <Link
-              href="/login"
-              className="mt-6 inline-block text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"
-            >
-              Back to sign in
-            </Link>
-          </div>
-        ) : (
-          <>
-            {/* Error banner */}
-            {error && (
-              <div className="mb-6 flex items-start gap-3 rounded-lg border border-danger-500/20 bg-danger-50 px-4 py-3">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger-600" />
-                <p className="text-sm text-danger-700">{error}</p>
-              </div>
-            )}
+      <div className="rounded-2xl border border-white/10 bg-white p-8 shadow-2xl shadow-black/20 text-center">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+          <Lock className="h-8 w-8 text-slate-500" />
+        </div>
+        
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 mb-2">
+          Registration Closed
+        </h1>
+        
+        <p className="text-slate-600 mb-8 leading-relaxed">
+          Public registration is currently closed. You can explore the platform's capabilities using our interactive demo environment.
+        </p>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <Input
-                label="Full name"
-                type="text"
-                placeholder="Jane Smith"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                autoComplete="name"
-                autoFocus
-                disabled={loading}
-              />
-
-              <Input
-                label="Company name"
-                type="text"
-                placeholder="Acme Logistics"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                required
-                autoComplete="organization"
-                disabled={loading}
-              />
-
-              <Input
-                label="Email address"
-                type="email"
-                placeholder="you@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                disabled={loading}
-              />
-
-              <Input
-                label="Password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                minLength={8}
-                disabled={loading}
-              />
-
-              <Button
-                type="submit"
-                loading={loading}
-                className="w-full"
-                size="lg"
-              >
-                Create account
-              </Button>
-            </form>
-
-            <p className="mt-6 text-center text-sm text-gray-500">
-              Already have an account?{' '}
-              <Link
-                href="/login"
-                className="font-medium text-primary-600 hover:text-primary-700 transition-colors"
-              >
-                Sign in
-              </Link>
-            </p>
-          </>
-        )}
+        <div className="space-y-4">
+          <Link href="/api/demo" className="block w-full">
+            <Button className="w-full" size="lg">
+              Explore Demo
+            </Button>
+          </Link>
+          
+          <Link href="/login" className="block w-full">
+            <Button variant="secondary" className="w-full" size="lg">
+              Sign In to Existing Account
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   );

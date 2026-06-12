@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.redirect(`${origin}/`);
+    return NextResponse.redirect(`${origin}/dashboard`);
   } catch (err) {
     console.error('[auth/callback] Unexpected error:', err);
     return NextResponse.redirect(

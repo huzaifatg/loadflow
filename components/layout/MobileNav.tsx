@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { label: 'Home', href: '/', icon: LayoutDashboard },
+  { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Deliveries', href: '/deliveries', icon: Package },
   { label: 'Trucks', href: '/trucks', icon: Truck },
   { label: 'Plans', href: '/loads', icon: ClipboardList },
@@ -28,8 +28,8 @@ export function MobileNav() {
       <div className="flex items-stretch">
         {navItems.map((item) => {
           const isActive =
-            item.href === '/'
-              ? pathname === '/'
+            item.href === '/dashboard'
+              ? pathname === '/dashboard'
               : pathname === item.href ||
                 pathname.startsWith(item.href + '/');
 

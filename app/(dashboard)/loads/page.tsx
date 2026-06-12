@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { format } from 'date-fns';
 import type { LoadPlan, Truck, Driver } from '@prisma/client';
+import { getAuthContext } from '@/lib/auth';
 
 type LoadPlanWithRelations = LoadPlan & {
   truck: Truck;
@@ -23,7 +24,8 @@ export default async function LoadsPage() {
   let loads: LoadPlanWithRelations[] = [];
 
   try {
-    company = await prisma.company.findFirst();
+    const auth = await getAuthContext();
+    company = auth?.company;
     
     if (company) {
       loads = await prisma.loadPlan.findMany({

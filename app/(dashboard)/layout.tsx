@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { DashboardLayoutShell } from '@/components/layout/DashboardLayoutShell';
+import { getAuthContext } from '@/lib/auth';
 
 export default async function DashboardLayout({
   children,
@@ -21,7 +22,8 @@ export default async function DashboardLayout({
   // Fetch company to get custom profile name
   let company = null;
   try {
-    company = await prisma.company.findFirst();
+    const auth = await getAuthContext();
+    company = auth?.company;
   } catch (err) {
     console.error("Failed to fetch company for identity", err);
   }

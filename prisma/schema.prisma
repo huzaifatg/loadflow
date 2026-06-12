@@ -78,7 +78,32 @@ model Company {
   displayName        String   @default("Admin") @map("display_name")
   phone              String   @default("") @map("phone")
 
+  members            CompanyMember[]
+
   @@map("companies")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+
+  @@map("role")
+}
+
+model CompanyMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  role      Role     @default(MEMBER) @map("role")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId])
+  @@map("company_members")
 }
 
 

@@ -20,7 +20,7 @@ import {
 
 /* ── Nav items ───────────────────────────────────── */
 const navItems = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Deliveries', href: '/deliveries', icon: Package },
   { label: 'Trucks', href: '/trucks', icon: Truck },
   { label: 'Drivers', href: '/drivers', icon: Users },
@@ -72,7 +72,7 @@ export function Sidebar({ isOpen, onClose, userName, userEmail, userInitial }: S
         {/* ── Logo ───────────────────────────────── */}
         <div className="flex h-16 items-center justify-between px-5">
           <Link
-            href="/"
+            href="/dashboard"
             className="flex items-center gap-2.5"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-white">
@@ -98,8 +98,8 @@ export function Sidebar({ isOpen, onClose, userName, userEmail, userInitial }: S
           <ul className="space-y-1">
             {navItems.map((item) => {
               const isActive =
-                item.href === '/'
-                  ? pathname === '/'
+                item.href === '/dashboard'
+                  ? pathname === '/dashboard'
                   : pathname === item.href ||
                     pathname.startsWith(item.href + '/');
 

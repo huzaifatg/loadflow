@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { LoadPlanActions } from '@/components/loads/LoadPlanActions';
 import { toNumber, getItemSummary, aggregateByUnit } from '@/lib/delivery-items';
+import { getAuthContext } from '@/lib/auth';
 
 export default async function LoadPlanBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -16,7 +17,8 @@ export default async function LoadPlanBuilderPage({ params }: { params: Promise<
 
   let company = null;
   try {
-    company = await prisma.company.findFirst();
+    const auth = await getAuthContext();
+    company = auth?.company;
   } catch(e) {
     console.error("DB error:", e);
   }

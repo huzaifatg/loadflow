@@ -42,7 +42,7 @@ function LoginForm() {
         return;
       }
 
-      router.push('/');
+      router.push('/dashboard');
       router.refresh();
     } catch (err: unknown) {
       if (err instanceof TypeError && err.message.includes('fetch')) {
@@ -140,12 +140,12 @@ export default function LoginPage() {
         </Suspense>
 
         <p className="mt-6 text-center text-sm text-gray-500">
-          Don&apos;t have an account?{' '}
+          Want to see how it works?{' '}
           <Link
-            href="/signup"
+            href="/api/demo"
             className="font-medium text-primary-600 hover:text-primary-700 transition-colors"
           >
-            Sign up
+            Explore Demo
           </Link>
         </p>
       </div>

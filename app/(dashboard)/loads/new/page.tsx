@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { LoadPlanSetupForm } from '@/components/loads/LoadPlanSetupForm';
 import { AlertTriangle } from 'lucide-react';
+import { getAuthContext } from '@/lib/auth';
 
 export default async function NewLoadPlanPage() {
   const supabase = await createClient();
@@ -18,7 +19,9 @@ export default async function NewLoadPlanPage() {
   let dbError = false;
 
   try {
-    const company = await prisma.company.findFirst();
+    const auth = await getAuthContext();
+  const company = auth?.company;
+  const companyId = auth?.companyId;
     if (company) {
       trucks = await prisma.truck.findMany({
         where: { companyId: company.id, status: 'AVAILABLE', isArchived: false },
