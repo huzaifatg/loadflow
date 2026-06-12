@@ -6,7 +6,7 @@ async function main() {
   console.log('--- STARTING TENANT MIGRATION ---');
 
   // 1. Fetch Users
-  const users: any[] = await prisma.$queryRaw`SELECT id, email FROM auth.users`;
+  const users = await prisma.$queryRaw<{ id: string; email: string }[]>`SELECT id, email FROM auth.users`;
   const demoUser = users.find(u => u.email === 'demo@loadflow.app');
   const adminUsers = users.filter(u => u.email !== 'demo@loadflow.app');
 

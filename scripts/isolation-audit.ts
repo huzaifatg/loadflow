@@ -14,8 +14,8 @@ async function simulateGetAuthContext(userId: string) {
 
   return {
     userId,
-    companyId: member?.company.id,
-    companyName: member?.company.name,
+    companyId: member?.company?.id,
+    companyName: member?.company?.name,
     role: member?.role
   };
 }
@@ -24,7 +24,7 @@ async function main() {
   console.log('--- FINAL ISOLATION AUDIT ---\n');
 
   // Fetch Users
-  const users: any[] = await prisma.$queryRaw`SELECT id, email FROM auth.users`;
+  const users = await prisma.$queryRaw<{ id: string; email: string }[]>`SELECT id, email FROM auth.users`;
   const demoUser = users.find(u => u.email === 'demo@loadflow.app');
   const adminUser = users.find(u => u.email === 'huz@comp.com');
 
