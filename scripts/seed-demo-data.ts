@@ -5,18 +5,27 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Starting demo seed process...');
 
-  // Get or find the first company
-  let company = await prisma.company.findFirst();
-
-  if (!company) {
-    console.log('No company found. Creating a default company...');
-    company = await prisma.company.create({
-      data: {
-        name: 'LoadFlow Demo Logistics',
-        fullName: 'Demo Logistics',
-      },
-    });
+  // Find the Demo User's Company securely via auth.users and CompanyMember
+  const users = await prisma.$queryRaw<{ id: string; email: string }[]>`SELECT id, email FROM auth.users WHERE email = 'demo@loadflow.app' LIMIT 1`;
+  
+  if (!users || users.length === 0) {
+    console.error('Demo user (demo@loadflow.app) not found in auth.users!');
+    process.exit(1);
   }
+
+  const demoUserId = users[0].id;
+
+  const member = await prisma.companyMember.findFirst({
+    where: { userId: demoUserId },
+    include: { company: true }
+  });
+
+  if (!member?.company) {
+    console.error('Demo company not found for demo user! Ensure the tenant migration has run.');
+    process.exit(1);
+  }
+
+  const company = member.company;
 
   console.log(`Using Company: ${company.name} (${company.id})`);
 
