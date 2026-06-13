@@ -36,7 +36,7 @@ export function LandingHero() {
           {/* Headline */}
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1] animate-fade-in-up animation-delay-100">
             Logistics execution,{' '}
-            <span className="gradient-text">simplified.</span>
+            <span className="gradient-text">reimagined.</span>
           </h1>
 
           {/* Sub-headline */}
