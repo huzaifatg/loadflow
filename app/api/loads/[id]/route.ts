@@ -2,6 +2,13 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthContext } from '@/lib/auth';
 import { Prisma } from '@prisma/client';
+import {
+  validateCapacity,
+  validateTruckConflict,
+  validateDriverConflict,
+  getDeliveryDateWarnings,
+  type DateWarning,
+} from '@/lib/services/load-plan-validation';
 
 export async function GET(
   request: NextRequest,
@@ -102,6 +109,46 @@ export async function PATCH(
       }
     }
 
+    // ── Pre-transaction validation ──
+    const finalTruckId = truckId ?? existingPlan.truckId;
+    const finalDriverId = driverId !== undefined ? driverId : existingPlan.driverId;
+    const finalDate = existingPlan.date; // date is not editable via PATCH today
+
+    // Capacity enforcement: validate BEFORE entering the write transaction
+    if (items && Array.isArray(items) && items.length > 0) {
+      const capacityResult = await validateCapacity(prisma, finalTruckId, items);
+      if (!capacityResult.valid) {
+        return NextResponse.json({ error: capacityResult.error!.message }, { status: 400 });
+      }
+    }
+
+    // Truck conflict detection (only when truck is being changed)
+    if (truckId !== undefined && truckId !== existingPlan.truckId) {
+      const truckConflict = await validateTruckConflict(
+        prisma, truckId, finalDate, company.id, id,
+      );
+      if (!truckConflict.valid) {
+        return NextResponse.json({ error: truckConflict.error!.message }, { status: 409 });
+      }
+    }
+
+    // Driver conflict detection (only when driver is being changed)
+    if (driverId !== undefined && driverId !== existingPlan.driverId) {
+      const driverConflict = await validateDriverConflict(
+        prisma, driverId, finalDate, company.id, id,
+      );
+      if (!driverConflict.valid) {
+        return NextResponse.json({ error: driverConflict.error!.message }, { status: 409 });
+      }
+    }
+
+    // Delivery date warnings (non-blocking)
+    let dateWarnings: DateWarning[] = [];
+    if (items && Array.isArray(items) && items.length > 0) {
+      dateWarnings = await getDeliveryDateWarnings(prisma, items, finalDate);
+    }
+
+    // ── Write transaction ──
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Handle items array update if provided
       if (items && Array.isArray(items)) {
@@ -151,9 +198,6 @@ export async function PATCH(
           where: { loadPlanId: id }
         });
         const deliveryIds = currentItems.map(i => i.deliveryId);
-        
-        const finalTruckId = truckId ?? existingPlan.truckId;
-        const finalDriverId = driverId !== undefined ? driverId : existingPlan.driverId;
 
         if (status === 'DISPATCHED') {
           if (deliveryIds.length > 0) {
@@ -235,6 +279,11 @@ export async function PATCH(
     revalidatePath('/loads');
     revalidatePath('/schedule');
     revalidatePath('/deliveries'); // Refresh deliveries list since they may now be assigned
+
+    // Include date warnings in response if any exist
+    if (dateWarnings.length > 0) {
+      return NextResponse.json({ ...updatedLoad, _warnings: dateWarnings });
+    }
 
     return NextResponse.json(updatedLoad);
   } catch (error) {

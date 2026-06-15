@@ -43,7 +43,8 @@ export function LoadPlanSetupForm({ trucks, drivers }: Props) {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to create load plan');
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || 'Failed to create load plan');
       }
 
       const loadPlan = await res.json();

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthContext } from '@/lib/auth';
+import { validateTruckConflict, validateDriverConflict } from '@/lib/services/load-plan-validation';
 
 export async function GET() {
   try {
@@ -49,13 +50,29 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { truckId, driverId, date, notes } = body;
+    const planDate = new Date(date);
+
+    // ── Conflict validation ──
+    const truckConflict = await validateTruckConflict(
+      prisma, truckId, planDate, company.id,
+    );
+    if (!truckConflict.valid) {
+      return NextResponse.json({ error: truckConflict.error!.message }, { status: 409 });
+    }
+
+    const driverConflict = await validateDriverConflict(
+      prisma, driverId || null, planDate, company.id,
+    );
+    if (!driverConflict.valid) {
+      return NextResponse.json({ error: driverConflict.error!.message }, { status: 409 });
+    }
 
     const load = await prisma.loadPlan.create({
       data: {
         companyId: company.id,
         truckId,
         driverId: driverId || null,
-        date: new Date(date),
+        date: planDate,
         notes,
         status: 'DRAFT',
       },

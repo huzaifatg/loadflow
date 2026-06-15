@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
-import { Plus, Minus, ArrowUp, ArrowDown, Lock } from 'lucide-react';
+import { Plus, Minus, ArrowUp, ArrowDown, Lock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -30,6 +30,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const [assigned, setAssigned] = useState(initialAssigned);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [dateWarnings, setDateWarnings] = useState<{ deliveryId: string; customerName: string; message: string }[]>([]);
 
   const currentWeight = assigned.reduce((sum, item) => sum + item.weight, 0);
   const percentFull = Math.min((currentWeight / truckCapacity) * 100, 100);
@@ -73,6 +74,7 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     if (isFinalized) return;
     setSaving(true);
     setSaved(false);
+    setDateWarnings([]);
     try {
       const assignedDeliveryIds = assigned.map(a => a.id);
       const res = await fetch(`/api/loads/${loadPlanId}`, {
@@ -81,7 +83,18 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
         body: JSON.stringify({ items: assignedDeliveryIds })
       });
       
-      if (!res.ok) throw new Error('Failed to save plan');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        toast.error(errData?.error || 'Failed to save plan');
+        return;
+      }
+
+      const data = await res.json();
+
+      // Surface non-blocking date warnings
+      if (data._warnings && Array.isArray(data._warnings) && data._warnings.length > 0) {
+        setDateWarnings(data._warnings);
+      }
       
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -123,6 +136,23 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
           )}
         </div>
       </div>
+
+      {/* Date Mismatch Warnings */}
+      {dateWarnings.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-amber-800 mb-1">
+            <AlertTriangle className="h-4 w-4" />
+            Schedule Mismatch
+          </div>
+          <ul className="space-y-1">
+            {dateWarnings.map(w => (
+              <li key={w.deliveryId} className="text-xs text-amber-700">
+                {w.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
         {/* Unassigned Panel */}
