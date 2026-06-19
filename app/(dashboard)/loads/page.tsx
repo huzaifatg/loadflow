@@ -5,13 +5,15 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { format } from 'date-fns';
-import type { LoadPlan, Truck, Driver } from '@prisma/client';
+import type { LoadPlan, Truck, Driver, Delivery } from '@prisma/client';
 import { getAuthContext } from '@/lib/auth';
+import { toNumber } from '@/lib/delivery-items';
 
 type LoadPlanWithRelations = LoadPlan & {
   truck: Truck;
   driver: Driver | null;
   _count: { items: number };
+  items: { delivery: Pick<Delivery, 'weight'> }[];
 };
 
 export default async function LoadsPage() {
@@ -35,6 +37,13 @@ export default async function LoadsPage() {
           driver: true,
           _count: {
             select: { items: true }
+          },
+          items: {
+            select: {
+              delivery: {
+                select: { weight: true }
+              }
+            }
           }
         },
         orderBy: { date: 'desc' },
@@ -66,17 +75,22 @@ export default async function LoadsPage() {
           <div key={dateLabel}>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">{dateLabel}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {(groupLoads as LoadPlanWithRelations[]).map((load) => (
-                <LoadPlanCard 
-                  key={load.id}
-                  id={load.id}
-                  date={format(new Date(load.date), 'MMM d, yyyy')}
-                  status={load.status}
-                  truckName={load.truck?.name || 'Unassigned Truck'}
-                  driverName={load.driver?.name}
-                  totalDeliveries={load._count?.items || 0}
-                />
-              ))}
+              {(groupLoads as LoadPlanWithRelations[]).map((load) => {
+                const totalWeight = load.items.reduce((sum, item) => sum + toNumber(item.delivery.weight), 0);
+                return (
+                  <LoadPlanCard 
+                    key={load.id}
+                    id={load.id}
+                    date={format(new Date(load.date), 'MMM d, yyyy')}
+                    status={load.status}
+                    truckName={load.truck?.name || 'Unassigned Truck'}
+                    driverName={load.driver?.name}
+                    totalDeliveries={load._count?.items || 0}
+                    totalWeight={totalWeight}
+                    truckCapacity={load.truck?.weightCapacity || 0}
+                  />
+                );
+              })}
             </div>
           </div>
         ))}
