@@ -1,20 +1,33 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
-import { Plus, Minus, ArrowUp, ArrowDown, Lock, AlertTriangle } from 'lucide-react';
+import { Plus, Minus, ArrowUp, ArrowDown, Lock, AlertTriangle, Search, X, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek } from 'date-fns';
+import { useDebouncedCallback } from 'use-debounce';
 
 interface DeliveryItem {
   id: string;
   customerName: string;
+  pickupAddress: string;
   deliveryAddress: string;
+  scheduledDate: string | null;
   weight: number;
   itemCount: number;
   itemSummary: string;
 }
+
+type DateFilter = 'all' | 'today' | 'this_week' | 'no_date';
+
+const DATE_FILTER_OPTIONS: { value: DateFilter; label: string }[] = [
+  { value: 'all', label: 'All Deliveries' },
+  { value: 'today', label: 'Scheduled Today' },
+  { value: 'this_week', label: 'Scheduled This Week' },
+  { value: 'no_date', label: 'No Scheduled Date' },
+];
 
 interface AllocationPanelProps {
   loadPlanId: string;
@@ -22,6 +35,46 @@ interface AllocationPanelProps {
   initialAssigned: DeliveryItem[];
   truckCapacity: number;
   isFinalized?: boolean;
+}
+
+/**
+ * Check if a delivery matches the given date filter.
+ */
+function matchesDateFilter(item: DeliveryItem, filter: DateFilter): boolean {
+  if (filter === 'all') return true;
+
+  if (filter === 'no_date') return item.scheduledDate == null;
+
+  if (item.scheduledDate == null) return false;
+
+  const itemDate = new Date(item.scheduledDate);
+  const now = new Date();
+
+  if (filter === 'today') {
+    return itemDate >= startOfDay(now) && itemDate <= endOfDay(now);
+  }
+
+  if (filter === 'this_week') {
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    return itemDate >= weekStart && itemDate <= weekEnd;
+  }
+
+  return true;
+}
+
+/**
+ * Check if a delivery matches the search query across customer name,
+ * pickup address, and delivery address.
+ */
+function matchesSearch(item: DeliveryItem, query: string): boolean {
+  if (!query) return true;
+  const lowerQuery = query.toLowerCase();
+  return (
+    item.customerName.toLowerCase().includes(lowerQuery) ||
+    item.pickupAddress.toLowerCase().includes(lowerQuery) ||
+    item.deliveryAddress.toLowerCase().includes(lowerQuery)
+  );
 }
 
 export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned, truckCapacity, isFinalized = false }: AllocationPanelProps) {
@@ -32,10 +85,45 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const [saved, setSaved] = useState(false);
   const [dateWarnings, setDateWarnings] = useState<{ deliveryId: string; customerName: string; message: string }[]>([]);
 
-  const currentWeight = assigned.reduce((sum, item) => sum + item.weight, 0);
+  // ── Search & Filter state ──────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const debouncedSetQuery = useDebouncedCallback((value: string) => {
+    setDebouncedQuery(value);
+  }, 200);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    debouncedSetQuery(value);
+  }, [debouncedSetQuery]);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+    setDebouncedQuery('');
+  }, []);
+
+  // ── Memoized filtered list ─────────────────────────────────────────────────
+  const filteredUnassigned = useMemo(() => {
+    return unassigned.filter(item =>
+      matchesSearch(item, debouncedQuery) && matchesDateFilter(item, dateFilter)
+    );
+  }, [unassigned, debouncedQuery, dateFilter]);
+
+  const hasActiveFilters = debouncedQuery.length > 0 || dateFilter !== 'all';
+
+  // ── Capacity calculations ──────────────────────────────────────────────────
+  const currentWeight = useMemo(
+    () => assigned.reduce((sum, item) => sum + item.weight, 0),
+    [assigned]
+  );
   const percentFull = Math.min((currentWeight / truckCapacity) * 100, 100);
   const isOverweight = currentWeight > truckCapacity;
 
+  // ── Assignment handlers ────────────────────────────────────────────────────
   function handleAssign(item: DeliveryItem) {
     if (isFinalized) return;
     setUnassigned(prev => prev.filter(i => i.id !== item.id));
@@ -157,12 +245,80 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
         {/* Unassigned Panel */}
         <Card className="flex flex-col h-full bg-gray-50/50">
-          <div className="p-4 border-b border-gray-200 bg-white rounded-t-xl">
-            <h3 className="font-semibold text-gray-900">Unassigned Deliveries</h3>
-            <p className="text-sm text-gray-500">{unassigned.length} items available</p>
+          <div className="p-4 border-b border-gray-200 bg-white rounded-t-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-900">Unassigned Deliveries</h3>
+                <p className="text-sm text-gray-500">
+                  {hasActiveFilters
+                    ? `${filteredUnassigned.length} of ${unassigned.length} deliveries match`
+                    : `${unassigned.length} items available`}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowFilters(prev => !prev)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
+                  showFilters || dateFilter !== 'all'
+                    ? "bg-primary-50 text-primary-700 ring-1 ring-primary-200"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+                title="Toggle filters"
+              >
+                <Filter className="h-3.5 w-3.5" />
+                Filters
+                {dateFilter !== 'all' && (
+                  <span className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary-600 text-[10px] font-bold text-white">
+                    1
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Search input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <input
+                id="allocation-search"
+                type="text"
+                placeholder="Search by customer, pickup, or delivery address…"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-9 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors"
+                  title="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Filter pills */}
+            {showFilters && (
+              <div className="flex flex-wrap gap-1.5 animate-fade-in">
+                {DATE_FILTER_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setDateFilter(opt.value)}
+                    className={cn(
+                      "rounded-full px-3 py-1 text-xs font-medium transition-all duration-150",
+                      dateFilter === opt.value
+                        ? "bg-primary-600 text-white shadow-sm"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[150px]">
-            {unassigned.map(item => (
+            {filteredUnassigned.map(item => (
               <div key={item.id} className={cn("flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm transition-colors", !isFinalized && "hover:border-emerald-200")}>
                 <button
                   onClick={() => handleAssign(item)}
@@ -189,7 +345,25 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                 </div>
               </div>
             ))}
-            {unassigned.length === 0 && (
+            {/* Empty states */}
+            {filteredUnassigned.length === 0 && hasActiveFilters && (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-3">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <p className="text-sm font-medium text-gray-700">No deliveries match</p>
+                <p className="text-xs text-gray-400 mt-1 max-w-[220px]">
+                  Try adjusting your search or filters to find what you&apos;re looking for.
+                </p>
+                <button
+                  onClick={() => { handleClearSearch(); setDateFilter('all'); }}
+                  className="mt-3 text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors"
+                >
+                  Clear all filters
+                </button>
+              </div>
+            )}
+            {filteredUnassigned.length === 0 && !hasActiveFilters && (
               <div className="h-24 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-sm text-gray-400">
                 No unassigned deliveries
               </div>

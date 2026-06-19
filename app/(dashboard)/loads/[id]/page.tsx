@@ -83,7 +83,9 @@ export default async function LoadPlanBuilderPage({ params }: { params: Promise<
   const initialAssigned = loadPlan.items.map(item => ({
     id: item.delivery.id,
     customerName: item.delivery.customerName,
+    pickupAddress: item.delivery.pickupAddress,
     deliveryAddress: item.delivery.deliveryAddress,
+    scheduledDate: item.delivery.scheduledDate ? item.delivery.scheduledDate.toISOString() : null,
     weight: toNumber(item.delivery.weight),
     itemCount: item.delivery._count?.items || 0,
     itemSummary: getItemSummary(item.delivery.items || []),
@@ -92,7 +94,9 @@ export default async function LoadPlanBuilderPage({ params }: { params: Promise<
   const initialUnassigned = unassignedDeliveries.map(d => ({
     id: d.id,
     customerName: d.customerName,
+    pickupAddress: d.pickupAddress,
     deliveryAddress: d.deliveryAddress,
+    scheduledDate: d.scheduledDate ? new Date(d.scheduledDate).toISOString() : null,
     weight: toNumber(d.weight),
     itemCount: d._count?.items || 0,
     itemSummary: getItemSummary(d.items || []),
