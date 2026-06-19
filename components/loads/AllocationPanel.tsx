@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
-import { Plus, Minus, ArrowUp, ArrowDown, Lock, AlertTriangle, Search, X, Filter } from 'lucide-react';
+import { Plus, Minus, ArrowUp, ArrowDown, Lock, AlertTriangle, Search, X, Filter, CheckSquare, Square, ChevronsRight, ChevronsLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek } from 'date-fns';
@@ -91,6 +91,10 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [showFilters, setShowFilters] = useState(false);
 
+  // ── Multi-select state ─────────────────────────────────────────────────────
+  const [selectedUnassigned, setSelectedUnassigned] = useState<Set<string>>(new Set());
+  const [selectedAssigned, setSelectedAssigned] = useState<Set<string>>(new Set());
+
   const debouncedSetQuery = useDebouncedCallback((value: string) => {
     setDebouncedQuery(value);
   }, 200);
@@ -113,6 +117,14 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
     );
   }, [unassigned, debouncedQuery, dateFilter]);
 
+  // Prune selections to only include items that are currently visible
+  const visibleSelectedUnassigned = useMemo(() => {
+    const visibleIds = new Set(filteredUnassigned.map(i => i.id));
+    const pruned = new Set<string>();
+    selectedUnassigned.forEach(id => { if (visibleIds.has(id)) pruned.add(id); });
+    return pruned;
+  }, [filteredUnassigned, selectedUnassigned]);
+
   const hasActiveFilters = debouncedQuery.length > 0 || dateFilter !== 'all';
 
   // ── Capacity calculations ──────────────────────────────────────────────────
@@ -123,17 +135,103 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
   const percentFull = Math.min((currentWeight / truckCapacity) * 100, 100);
   const isOverweight = currentWeight > truckCapacity;
 
+  // ── Selection handlers ─────────────────────────────────────────────────────
+  const toggleUnassignedSelection = useCallback((id: string) => {
+    setSelectedUnassigned(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleAssignedSelection = useCallback((id: string) => {
+    setSelectedAssigned(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAllUnassigned = useCallback(() => {
+    const allVisibleIds = filteredUnassigned.map(i => i.id);
+    const allSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedUnassigned.has(id));
+    if (allSelected) {
+      // Deselect all visible
+      setSelectedUnassigned(prev => {
+        const next = new Set(prev);
+        allVisibleIds.forEach(id => next.delete(id));
+        return next;
+      });
+    } else {
+      // Select all visible
+      setSelectedUnassigned(prev => {
+        const next = new Set(prev);
+        allVisibleIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  }, [filteredUnassigned, selectedUnassigned]);
+
+  const toggleSelectAllAssigned = useCallback(() => {
+    const allIds = assigned.map(i => i.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedAssigned.has(id));
+    if (allSelected) {
+      setSelectedAssigned(new Set());
+    } else {
+      setSelectedAssigned(new Set(allIds));
+    }
+  }, [assigned, selectedAssigned]);
+
   // ── Assignment handlers ────────────────────────────────────────────────────
   function handleAssign(item: DeliveryItem) {
     if (isFinalized) return;
     setUnassigned(prev => prev.filter(i => i.id !== item.id));
     setAssigned(prev => [...prev, item]);
+    // Clear this item from selections if present
+    setSelectedUnassigned(prev => {
+      if (!prev.has(item.id)) return prev;
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
   }
 
   function handleRemove(item: DeliveryItem) {
     if (isFinalized) return;
     setAssigned(prev => prev.filter(i => i.id !== item.id));
     setUnassigned(prev => [...prev, item]);
+    // Clear this item from selections if present
+    setSelectedAssigned(prev => {
+      if (!prev.has(item.id)) return prev;
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
+  }
+
+  // ── Bulk assignment handlers ───────────────────────────────────────────────
+  function handleBulkAssign() {
+    if (isFinalized || visibleSelectedUnassigned.size === 0) return;
+    const idsToAssign = visibleSelectedUnassigned;
+    const itemsToAssign = unassigned.filter(i => idsToAssign.has(i.id));
+    setUnassigned(prev => prev.filter(i => !idsToAssign.has(i.id)));
+    setAssigned(prev => [...prev, ...itemsToAssign]);
+    setSelectedUnassigned(prev => {
+      const next = new Set(prev);
+      idsToAssign.forEach(id => next.delete(id));
+      return next;
+    });
+  }
+
+  function handleBulkRemove() {
+    if (isFinalized || selectedAssigned.size === 0) return;
+    const idsToRemove = selectedAssigned;
+    const itemsToRemove = assigned.filter(i => idsToRemove.has(i.id));
+    setAssigned(prev => prev.filter(i => !idsToRemove.has(i.id)));
+    setUnassigned(prev => [...prev, ...itemsToRemove]);
+    setSelectedAssigned(new Set());
   }
 
   function handleMoveUp(index: number) {
@@ -195,6 +293,12 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
       setSaving(false);
     }
   }
+
+  // ── Derived selection state ────────────────────────────────────────────────
+  const allUnassignedSelected = filteredUnassigned.length > 0 && filteredUnassigned.every(i => selectedUnassigned.has(i.id));
+  const someUnassignedSelected = filteredUnassigned.some(i => selectedUnassigned.has(i.id));
+  const allAssignedSelected = assigned.length > 0 && assigned.every(i => selectedAssigned.has(i.id));
+  const someAssignedSelected = assigned.some(i => selectedAssigned.has(i.id));
 
   return (
     <div className="space-y-4">
@@ -316,35 +420,90 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
                 ))}
               </div>
             )}
+
+            {/* Bulk Actions Bar — Unassigned */}
+            {!isFinalized && filteredUnassigned.length > 0 && (
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  onClick={toggleSelectAllUnassigned}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                  title={allUnassignedSelected ? 'Deselect all' : 'Select all visible'}
+                >
+                  {allUnassignedSelected ? (
+                    <CheckSquare className="h-3.5 w-3.5 text-primary-600" />
+                  ) : someUnassignedSelected ? (
+                    <CheckSquare className="h-3.5 w-3.5 text-primary-400" />
+                  ) : (
+                    <Square className="h-3.5 w-3.5" />
+                  )}
+                  {allUnassignedSelected ? 'Deselect all' : 'Select all'}
+                </button>
+                {visibleSelectedUnassigned.size > 0 && (
+                  <button
+                    onClick={handleBulkAssign}
+                    disabled={saving}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  >
+                    <ChevronsRight className="h-3.5 w-3.5" />
+                    Assign {visibleSelectedUnassigned.size} selected
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[150px]">
-            {filteredUnassigned.map(item => (
-              <div key={item.id} className={cn("flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm transition-colors", !isFinalized && "hover:border-emerald-200")}>
-                <button
-                  onClick={() => handleAssign(item)}
-                  disabled={isFinalized || saving}
-                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Assign to truck"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
-                  <p className="text-xs text-gray-500 truncate">{item.deliveryAddress}</p>
-                  {item.itemSummary && <p className="text-[11px] text-gray-400 truncate mt-0.5">{item.itemSummary}</p>}
-                </div>
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
-                    {item.weight.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg
-                  </div>
-                  {item.itemCount > 0 && (
-                    <span className="text-[10px] font-medium text-primary-600 whitespace-nowrap">
-                      {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
-                    </span>
+            {filteredUnassigned.map(item => {
+              const isSelected = selectedUnassigned.has(item.id);
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm transition-colors",
+                    isSelected && "border-primary-300 bg-primary-50/40 ring-1 ring-primary-200",
+                    !isSelected && !isFinalized && "hover:border-emerald-200"
                   )}
+                >
+                  {/* Selection checkbox */}
+                  {!isFinalized && (
+                    <button
+                      onClick={() => toggleUnassignedSelection(item.id)}
+                      className={cn(
+                        "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors",
+                        isSelected
+                          ? "text-primary-600"
+                          : "text-gray-300 hover:text-gray-500"
+                      )}
+                      title={isSelected ? 'Deselect' : 'Select'}
+                    >
+                      {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleAssign(item)}
+                    disabled={isFinalized || saving}
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Assign to truck"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
+                    <p className="text-xs text-gray-500 truncate">{item.deliveryAddress}</p>
+                    {item.itemSummary && <p className="text-[11px] text-gray-400 truncate mt-0.5">{item.itemSummary}</p>}
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
+                      {item.weight.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg
+                    </div>
+                    {item.itemCount > 0 && (
+                      <span className="text-[10px] font-medium text-primary-600 whitespace-nowrap">
+                        {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {/* Empty states */}
             {filteredUnassigned.length === 0 && hasActiveFilters && (
               <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -393,58 +552,112 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
               </div>
               {isOverweight && <p className="text-xs text-red-500 mt-1">Warning: Truck is over capacity</p>}
             </div>
+
+            {/* Bulk Actions Bar — Assigned */}
+            {!isFinalized && assigned.length > 0 && (
+              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-100">
+                <button
+                  onClick={toggleSelectAllAssigned}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                  title={allAssignedSelected ? 'Deselect all' : 'Select all'}
+                >
+                  {allAssignedSelected ? (
+                    <CheckSquare className="h-3.5 w-3.5 text-primary-600" />
+                  ) : someAssignedSelected ? (
+                    <CheckSquare className="h-3.5 w-3.5 text-primary-400" />
+                  ) : (
+                    <Square className="h-3.5 w-3.5" />
+                  )}
+                  {allAssignedSelected ? 'Deselect all' : 'Select all'}
+                </button>
+                {selectedAssigned.size > 0 && (
+                  <button
+                    onClick={handleBulkRemove}
+                    disabled={saving}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  >
+                    <ChevronsLeft className="h-3.5 w-3.5" />
+                    Remove {selectedAssigned.size} selected
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/30 min-h-[150px]">
-            {assigned.map((item, index) => (
-              <div key={item.id} className="relative">
-                <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-800 text-white rounded-full flex items-center justify-center text-xs font-bold z-10 shadow-sm border-2 border-white">
-                  {index + 1}
-                </div>
-                <div className={cn("ml-4 flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm transition-colors", !isFinalized && "hover:border-gray-300")}>
-                  <div className="flex flex-col gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => handleMoveUp(index)}
-                      disabled={isFinalized || index === 0}
-                      className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      title="Move up"
-                    >
-                      <ArrowUp className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={() => handleMoveDown(index)}
-                      disabled={isFinalized || index === assigned.length - 1}
-                      className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      title="Move down"
-                    >
-                      <ArrowDown className="h-3 w-3" />
-                    </button>
+            {assigned.map((item, index) => {
+              const isSelected = selectedAssigned.has(item.id);
+              return (
+                <div key={item.id} className="relative">
+                  <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-800 text-white rounded-full flex items-center justify-center text-xs font-bold z-10 shadow-sm border-2 border-white">
+                    {index + 1}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
-                    <p className="text-xs text-gray-500 truncate">{item.deliveryAddress}</p>
-                    {item.itemSummary && <p className="text-[11px] text-gray-400 truncate mt-0.5">{item.itemSummary}</p>}
-                  </div>
-                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
-                      {item.weight.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg
-                    </div>
-                    {item.itemCount > 0 && (
-                      <span className="text-[10px] font-medium text-primary-600 whitespace-nowrap">
-                        {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
-                      </span>
+                  <div
+                    className={cn(
+                      "ml-4 flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm transition-colors",
+                      isSelected && "border-primary-300 bg-primary-50/40 ring-1 ring-primary-200",
+                      !isSelected && !isFinalized && "hover:border-gray-300"
                     )}
-                  </div>
-                  <button
-                    onClick={() => handleRemove(item)}
-                    disabled={isFinalized || saving}
-                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors ml-1 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Remove from truck"
                   >
-                    <Minus className="h-4 w-4" />
-                  </button>
+                    {/* Selection checkbox */}
+                    {!isFinalized && (
+                      <button
+                        onClick={() => toggleAssignedSelection(item.id)}
+                        className={cn(
+                          "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors",
+                          isSelected
+                            ? "text-primary-600"
+                            : "text-gray-300 hover:text-gray-500"
+                        )}
+                        title={isSelected ? 'Deselect' : 'Select'}
+                      >
+                        {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                      </button>
+                    )}
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => handleMoveUp(index)}
+                        disabled={isFinalized || index === 0}
+                        className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Move up"
+                      >
+                        <ArrowUp className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => handleMoveDown(index)}
+                        disabled={isFinalized || index === assigned.length - 1}
+                        className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Move down"
+                      >
+                        <ArrowDown className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{item.customerName}</p>
+                      <p className="text-xs text-gray-500 truncate">{item.deliveryAddress}</p>
+                      {item.itemSummary && <p className="text-[11px] text-gray-400 truncate mt-0.5">{item.itemSummary}</p>}
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <div className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-2 py-1 rounded">
+                        {item.weight.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg
+                      </div>
+                      {item.itemCount > 0 && (
+                        <span className="text-[10px] font-medium text-primary-600 whitespace-nowrap">
+                          {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleRemove(item)}
+                      disabled={isFinalized || saving}
+                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors ml-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Remove from truck"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {assigned.length === 0 && (
               <div className="h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-400 bg-white">
                 No deliveries allocated
