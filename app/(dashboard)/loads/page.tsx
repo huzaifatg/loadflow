@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import type { LoadPlan, Truck, Driver, Delivery } from '@prisma/client';
 import { getAuthContext } from '@/lib/auth';
 import { toNumber } from '@/lib/delivery-items';
-import { Package, Plus } from 'lucide-react';
+import { Package, Plus, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 type LoadPlanWithRelations = LoadPlan & {
@@ -70,7 +70,15 @@ export default async function LoadsPage() {
         description="Organize and dispatch your deliveries onto trucks."
         actionLabel="Create Plan"
         actionHref="/loads/new" 
-      />
+      >
+        <Link
+          href="/loads/optimize"
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 shadow-sm ring-1 ring-inset ring-indigo-600/20 hover:bg-indigo-100 transition-colors"
+        >
+          <Sparkles className="h-4 w-4" />
+          Optimize
+        </Link>
+      </PageHeader>
       
       <div className="space-y-8">
         {Object.entries(groupedLoads).map(([dateLabel, groupLoads]) => (
