@@ -8,6 +8,8 @@ import { format } from 'date-fns';
 import type { LoadPlan, Truck, Driver, Delivery } from '@prisma/client';
 import { getAuthContext } from '@/lib/auth';
 import { toNumber } from '@/lib/delivery-items';
+import { Package, Plus } from 'lucide-react';
+import Link from 'next/link';
 
 type LoadPlanWithRelations = LoadPlan & {
   truck: Truck;
@@ -95,9 +97,18 @@ export default async function LoadsPage() {
           </div>
         ))}
         {loads.length === 0 && (
-          <div className="text-center py-12">
-            <h3 className="mt-2 text-sm font-semibold text-gray-900">No load plans</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating a new load plan.</p>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 mb-4">
+              <Package className="h-7 w-7 text-gray-400" />
+            </div>
+            <h3 className="text-base font-semibold text-gray-900">No load plans yet</h3>
+            <p className="mt-1 text-sm text-gray-500 max-w-xs">
+              Create your first load plan to start organizing deliveries onto trucks.
+            </p>
+            <Link href="/loads/new" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 transition-colors">
+              <Plus className="h-4 w-4" />
+              Create Plan
+            </Link>
           </div>
         )}
       </div>

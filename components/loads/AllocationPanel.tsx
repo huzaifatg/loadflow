@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
-import { Plus, Minus, ArrowUp, ArrowDown, Lock, AlertTriangle, Search, X, Filter, CheckSquare, Square, ChevronsRight, ChevronsLeft } from 'lucide-react';
+import { Plus, Minus, ArrowUp, ArrowDown, Lock, AlertTriangle, Search, X, Filter, CheckSquare, Square, ChevronsRight, ChevronsLeft, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek } from 'date-fns';
@@ -523,8 +523,14 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
               </div>
             )}
             {filteredUnassigned.length === 0 && !hasActiveFilters && (
-              <div className="h-24 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-sm text-gray-400">
-                No unassigned deliveries
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-3">
+                  <Package className="h-5 w-5 text-gray-400" />
+                </div>
+                <p className="text-sm font-medium text-gray-700">All deliveries assigned</p>
+                <p className="text-xs text-gray-400 mt-1 max-w-[220px]">
+                  Every pending delivery has been allocated. Create new deliveries to add more.
+                </p>
               </div>
             )}
           </div>
@@ -659,8 +665,14 @@ export function AllocationPanel({ loadPlanId, initialUnassigned, initialAssigned
               );
             })}
             {assigned.length === 0 && (
-              <div className="h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-400 bg-white">
-                No deliveries allocated
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-3">
+                  <ChevronsRight className="h-5 w-5 text-gray-400" />
+                </div>
+                <p className="text-sm font-medium text-gray-700">No deliveries allocated</p>
+                <p className="text-xs text-gray-400 mt-1 max-w-[220px]">
+                  Select deliveries from the left panel and assign them to this truck.
+                </p>
               </div>
             )}
           </div>

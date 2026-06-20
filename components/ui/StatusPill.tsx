@@ -54,6 +54,7 @@ const statusVariantMaps = {
 
   // Delivery statuses
   PENDING: 'amber',
+  ASSIGNED: 'blue',
   ALLOCATED: 'blue',
   IN_TRANSIT: 'indigo',
   DELIVERED: 'emerald',
@@ -61,6 +62,7 @@ const statusVariantMaps = {
 
   // Load plan statuses
   DRAFT: 'gray',
+  READY: 'blue',
   CONFIRMED: 'blue',
   DISPATCHED: 'indigo',
   COMPLETED: 'emerald',
