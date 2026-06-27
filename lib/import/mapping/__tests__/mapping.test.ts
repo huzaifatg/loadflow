@@ -92,6 +92,7 @@ describe('Mapping Engine', () => {
     // Helper to create a dummy validated document
     function makeValidatedDoc(headers: string[], rowsData: Record<string, string>[]): ImportDocument {
       const rows: ImportRow[] = rowsData.map((data, idx) => ({
+        rowId: `row-${idx}`,
         sourceRowNumber: idx + 2,
         originalValues: { ...data },
         normalizedValues: { ...data },
@@ -105,22 +106,45 @@ describe('Mapping Engine', () => {
       }));
 
       return {
-        version: CONTRACT_VERSION,
         documentId: 'test-doc',
-        sourceId: 'test',
-        filename: 'test.csv',
-        headers: headers.map((h, i) => ({ original: h, normalized: h, index: i, type: 'string' })),
+        version: CONTRACT_VERSION,
+        source: {
+          sourceType: 'test',
+          sourceIdentifier: 'test.csv',
+          sourceMetadata: {}
+        },
+        adapter: {
+          adapterName: 'test-adapter',
+          adapterVersion: '1.0'
+        },
+        tenant: 'test-tenant',
+        headers: headers.map((h, i) => ({ 
+          original: h, 
+          normalized: h, 
+          index: i, 
+          wasBlank: false, 
+          wasDuplicate: false 
+        })),
         rows,
         diagnostics: [],
         statistics: {
-          totalRows: rows.length,
-          processedRows: rows.length,
-          malformedRows: 0,
-          blankRows: 0,
-          parseTimeMs: 1
+          adapter: {
+            totalRows: rows.length,
+            malformedRows: 0,
+            blankRowsSkipped: 0,
+            parseTimeMs: 1
+          },
+          validation: {
+            validRows: rows.length,
+            invalidRows: 0,
+            skippedRows: 0,
+            warningCount: 0,
+            errorCount: 0,
+            validationTimeMs: 1
+          }
         },
         timestamps: {
-          parsedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
           validatedAt: new Date().toISOString()
         },
         processingState: 'validated'
