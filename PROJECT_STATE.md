@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 3 — Validation Engine** ✅ COMPLETE
+**Sprint 4 — Mapping Engine** ✅ COMPLETE
 
 ---
 
@@ -19,7 +19,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 1 — Database Foundation & Core Application |
 | ✅ Complete | Sprint 2 — Enterprise CSV Parsing Engine |
 | ✅ Complete | Sprint 3 — Validation Engine |
-| ⬜ Next | Sprint 4 — Mapping Engine |
+| ✅ Complete | Sprint 4 — Mapping Engine |
+| ⬜ Next | Sprint 5 — Preview Engine |
 
 ---
 
@@ -34,7 +35,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ Import Document Contract (code implementation)
 - ✅ CSV Adapter
 - ✅ Validation Engine
-- ⬜ Mapping Engine
+- ✅ Mapping Engine
 - ⬜ Preview Engine
 - ⬜ Commit Engine
 - ⬜ CSV Import (full pipeline)
@@ -96,6 +97,18 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | `index.ts` | Barrel export. |
 | `__tests__/validation.test.ts` | 55 tests: adapter, rules, engine, diagnostics, end-to-end. |
 
+### Mapping Engine (`lib/import/mapping/`)
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | Domain field, entity, mapping result, and confidence types. |
+| `constants.ts` | MAP_CODES, confidence scores, priority rules. |
+| `profiles.ts` | Canonical LoadFlow entity definitions (Delivery, Driver, Truck). |
+| `matcher.ts` | Resolves header-to-field matching with aliases and overrides. |
+| `engine.ts` | Core engine: enriches validated ImportDocument with row mappings. |
+| `index.ts` | Barrel export. |
+| `__tests__/mapping.test.ts` | 13 tests: matcher scenarios and document mapping validation. |
+
 ---
 
 ## 6. Important Architectural Decisions
@@ -142,13 +155,13 @@ No known issues.
 
 1. Read this file first.
 2. Read `docs/architecture/import_document_contract.md` before writing any code.
-3. Sprint 4 objective: **Mapping Engine**.
-4. The Mapping Engine consumes a validated `ImportDocument` (processingState = `validated`).
-5. Implement mapping profiles that translate normalized values to domain model fields.
-6. Create `lib/import/mapping/` following the same modular architecture.
-7. The Mapping Engine must NOT import from CSV or validation internals — only from `lib/import/contract/`.
+3. Sprint 5 objective: **Preview Engine**.
+4. The Preview Engine consumes a mapped `ImportDocument` (processingState = `mapped`).
+5. Implement preview generation to show diffs between original CSV rows and mapped domain entities.
+6. Create `lib/import/preview/` following the same modular architecture.
+7. The Preview Engine must NOT import from CSV, validation, or mapping internals — only from `lib/import/contract/` and `lib/import/mapping/profiles.ts` if field metadata is needed.
 8. Write comprehensive tests.
-9. Do NOT modify the CSV parser, adapter, or validation engine unless a bug is found.
+9. Do NOT modify previously completed engines unless a bug is found.
 10. Update this file before ending the session.
 
 ---
@@ -158,26 +171,26 @@ No known issues.
 | Field | Value |
 |-------|-------|
 | Current Branch | `develop` |
-| Feature Branch | `feature/validation-engine` (merged) |
+| Feature Branch | `feature/mapping-engine` (merged) |
 | Merge Status | ✅ Merged into develop, pushed to origin |
 
 ---
 
 ## 12. Sprint Summary
 
-### Sprint 3 — Completed
-- Import Document Contract: 4 modules (types, constants, guards, index)
-- CSV Adapter: thin wrapper translating ImportParseResult → ImportDocument
-- Validation Engine: core engine with configurable profiles and 6 built-in rules
-- Rules: required, integer, decimal, boolean, enum, date
-- Rule registry with extensibility (registerRule)
-- Duplicate row detection by composite key
-- 55 validation tests + 45 parser tests = 100 total tests passing
-- Production build verified
+### Sprint 4 — Completed
+- Mapping Engine Core: consumes validated documents and enriches with mapped values.
+- Matcher with deterministic 4-phase matching: overrides > exact > normalized > alias.
+- Resolves duplicate mappings by highest confidence.
+- Identifies missing required domain fields and unmapped source columns.
+- Skips invalid rows gracefully.
+- Canonical entity profiles for Delivery, Driver, Truck, independent of Prisma.
+- Comprehensive test suite (13 passing tests).
+- 113 total project tests passing.
+- Production build verified.
 
 ### Intentionally Left for Future Sprints
-- Mapping Engine (Sprint 4)
-- Preview Engine
+- Preview Engine (Sprint 5)
 - Commit Engine
 - Full CSV Import pipeline
 - UI components for import
