@@ -29,6 +29,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ Core CRUD (Deliveries, Drivers, Trucks, Loads)
 - ✅ Load Optimization Engine
 - ✅ Enterprise CSV Parsing Engine
+- ✅ Import Document Contract (architecture specification)
 - ⬜ Validation Engine
 - ⬜ Mapping Engine
 - ⬜ Preview Engine
@@ -54,6 +55,12 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | `index.ts` | Barrel export. Public API surface for all consumers. |
 | `__tests__/parser.test.ts` | 45 comprehensive unit tests covering all modules. Uses Node's built-in test runner. |
 
+### Architecture (`docs/architecture/`)
+
+| File | Purpose |
+|------|---------|
+| `import_document_contract.md` | Canonical specification for the ImportDocument contract. Defines the universal in-memory document flowing through the entire ingestion pipeline. Every adapter must produce this document; every downstream engine must consume it. |
+
 ---
 
 ## 6. Important Architectural Decisions
@@ -65,6 +72,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 5. **Formula injection is detected but not mutated.** The parser warns about cells starting with formula characters but preserves original data. Sanitization (`sanitizeForExport`) is available as a utility for export scenarios.
 6. **Zero dependencies.** The parser uses only Node.js built-ins. No external CSV libraries.
 7. **Tests use `node:test`.** Zero test framework dependencies. Run with `npx tsx`.
+8. **ImportDocument Contract established.** The canonical data structure for the entire ingestion pipeline is defined in `docs/architecture/import_document_contract.md`. All adapters produce this document; all downstream engines consume it.
 
 ---
 
@@ -96,15 +104,18 @@ No known issues.
 ## 10. Next Session Instructions
 
 1. Read this file first.
-2. Sprint 3 objective: **Validation Engine**.
-3. The Validation Engine should consume `ImportParseResult` from the CSV parser.
-4. Do NOT modify the CSV parser unless a bug is found during integration.
-5. Create `lib/import/validation/` as a new module.
-6. Define validation rules (required fields, data types, format constraints).
-7. Output a validation result with per-row diagnostics.
-8. Write comprehensive tests.
-9. Follow the same modular architecture (types → rules → engine → index).
-10. Update this file before ending the session.
+2. Read `docs/architecture/import_document_contract.md` before writing any code.
+3. Sprint 3 objective: **Validation Engine**.
+4. Before implementing validation, implement the `ImportDocument` contract types in `lib/import/contract/` as defined in the architecture specification.
+5. Create a thin CSV Adapter wrapper that translates `ImportParseResult` → `ImportDocument`.
+6. The Validation Engine should consume `ImportDocument`, NOT `ImportParseResult` directly.
+7. Do NOT modify the CSV parser unless a bug is found during integration.
+8. Create `lib/import/validation/` as a new module.
+9. Define validation rules (required fields, data types, format constraints).
+10. Output an enriched ImportDocument with per-row `validationState`.
+11. Write comprehensive tests.
+12. Follow the same modular architecture (types → rules → engine → index).
+13. Update this file before ending the session.
 
 ---
 
