@@ -53,6 +53,47 @@ enum UnitType {
   @@map("unit_type")
 }
 
+enum DeliverySource {
+  MANUAL
+  CSV
+  EXCEL
+  API
+  WEBHOOK
+  SHOPIFY
+  WOOCOMMERCE
+  ERP
+
+  @@map("delivery_source")
+}
+
+enum ImportStatus {
+  QUEUED
+  UPLOADING
+  PARSING
+  MAPPING
+  VALIDATING
+  READY_FOR_REVIEW
+  IMPORTING
+  COMPLETED
+  FAILED
+  CANCELLED
+  ROLLED_BACK
+
+  @@map("import_status")
+}
+
+enum ImportRowStatus {
+  PENDING
+  VALID
+  WARNING
+  ERROR
+  DUPLICATE
+  SKIPPED
+  IMPORTED
+
+  @@map("import_row_status")
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model Company {
@@ -65,6 +106,7 @@ model Company {
   drivers    Driver[]
   deliveries Delivery[]
   loadPlans  LoadPlan[]
+  importJobs ImportJob[]
 
   // Settings
   timezone           String   @default("America/Chicago") @map("timezone")
@@ -163,12 +205,21 @@ model Delivery {
   isArchived      Boolean        @default(false) @map("is_archived")
   archivedAt      DateTime?      @map("archived_at")
 
+  // ─── Data Ingestion Fields ──────────────────────────────────────────────────
+  externalId      String?        @map("external_id")
+  source          DeliverySource @default(MANUAL) @map("source")
+  sourceReference String?        @map("source_reference")
+  importJobId     String?        @map("import_job_id") @db.Uuid
+
   company       Company        @relation(fields: [companyId], references: [id])
+  importJob     ImportJob?     @relation(fields: [importJobId], references: [id], onDelete: SetNull)
   loadPlanItems LoadPlanItem[]
   items         DeliveryItem[]
 
+  @@unique([companyId, externalId])
   @@index([companyId, isArchived])
   @@index([companyId, status])
+  @@index([importJobId])
   @@map("deliveries")
 }
 
@@ -228,4 +279,49 @@ model LoadPlanItem {
   @@index([loadPlanId])
   @@index([deliveryId])
   @@map("load_plan_items")
+}
+
+// ─── Data Ingestion Platform ─────────────────────────────────────────────────
+
+model ImportJob {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String       @map("company_id") @db.Uuid
+  filename    String?      @map("filename")
+  sourceType  DeliverySource @default(CSV) @map("source_type")
+  status      ImportStatus @default(QUEUED) @map("status")
+  uploadedBy  String       @map("uploaded_by") @db.Uuid
+  startedAt   DateTime?    @map("started_at")
+  completedAt DateTime?    @map("completed_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  summary     Json?        @map("summary")
+
+  company    Company    @relation(fields: [companyId], references: [id])
+  rows       ImportRow[]
+  deliveries Delivery[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("import_jobs")
+}
+
+model ImportRow {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  importJobId String          @map("import_job_id") @db.Uuid
+  rowNumber   Int             @map("row_number")
+  rawData     Json            @map("raw_data")
+  mappedData  Json?           @map("mapped_data")
+  status      ImportRowStatus @default(PENDING) @map("status")
+  errors      Json?           @map("errors")
+  warnings    Json?           @map("warnings")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@index([importJobId])
+  @@index([status])
+  @@index([importJobId, rowNumber])
+  @@map("import_rows")
 }
