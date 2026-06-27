@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 2 — Enterprise CSV Parsing Engine** ✅ COMPLETE
+**Sprint 3 — Validation Engine** ✅ COMPLETE
 
 ---
 
@@ -18,7 +18,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 |--------|--------|
 | ✅ Complete | Sprint 1 — Database Foundation & Core Application |
 | ✅ Complete | Sprint 2 — Enterprise CSV Parsing Engine |
-| ⬜ Next | Sprint 3 — Validation Engine |
+| ✅ Complete | Sprint 3 — Validation Engine |
+| ⬜ Next | Sprint 4 — Mapping Engine |
 
 ---
 
@@ -30,7 +31,9 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ Load Optimization Engine
 - ✅ Enterprise CSV Parsing Engine
 - ✅ Import Document Contract (architecture specification)
-- ⬜ Validation Engine
+- ✅ Import Document Contract (code implementation)
+- ✅ CSV Adapter
+- ✅ Validation Engine
 - ⬜ Mapping Engine
 - ⬜ Preview Engine
 - ⬜ Commit Engine
@@ -59,20 +62,54 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 | File | Purpose |
 |------|---------|
-| `import_document_contract.md` | Canonical specification for the ImportDocument contract. Defines the universal in-memory document flowing through the entire ingestion pipeline. Every adapter must produce this document; every downstream engine must consume it. |
+| `import_document_contract.md` | Canonical specification for the ImportDocument contract. |
+
+### Import Contract (`lib/import/contract/`)
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | ImportDocument, ImportRow, ImportDiagnostic, all pipeline state types. |
+| `constants.ts` | CONTRACT_VERSION, processing states, severity levels, code prefixes. |
+| `guards.ts` | Type guards, state assertions, forward-only transition checks. |
+| `index.ts` | Barrel export. |
+
+### CSV Adapter (`lib/import/adapters/csv/`)
+
+| File | Purpose |
+|------|---------|
+| `adapter.ts` | Translates ImportParseResult → ImportDocument (ADR-005). |
+| `index.ts` | Barrel export. |
+
+### Validation Engine (`lib/import/validation/`)
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | ValidationRule, ValidationProfile, FieldValidationConfig. |
+| `engine.ts` | Core engine: validateDocument(). Enriches ImportDocument with validation state. |
+| `rules/required.ts` | Required field rule. |
+| `rules/integer.ts` | Integer validation with min/max. |
+| `rules/decimal.ts` | Decimal validation with precision. |
+| `rules/boolean.ts` | Boolean validation (true/false/yes/no/1/0). |
+| `rules/enum.ts` | Enum validation with case sensitivity option. |
+| `rules/date.ts` | Date validation (ISO 8601, US, EU, compact). |
+| `rules/index.ts` | Rule registry with extensibility. |
+| `index.ts` | Barrel export. |
+| `__tests__/validation.test.ts` | 55 tests: adapter, rules, engine, diagnostics, end-to-end. |
 
 ---
 
 ## 6. Important Architectural Decisions
 
-1. **Parser types are independent of Prisma models.** The CSV parser outputs `ImportParseResult`, not database entities. Mapping to Prisma models happens in a separate (future) Mapping Engine.
-2. **Single entry point pattern.** `parseCsv()` is the only public function. All internal modules are orchestrated behind it.
-3. **Diagnostics over exceptions.** Row-level issues produce diagnostic entries (warnings/errors) instead of throwing. Only truly fatal conditions (empty file, binary file) prevent parsing.
-4. **Blank headers are valid.** The normalizer assigns synthetic names (`column_1`, etc.) rather than rejecting the file.
-5. **Formula injection is detected but not mutated.** The parser warns about cells starting with formula characters but preserves original data. Sanitization (`sanitizeForExport`) is available as a utility for export scenarios.
-6. **Zero dependencies.** The parser uses only Node.js built-ins. No external CSV libraries.
-7. **Tests use `node:test`.** Zero test framework dependencies. Run with `npx tsx`.
-8. **ImportDocument Contract established.** The canonical data structure for the entire ingestion pipeline is defined in `docs/architecture/import_document_contract.md`. All adapters produce this document; all downstream engines consume it.
+1. **Parser types are independent of Prisma models.**
+2. **Single entry point pattern.** `parseCsv()` and `validateDocument()` are sole public entries.
+3. **Diagnostics over exceptions.** Row-level issues produce diagnostics, not throws.
+4. **Blank headers are valid.** Normalizer assigns synthetic names.
+5. **Formula injection is detected but not mutated.**
+6. **Zero dependencies.** Parser and validation use only Node.js built-ins.
+7. **Tests use `node:test`.** Run with `npx tsx`.
+8. **ImportDocument Contract.** Defined in `docs/architecture/import_document_contract.md`, implemented in `lib/import/contract/`.
+9. **CSV Adapter wraps parser (ADR-005).** `parseCsv()` remains unchanged; adapter translates output.
+10. **Validation Engine is source-agnostic.** Imports only from `lib/import/contract/`, never from CSV modules.
 
 ---
 
@@ -105,17 +142,14 @@ No known issues.
 
 1. Read this file first.
 2. Read `docs/architecture/import_document_contract.md` before writing any code.
-3. Sprint 3 objective: **Validation Engine**.
-4. Before implementing validation, implement the `ImportDocument` contract types in `lib/import/contract/` as defined in the architecture specification.
-5. Create a thin CSV Adapter wrapper that translates `ImportParseResult` → `ImportDocument`.
-6. The Validation Engine should consume `ImportDocument`, NOT `ImportParseResult` directly.
-7. Do NOT modify the CSV parser unless a bug is found during integration.
-8. Create `lib/import/validation/` as a new module.
-9. Define validation rules (required fields, data types, format constraints).
-10. Output an enriched ImportDocument with per-row `validationState`.
-11. Write comprehensive tests.
-12. Follow the same modular architecture (types → rules → engine → index).
-13. Update this file before ending the session.
+3. Sprint 4 objective: **Mapping Engine**.
+4. The Mapping Engine consumes a validated `ImportDocument` (processingState = `validated`).
+5. Implement mapping profiles that translate normalized values to domain model fields.
+6. Create `lib/import/mapping/` following the same modular architecture.
+7. The Mapping Engine must NOT import from CSV or validation internals — only from `lib/import/contract/`.
+8. Write comprehensive tests.
+9. Do NOT modify the CSV parser, adapter, or validation engine unless a bug is found.
+10. Update this file before ending the session.
 
 ---
 
@@ -124,29 +158,25 @@ No known issues.
 | Field | Value |
 |-------|-------|
 | Current Branch | `develop` |
-| Latest Commit Hash | `2dda75a` |
-| Latest Commit Message | `merge: feature/csv-parsing-engine into develop` |
-| Feature Branch | `feature/csv-parsing-engine` (merged) |
+| Feature Branch | `feature/validation-engine` (merged) |
 | Merge Status | ✅ Merged into develop, pushed to origin |
 
 ---
 
 ## 12. Sprint Summary
 
-### Completed
-- Full CSV Parsing Engine: 8 modules, 1 test file, 45 tests
-- Auto-detection of delimiters, BOM, line endings
-- Header normalization with de-duplication and synthetic names
-- RFC 4180 quoted field parsing
-- Security: formula injection detection, binary file rejection
+### Sprint 3 — Completed
+- Import Document Contract: 4 modules (types, constants, guards, index)
+- CSV Adapter: thin wrapper translating ImportParseResult → ImportDocument
+- Validation Engine: core engine with configurable profiles and 6 built-in rules
+- Rules: required, integer, decimal, boolean, enum, date
+- Rule registry with extensibility (registerRule)
+- Duplicate row detection by composite key
+- 55 validation tests + 45 parser tests = 100 total tests passing
 - Production build verified
 
-### Changed
-- Fixed: `parser.ts` line 93 — removed overly strict all-blank-headers fatal check. The normalizer correctly handles blank headers by assigning synthetic names.
-
 ### Intentionally Left for Future Sprints
-- Validation Engine (Sprint 3)
-- Mapping Engine
+- Mapping Engine (Sprint 4)
 - Preview Engine
 - Commit Engine
 - Full CSV Import pipeline
