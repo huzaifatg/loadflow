@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 5 — Preview Engine** ✅ COMPLETE
+**Sprint 6 — Commit Engine** ✅ COMPLETE
 
 ---
 
@@ -21,7 +21,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 3 — Validation Engine |
 | ✅ Complete | Sprint 4 — Mapping Engine |
 | ✅ Complete | Sprint 5 — Preview Engine |
-| ⬜ Next | Sprint 6 — Commit Engine |
+| ✅ Complete | Sprint 6 — Commit Engine |
+| ⬜ Next | Sprint 7 — Full CSV Import Pipeline |
 
 ---
 
@@ -122,6 +123,17 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | `index.ts` | Barrel export. |
 | `__tests__/preview.test.ts` | 26 tests: diffs, create/update/skip/no_change, duplicates, summaries, integration. |
 
+### Commit Engine (`lib/import/commit/`)
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | PrismaTransactionClient interface, CommitProfile, RowCommitResult, CommitEngineResult. |
+| `constants.ts` | COMMIT_CODES diagnostic constants, DELIVERY_FIELD_MAP. |
+| `persistence.ts` | Database write operations: create/update Delivery, persist ImportRow, update ImportJob. |
+| `engine.ts` | Core engine: commitDocument(). Atomic transaction with full rollback on failure. |
+| `index.ts` | Barrel export. |
+| `__tests__/commit.test.ts` | 19 tests: create, update, skip, rollback, ImportJob, statistics, diagnostics, integration. |
+
 ---
 
 ## 6. Important Architectural Decisions
@@ -168,14 +180,13 @@ No known issues.
 
 1. Read this file first.
 2. Read `docs/architecture/import_document_contract.md` before writing any code.
-3. Sprint 6 objective: **Commit Engine**.
-4. The Commit Engine consumes a previewed `ImportDocument` (processingState = `previewed`).
-5. Implement database persistence using Prisma for approved preview rows.
-6. Create `lib/import/commit/` following the same modular architecture.
-7. The Commit Engine is the ONLY engine permitted to perform Prisma writes.
-8. Write comprehensive tests.
-9. Do NOT modify previously completed engines unless a bug is found.
-10. Update this file before ending the session.
+3. Sprint 7 objective: **Full CSV Import Pipeline**.
+4. Integrate all engines into a single orchestration flow: CSV → Parse → Validate → Map → Preview → Commit.
+5. Create `lib/import/pipeline/` with a top-level `importCsv()` function.
+6. The pipeline should accept raw CSV content, profile configurations, and a Prisma client.
+7. Write end-to-end integration tests covering the full flow.
+8. Do NOT modify previously completed engines unless a bug is found.
+9. Update this file before ending the session.
 
 ---
 
@@ -184,27 +195,26 @@ No known issues.
 | Field | Value |
 |-------|-------|
 | Current Branch | `develop` |
-| Feature Branch | `feature/preview-engine` (merged) |
+| Feature Branch | `feature/commit-engine` (merged) |
 | Merge Status | ✅ Merged into develop, pushed to origin |
 
 ---
 
 ## 12. Sprint Summary
 
-### Sprint 5 — Completed
-- Preview Engine Core: consumes mapped documents, classifies rows as create/update/skip/no_change.
-- Field-level diff computation with smart equality handling (string-number, null-undefined).
-- Duplicate match key detection across import rows.
-- Per-row preview summaries with before/after values, changed fields, skip reasons.
-- Document-level preview summary with commit impact projection.
-- Configurable match key lookup (database-agnostic via RecordLookupFn).
-- Ignored fields support for diff exclusion.
-- Complete diagnostic trail with PRV_ prefix.
-- Comprehensive test suite (26 passing tests).
-- 139 total project tests passing (45 + 55 + 13 + 26).
+### Sprint 6 — Completed
+- Commit Engine Core: atomic transaction-based commit with full rollback on failure.
+- PrismaTransactionClient interface for testability without real database.
+- Delivery persistence: create and update operations with field mapping.
+- ImportRow persistence: tracks raw data, mapped data, and status per row.
+- ImportJob updates: status, completion timestamp, and summary.
+- Skip handling for no_change and skip preview actions.
+- Comprehensive rollback: transaction failure returns original document unchanged.
+- Complete diagnostic trail with CMT_ prefix.
+- Comprehensive test suite (19 passing tests) using mock Prisma client.
+- 158 total project tests passing (45 + 55 + 13 + 26 + 19).
 - Production build verified.
 
 ### Intentionally Left for Future Sprints
-- Commit Engine (Sprint 6)
-- Full CSV Import pipeline
+- Full CSV Import pipeline (Sprint 7)
 - UI components for import
