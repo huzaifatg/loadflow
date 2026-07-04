@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 4 — Mapping Engine** ✅ COMPLETE
+**Sprint 5 — Preview Engine** ✅ COMPLETE
 
 ---
 
@@ -20,7 +20,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 2 — Enterprise CSV Parsing Engine |
 | ✅ Complete | Sprint 3 — Validation Engine |
 | ✅ Complete | Sprint 4 — Mapping Engine |
-| ⬜ Next | Sprint 5 — Preview Engine |
+| ✅ Complete | Sprint 5 — Preview Engine |
+| ⬜ Next | Sprint 6 — Commit Engine |
 
 ---
 
@@ -109,6 +110,18 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | `index.ts` | Barrel export. |
 | `__tests__/mapping.test.ts` | 13 tests: matcher scenarios and document mapping validation. |
 
+### Preview Engine (`lib/import/preview/`)
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | Preview domain types: profiles, row/document summaries, commit impact. |
+| `constants.ts` | PREVIEW_CODES diagnostic constants. |
+| `diff.ts` | Field-level diff computation with smart equality (string-number coercion). |
+| `summaries.ts` | Builds per-row and document-level preview summaries for UI consumption. |
+| `engine.ts` | Core engine: previewDocument(). Classifies rows, computes diffs, detects duplicates. |
+| `index.ts` | Barrel export. |
+| `__tests__/preview.test.ts` | 26 tests: diffs, create/update/skip/no_change, duplicates, summaries, integration. |
+
 ---
 
 ## 6. Important Architectural Decisions
@@ -155,11 +168,11 @@ No known issues.
 
 1. Read this file first.
 2. Read `docs/architecture/import_document_contract.md` before writing any code.
-3. Sprint 5 objective: **Preview Engine**.
-4. The Preview Engine consumes a mapped `ImportDocument` (processingState = `mapped`).
-5. Implement preview generation to show diffs between original CSV rows and mapped domain entities.
-6. Create `lib/import/preview/` following the same modular architecture.
-7. The Preview Engine must NOT import from CSV, validation, or mapping internals — only from `lib/import/contract/` and `lib/import/mapping/profiles.ts` if field metadata is needed.
+3. Sprint 6 objective: **Commit Engine**.
+4. The Commit Engine consumes a previewed `ImportDocument` (processingState = `previewed`).
+5. Implement database persistence using Prisma for approved preview rows.
+6. Create `lib/import/commit/` following the same modular architecture.
+7. The Commit Engine is the ONLY engine permitted to perform Prisma writes.
 8. Write comprehensive tests.
 9. Do NOT modify previously completed engines unless a bug is found.
 10. Update this file before ending the session.
@@ -171,26 +184,27 @@ No known issues.
 | Field | Value |
 |-------|-------|
 | Current Branch | `develop` |
-| Feature Branch | `feature/mapping-engine` (merged) |
+| Feature Branch | `feature/preview-engine` (merged) |
 | Merge Status | ✅ Merged into develop, pushed to origin |
 
 ---
 
 ## 12. Sprint Summary
 
-### Sprint 4 — Completed
-- Mapping Engine Core: consumes validated documents and enriches with mapped values.
-- Matcher with deterministic 4-phase matching: overrides > exact > normalized > alias.
-- Resolves duplicate mappings by highest confidence.
-- Identifies missing required domain fields and unmapped source columns.
-- Skips invalid rows gracefully.
-- Canonical entity profiles for Delivery, Driver, Truck, independent of Prisma.
-- Comprehensive test suite (13 passing tests).
-- 113 total project tests passing.
+### Sprint 5 — Completed
+- Preview Engine Core: consumes mapped documents, classifies rows as create/update/skip/no_change.
+- Field-level diff computation with smart equality handling (string-number, null-undefined).
+- Duplicate match key detection across import rows.
+- Per-row preview summaries with before/after values, changed fields, skip reasons.
+- Document-level preview summary with commit impact projection.
+- Configurable match key lookup (database-agnostic via RecordLookupFn).
+- Ignored fields support for diff exclusion.
+- Complete diagnostic trail with PRV_ prefix.
+- Comprehensive test suite (26 passing tests).
+- 139 total project tests passing (45 + 55 + 13 + 26).
 - Production build verified.
 
 ### Intentionally Left for Future Sprints
-- Preview Engine (Sprint 5)
-- Commit Engine
+- Commit Engine (Sprint 6)
 - Full CSV Import pipeline
 - UI components for import
