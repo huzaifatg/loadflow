@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 6 — Commit Engine** ✅ COMPLETE
+**Sprint 7 — Full CSV Import Pipeline** ✅ COMPLETE
 
 ---
 
@@ -22,7 +22,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 4 — Mapping Engine |
 | ✅ Complete | Sprint 5 — Preview Engine |
 | ✅ Complete | Sprint 6 — Commit Engine |
-| ⬜ Next | Sprint 7 — Full CSV Import Pipeline |
+| ✅ Complete | Sprint 7 — Full CSV Import Pipeline |
+| ⬜ Next | Sprint 8 — CSV Upload UI & API Routes |
 
 ---
 
@@ -38,9 +39,9 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ CSV Adapter
 - ✅ Validation Engine
 - ✅ Mapping Engine
-- ⬜ Preview Engine
-- ⬜ Commit Engine
-- ⬜ CSV Import (full pipeline)
+- ✅ Preview Engine
+- ✅ Commit Engine
+- ✅ CSV Import (full pipeline)
 - ⬜ Driver Web App
 
 ---
@@ -134,6 +135,16 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | `index.ts` | Barrel export. |
 | `__tests__/commit.test.ts` | 19 tests: create, update, skip, rollback, ImportJob, statistics, diagnostics, integration. |
 
+### Import Pipeline (`lib/import/pipeline/`)
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | PipelineConfig, ImportPipelineResult, PipelineStageTiming. |
+| `constants.ts` | PIPELINE_CODES diagnostic constants, PIPELINE_STAGES ordering. |
+| `engine.ts` | Core orchestrator: importCsv(). Executes all stages in sequence with failure handling. |
+| `index.ts` | Barrel export. |
+| `__tests__/pipeline.test.ts` | 15 tests: full pipeline, parse failures, validation halt, commit rollback, update flow, duplicates, diagnostics. |
+
 ---
 
 ## 6. Important Architectural Decisions
@@ -179,14 +190,13 @@ No known issues.
 ## 10. Next Session Instructions
 
 1. Read this file first.
-2. Read `docs/architecture/import_document_contract.md` before writing any code.
-3. Sprint 7 objective: **Full CSV Import Pipeline**.
-4. Integrate all engines into a single orchestration flow: CSV → Parse → Validate → Map → Preview → Commit.
-5. Create `lib/import/pipeline/` with a top-level `importCsv()` function.
-6. The pipeline should accept raw CSV content, profile configurations, and a Prisma client.
-7. Write end-to-end integration tests covering the full flow.
-8. Do NOT modify previously completed engines unless a bug is found.
-9. Update this file before ending the session.
+2. Sprint 8 objective: **CSV Upload UI & API Routes**.
+3. Implement the `/api/import/csv` API route that accepts file uploads.
+4. Implement a React upload page with drag-and-drop CSV upload.
+5. Connect the UI to the `importCsv()` pipeline entry point.
+6. The full pipeline is available at `lib/import/pipeline/` via `importCsv()`.
+7. Do NOT modify previously completed engines unless a bug is found.
+8. Update this file before ending the session.
 
 ---
 
@@ -195,26 +205,25 @@ No known issues.
 | Field | Value |
 |-------|-------|
 | Current Branch | `develop` |
-| Feature Branch | `feature/commit-engine` (merged) |
+| Feature Branch | `feature/import-pipeline` (merged) |
 | Merge Status | ✅ Merged into develop, pushed to origin |
 
 ---
 
 ## 12. Sprint Summary
 
-### Sprint 6 — Completed
-- Commit Engine Core: atomic transaction-based commit with full rollback on failure.
-- PrismaTransactionClient interface for testability without real database.
-- Delivery persistence: create and update operations with field mapping.
-- ImportRow persistence: tracks raw data, mapped data, and status per row.
-- ImportJob updates: status, completion timestamp, and summary.
-- Skip handling for no_change and skip preview actions.
-- Comprehensive rollback: transaction failure returns original document unchanged.
-- Complete diagnostic trail with CMT_ prefix.
-- Comprehensive test suite (19 passing tests) using mock Prisma client.
-- 158 total project tests passing (45 + 55 + 13 + 26 + 19).
+### Sprint 7 — Completed
+- Full CSV Import Pipeline: single `importCsv()` entry point orchestrating all 6 engines.
+- Pipeline executes: Parse → Adapt → Validate → Map → Preview → Commit.
+- Halts immediately on fatal parse errors, validation failures, or commit rollback.
+- Per-stage timing breakdown in results.
+- Unified ImportPipelineResult with preview summary, commit results, and diagnostics.
+- Zero duplicated logic — pure composition over existing engines.
+- Bug fix: corrected `parseResult.errors` → `parseResult.diagnostics` + `success` check.
+- Comprehensive integration test suite (15 passing tests).
+- 173 total project tests passing (45 + 55 + 13 + 26 + 19 + 15).
 - Production build verified.
 
 ### Intentionally Left for Future Sprints
-- Full CSV Import pipeline (Sprint 7)
-- UI components for import
+- CSV Upload UI & API Routes (Sprint 8)
+- Driver Web App
