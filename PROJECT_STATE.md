@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 7 — Full CSV Import Pipeline** ✅ COMPLETE
+**Sprint 8 — CSV Upload UI & API Routes** ✅ COMPLETE
 
 ---
 
@@ -23,7 +23,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 5 — Preview Engine |
 | ✅ Complete | Sprint 6 — Commit Engine |
 | ✅ Complete | Sprint 7 — Full CSV Import Pipeline |
-| ⬜ Next | Sprint 8 — CSV Upload UI & API Routes |
+| ✅ Complete | Sprint 8 — CSV Upload UI & API Routes |
+| ⬜ Next | Sprint 9 — Import Preview & History UI |
 
 ---
 
@@ -42,6 +43,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ Preview Engine
 - ✅ Commit Engine
 - ✅ CSV Import (full pipeline)
+- ✅ CSV Upload API Route
+- ✅ CSV Import UI Page
 - ⬜ Driver Web App
 
 ---
@@ -190,13 +193,14 @@ No known issues.
 ## 10. Next Session Instructions
 
 1. Read this file first.
-2. Sprint 8 objective: **CSV Upload UI & API Routes**.
-3. Implement the `/api/import/csv` API route that accepts file uploads.
-4. Implement a React upload page with drag-and-drop CSV upload.
-5. Connect the UI to the `importCsv()` pipeline entry point.
-6. The full pipeline is available at `lib/import/pipeline/` via `importCsv()`.
-7. Do NOT modify previously completed engines unless a bug is found.
-8. Update this file before ending the session.
+2. Sprint 9 objective: **Import Preview & History UI**.
+3. Add preview table showing import results before commit.
+4. Add import history page listing past ImportJob records.
+5. The full pipeline is available at `lib/import/pipeline/` via `importCsv()`.
+6. The upload API is at `app/api/import/csv/route.ts`.
+7. The Import page is at `app/(dashboard)/import/page.tsx`.
+8. Do NOT modify previously completed engines unless a bug is found.
+9. Update this file before ending the session.
 
 ---
 
@@ -205,25 +209,31 @@ No known issues.
 | Field | Value |
 |-------|-------|
 | Current Branch | `develop` |
-| Feature Branch | `feature/import-pipeline` (merged) |
+| Feature Branch | `feature/import-ui` (merged) |
 | Merge Status | ✅ Merged into develop, pushed to origin |
 
 ---
 
 ## 12. Sprint Summary
 
-### Sprint 7 — Completed
-- Full CSV Import Pipeline: single `importCsv()` entry point orchestrating all 6 engines.
-- Pipeline executes: Parse → Adapt → Validate → Map → Preview → Commit.
-- Halts immediately on fatal parse errors, validation failures, or commit rollback.
-- Per-stage timing breakdown in results.
-- Unified ImportPipelineResult with preview summary, commit results, and diagnostics.
-- Zero duplicated logic — pure composition over existing engines.
-- Bug fix: corrected `parseResult.errors` → `parseResult.diagnostics` + `success` check.
-- Comprehensive integration test suite (15 passing tests).
-- 173 total project tests passing (45 + 55 + 13 + 26 + 19 + 15).
+### Sprint 8 — Completed
+- CSV Upload API Route: `POST /api/import/csv` accepting multipart form upload.
+- File validation: type (.csv), size (10MB limit), empty file check.
+- Auth-guarded: uses `getAuthContext()` for tenant isolation.
+- Creates ImportJob record before pipeline execution.
+- Invokes existing `importCsv()` pipeline — zero duplicated logic.
+- Returns structured JSON result with stats, timings, and failure diagnostics.
+- Import Page: `app/(dashboard)/import/page.tsx` with file selection UI.
+- CsvImportClient component: file picker, upload, loading state, success/error display.
+- Success view: stats grid (inserted/updated/skipped), pipeline timing breakdown.
+- Error view: failure reason, failed/completed stage, rollback indicator.
+- Navigation: Import entry added to Sidebar, MobileNav, and DashboardLayoutShell.
+- 173 existing tests still passing — zero regressions.
 - Production build verified.
+- Prisma schema validated.
 
 ### Intentionally Left for Future Sprints
-- CSV Upload UI & API Routes (Sprint 8)
+- Import Preview table (Sprint 9)
+- Import History page (Sprint 9)
+- Background job processing
 - Driver Web App
