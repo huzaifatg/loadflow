@@ -17,6 +17,7 @@ import {
   X,
   BoxesIcon,
   BookOpen,
+  FileUp,
 } from 'lucide-react';
 
 /* ── Nav items ───────────────────────────────────── */
@@ -27,6 +28,7 @@ const navItems = [
   { label: 'Drivers', href: '/drivers', icon: Users },
   { label: 'Load Plans', href: '/loads', icon: ClipboardList },
   { label: 'Schedule', href: '/schedule', icon: Calendar },
+  { label: 'Import', href: '/import', icon: FileUp },
 ] as const;
 
 /* ── Props ───────────────────────────────────────── */
