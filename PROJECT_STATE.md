@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 9 — Import History** ✅ COMPLETE
+**Sprint 10 — Import Details** ✅ COMPLETE
 
 ---
 
@@ -25,7 +25,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 7 — Full CSV Import Pipeline |
 | ✅ Complete | Sprint 8 — CSV Upload UI & API Routes |
 | ✅ Complete | Sprint 9 — Import History |
-| ⬜ Next | Sprint 10 — TBD |
+| ✅ Complete | Sprint 10 — Import Details |
+| ⬜ Next | Sprint 11 — TBD |
 
 ---
 
@@ -47,6 +48,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ CSV Upload API Route
 - ✅ CSV Import UI Page
 - ✅ Import History API & UI
+- ✅ Import Details API & UI
 - ⬜ Driver Web App
 
 ---
@@ -195,14 +197,16 @@ No known issues.
 ## 10. Next Session Instructions
 
 1. Read this file first.
-2. Sprint 10 objective: TBD.
+2. Sprint 11 objective: TBD.
 3. The full pipeline is available at `lib/import/pipeline/` via `importCsv()`.
 4. The upload API is at `app/api/import/csv/route.ts`.
 5. The history API is at `app/api/import/history/route.ts`.
-6. The Import page is at `app/(dashboard)/import/page.tsx`.
-7. The Import History page is at `app/(dashboard)/import/history/page.tsx`.
-8. Do NOT modify previously completed engines unless a bug is found.
-9. Update this file before ending the session.
+6. The detail API is at `app/api/import/history/[id]/route.ts`.
+7. The Import page is at `app/(dashboard)/import/page.tsx`.
+8. The Import History page is at `app/(dashboard)/import/history/page.tsx`.
+9. The Import Detail page is at `app/(dashboard)/import/history/[id]/page.tsx`.
+10. Do NOT modify previously completed engines unless a bug is found.
+11. Update this file before ending the session.
 
 ---
 
@@ -211,27 +215,28 @@ No known issues.
 | Field | Value |
 |-------|-------|
 | Current Branch | `develop` |
-| Feature Branch | `feature/import-history` (merged) |
+| Feature Branch | `feature/import-details` (merged) |
 | Merge Status | ✅ Merged into develop, pushed to origin |
 
 ---
 
 ## 12. Sprint Summary
 
-### Sprint 9 — Completed
-- Import History API: `GET /api/import/history` returning all ImportJob records for the company.
-- Efficient query: uses `select` to avoid over-fetching, includes `_count` for rows and deliveries.
-- Import History Page: `app/(dashboard)/import/history/page.tsx`.
-- ImportHistoryClient component: table with status badges, row counts, duration, timestamps.
-- Visual status indicators for all ImportStatus enum values (COMPLETED, FAILED, ROLLED_BACK, etc.).
-- Loading, error, and empty states with contextual actions.
-- Refresh button for live updates.
-- Import page updated with "View Import History" link.
+### Sprint 10 — Completed
+- Import Detail API: `GET /api/import/history/[id]` returning a single ImportJob with all ImportRow records.
+- Company-scoped for tenant isolation.
+- Import Detail Page: `app/(dashboard)/import/history/[id]/page.tsx`.
+- ImportDetailClient component: metadata card, 7-column summary grid, expandable row table.
+- Each row expandable to show raw data, mapped data, errors, and warnings.
+- Diagnostic entries display severity icon, message, code, row, and column.
+- Failure reason card for failed/rolled-back imports.
+- Back link to Import History.
+- Import History rows now clickable — navigate to detail page.
 - 173 existing tests still passing — zero regressions.
 - Production build verified.
 
 ### Intentionally Left for Future Sprints
 - Import Preview table
-- Import Detail / row inspection
+- Retry / rollback actions
 - Background job processing
 - Driver Web App

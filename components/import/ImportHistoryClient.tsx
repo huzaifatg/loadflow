@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   CheckCircle2,
   XCircle,
@@ -99,6 +100,7 @@ export function ImportHistoryClient() {
   const [jobs, setJobs] = useState<ImportJobRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const fetchJobs = async () => {
     setLoading(true);
@@ -202,7 +204,7 @@ export function ImportHistoryClient() {
                 const summary = job.summary as ImportJobSummary | null;
 
                 return (
-                  <tr key={job.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={job.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => router.push(`/import/history/${job.id}`)}>
                     {/* Filename */}
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2">
