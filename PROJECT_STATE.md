@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 8 — CSV Upload UI & API Routes** ✅ COMPLETE
+**Sprint 9 — Import History** ✅ COMPLETE
 
 ---
 
@@ -24,7 +24,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 6 — Commit Engine |
 | ✅ Complete | Sprint 7 — Full CSV Import Pipeline |
 | ✅ Complete | Sprint 8 — CSV Upload UI & API Routes |
-| ⬜ Next | Sprint 9 — Import Preview & History UI |
+| ✅ Complete | Sprint 9 — Import History |
+| ⬜ Next | Sprint 10 — TBD |
 
 ---
 
@@ -45,6 +46,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ CSV Import (full pipeline)
 - ✅ CSV Upload API Route
 - ✅ CSV Import UI Page
+- ✅ Import History API & UI
 - ⬜ Driver Web App
 
 ---
@@ -193,12 +195,12 @@ No known issues.
 ## 10. Next Session Instructions
 
 1. Read this file first.
-2. Sprint 9 objective: **Import Preview & History UI**.
-3. Add preview table showing import results before commit.
-4. Add import history page listing past ImportJob records.
-5. The full pipeline is available at `lib/import/pipeline/` via `importCsv()`.
-6. The upload API is at `app/api/import/csv/route.ts`.
-7. The Import page is at `app/(dashboard)/import/page.tsx`.
+2. Sprint 10 objective: TBD.
+3. The full pipeline is available at `lib/import/pipeline/` via `importCsv()`.
+4. The upload API is at `app/api/import/csv/route.ts`.
+5. The history API is at `app/api/import/history/route.ts`.
+6. The Import page is at `app/(dashboard)/import/page.tsx`.
+7. The Import History page is at `app/(dashboard)/import/history/page.tsx`.
 8. Do NOT modify previously completed engines unless a bug is found.
 9. Update this file before ending the session.
 
@@ -209,31 +211,27 @@ No known issues.
 | Field | Value |
 |-------|-------|
 | Current Branch | `develop` |
-| Feature Branch | `feature/import-ui` (merged) |
+| Feature Branch | `feature/import-history` (merged) |
 | Merge Status | ✅ Merged into develop, pushed to origin |
 
 ---
 
 ## 12. Sprint Summary
 
-### Sprint 8 — Completed
-- CSV Upload API Route: `POST /api/import/csv` accepting multipart form upload.
-- File validation: type (.csv), size (10MB limit), empty file check.
-- Auth-guarded: uses `getAuthContext()` for tenant isolation.
-- Creates ImportJob record before pipeline execution.
-- Invokes existing `importCsv()` pipeline — zero duplicated logic.
-- Returns structured JSON result with stats, timings, and failure diagnostics.
-- Import Page: `app/(dashboard)/import/page.tsx` with file selection UI.
-- CsvImportClient component: file picker, upload, loading state, success/error display.
-- Success view: stats grid (inserted/updated/skipped), pipeline timing breakdown.
-- Error view: failure reason, failed/completed stage, rollback indicator.
-- Navigation: Import entry added to Sidebar, MobileNav, and DashboardLayoutShell.
+### Sprint 9 — Completed
+- Import History API: `GET /api/import/history` returning all ImportJob records for the company.
+- Efficient query: uses `select` to avoid over-fetching, includes `_count` for rows and deliveries.
+- Import History Page: `app/(dashboard)/import/history/page.tsx`.
+- ImportHistoryClient component: table with status badges, row counts, duration, timestamps.
+- Visual status indicators for all ImportStatus enum values (COMPLETED, FAILED, ROLLED_BACK, etc.).
+- Loading, error, and empty states with contextual actions.
+- Refresh button for live updates.
+- Import page updated with "View Import History" link.
 - 173 existing tests still passing — zero regressions.
 - Production build verified.
-- Prisma schema validated.
 
 ### Intentionally Left for Future Sprints
-- Import Preview table (Sprint 9)
-- Import History page (Sprint 9)
+- Import Preview table
+- Import Detail / row inspection
 - Background job processing
 - Driver Web App
