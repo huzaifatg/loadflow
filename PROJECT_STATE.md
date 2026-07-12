@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 4 — Mapping Engine** ✅ COMPLETE
+**Sprint 8 — CSV Upload UI & API Routes** ✅ COMPLETE
 
 ---
 
@@ -20,7 +20,11 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 2 — Enterprise CSV Parsing Engine |
 | ✅ Complete | Sprint 3 — Validation Engine |
 | ✅ Complete | Sprint 4 — Mapping Engine |
-| ⬜ Next | Sprint 5 — Preview Engine |
+| ✅ Complete | Sprint 5 — Preview Engine |
+| ✅ Complete | Sprint 6 — Commit Engine |
+| ✅ Complete | Sprint 7 — Full CSV Import Pipeline |
+| ✅ Complete | Sprint 8 — CSV Upload UI & API Routes |
+| ⬜ Next | Sprint 9 — Import Preview & History UI |
 
 ---
 
@@ -36,9 +40,11 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ CSV Adapter
 - ✅ Validation Engine
 - ✅ Mapping Engine
-- ⬜ Preview Engine
-- ⬜ Commit Engine
-- ⬜ CSV Import (full pipeline)
+- ✅ Preview Engine
+- ✅ Commit Engine
+- ✅ CSV Import (full pipeline)
+- ✅ CSV Upload API Route
+- ✅ CSV Import UI Page
 - ⬜ Driver Web App
 
 ---
@@ -109,6 +115,39 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | `index.ts` | Barrel export. |
 | `__tests__/mapping.test.ts` | 13 tests: matcher scenarios and document mapping validation. |
 
+### Preview Engine (`lib/import/preview/`)
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | Preview domain types: profiles, row/document summaries, commit impact. |
+| `constants.ts` | PREVIEW_CODES diagnostic constants. |
+| `diff.ts` | Field-level diff computation with smart equality (string-number coercion). |
+| `summaries.ts` | Builds per-row and document-level preview summaries for UI consumption. |
+| `engine.ts` | Core engine: previewDocument(). Classifies rows, computes diffs, detects duplicates. |
+| `index.ts` | Barrel export. |
+| `__tests__/preview.test.ts` | 26 tests: diffs, create/update/skip/no_change, duplicates, summaries, integration. |
+
+### Commit Engine (`lib/import/commit/`)
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | PrismaTransactionClient interface, CommitProfile, RowCommitResult, CommitEngineResult. |
+| `constants.ts` | COMMIT_CODES diagnostic constants, DELIVERY_FIELD_MAP. |
+| `persistence.ts` | Database write operations: create/update Delivery, persist ImportRow, update ImportJob. |
+| `engine.ts` | Core engine: commitDocument(). Atomic transaction with full rollback on failure. |
+| `index.ts` | Barrel export. |
+| `__tests__/commit.test.ts` | 19 tests: create, update, skip, rollback, ImportJob, statistics, diagnostics, integration. |
+
+### Import Pipeline (`lib/import/pipeline/`)
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | PipelineConfig, ImportPipelineResult, PipelineStageTiming. |
+| `constants.ts` | PIPELINE_CODES diagnostic constants, PIPELINE_STAGES ordering. |
+| `engine.ts` | Core orchestrator: importCsv(). Executes all stages in sequence with failure handling. |
+| `index.ts` | Barrel export. |
+| `__tests__/pipeline.test.ts` | 15 tests: full pipeline, parse failures, validation halt, commit rollback, update flow, duplicates, diagnostics. |
+
 ---
 
 ## 6. Important Architectural Decisions
@@ -154,15 +193,14 @@ No known issues.
 ## 10. Next Session Instructions
 
 1. Read this file first.
-2. Read `docs/architecture/import_document_contract.md` before writing any code.
-3. Sprint 5 objective: **Preview Engine**.
-4. The Preview Engine consumes a mapped `ImportDocument` (processingState = `mapped`).
-5. Implement preview generation to show diffs between original CSV rows and mapped domain entities.
-6. Create `lib/import/preview/` following the same modular architecture.
-7. The Preview Engine must NOT import from CSV, validation, or mapping internals — only from `lib/import/contract/` and `lib/import/mapping/profiles.ts` if field metadata is needed.
-8. Write comprehensive tests.
-9. Do NOT modify previously completed engines unless a bug is found.
-10. Update this file before ending the session.
+2. Sprint 9 objective: **Import Preview & History UI**.
+3. Add preview table showing import results before commit.
+4. Add import history page listing past ImportJob records.
+5. The full pipeline is available at `lib/import/pipeline/` via `importCsv()`.
+6. The upload API is at `app/api/import/csv/route.ts`.
+7. The Import page is at `app/(dashboard)/import/page.tsx`.
+8. Do NOT modify previously completed engines unless a bug is found.
+9. Update this file before ending the session.
 
 ---
 
@@ -171,26 +209,31 @@ No known issues.
 | Field | Value |
 |-------|-------|
 | Current Branch | `develop` |
-| Feature Branch | `feature/mapping-engine` (merged) |
+| Feature Branch | `feature/import-ui` (merged) |
 | Merge Status | ✅ Merged into develop, pushed to origin |
 
 ---
 
 ## 12. Sprint Summary
 
-### Sprint 4 — Completed
-- Mapping Engine Core: consumes validated documents and enriches with mapped values.
-- Matcher with deterministic 4-phase matching: overrides > exact > normalized > alias.
-- Resolves duplicate mappings by highest confidence.
-- Identifies missing required domain fields and unmapped source columns.
-- Skips invalid rows gracefully.
-- Canonical entity profiles for Delivery, Driver, Truck, independent of Prisma.
-- Comprehensive test suite (13 passing tests).
-- 113 total project tests passing.
+### Sprint 8 — Completed
+- CSV Upload API Route: `POST /api/import/csv` accepting multipart form upload.
+- File validation: type (.csv), size (10MB limit), empty file check.
+- Auth-guarded: uses `getAuthContext()` for tenant isolation.
+- Creates ImportJob record before pipeline execution.
+- Invokes existing `importCsv()` pipeline — zero duplicated logic.
+- Returns structured JSON result with stats, timings, and failure diagnostics.
+- Import Page: `app/(dashboard)/import/page.tsx` with file selection UI.
+- CsvImportClient component: file picker, upload, loading state, success/error display.
+- Success view: stats grid (inserted/updated/skipped), pipeline timing breakdown.
+- Error view: failure reason, failed/completed stage, rollback indicator.
+- Navigation: Import entry added to Sidebar, MobileNav, and DashboardLayoutShell.
+- 173 existing tests still passing — zero regressions.
 - Production build verified.
+- Prisma schema validated.
 
 ### Intentionally Left for Future Sprints
-- Preview Engine (Sprint 5)
-- Commit Engine
-- Full CSV Import pipeline
-- UI components for import
+- Import Preview table (Sprint 9)
+- Import History page (Sprint 9)
+- Background job processing
+- Driver Web App
