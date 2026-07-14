@@ -150,6 +150,24 @@ export async function importCsv(config: PipelineConfig): Promise<ImportPipelineR
   pipelineDiagnostics.push(makeDiagnostic('info', PIPELINE_CODES.STAGE_COMPLETE, `Preview complete: ${previewSummary.rowsToCreate} create, ${previewSummary.rowsToUpdate} update, ${previewSummary.rowsSkipped} skip.`));
   lastCompletedStage = 'preview';
 
+  // ── Stop after preview (review mode) ─────────────────────────────────────
+  if (config.stopAfterPreview) {
+    pipelineDiagnostics.push(makeDiagnostic('info', PIPELINE_CODES.STAGE_COMPLETE, 'Pipeline stopped after preview for user review.'));
+    return {
+      success: true,
+      completedStage: 'preview',
+      failedStage: null,
+      failureReason: null,
+      document: doc,
+      diagnostics: [...pipelineDiagnostics, ...doc.diagnostics],
+      timings,
+      totalDurationMs: elapsed(pipelineStart),
+      previewSummary,
+      commitResults: null,
+      wasRolledBack: false,
+    };
+  }
+
   // ── Stage 6: Commit ───────────────────────────────────────────────────────
   stageStart = performance.now();
   try {

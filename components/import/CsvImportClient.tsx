@@ -1,22 +1,42 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
-import { Upload, FileText, CheckCircle2, XCircle, Loader2, AlertTriangle, Clock, ArrowRight } from 'lucide-react';
+import { Upload, FileText, XCircle, Loader2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { ImportReviewClient } from './ImportReviewClient';
 
-interface ImportStats {
-  totalRows: number;
-  inserted: number;
-  updated: number;
-  failed: number;
-  skipped: number;
-}
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface StageTiming {
   stage: string;
   durationMs: number;
 }
 
-interface ImportResult {
+interface PreviewRow {
+  rowNumber: number;
+  action: string;
+  validationStatus: string;
+  mappingStatus: string;
+  changedFieldCount: number;
+  changedFields: string[];
+  hasDuplicateKey: boolean;
+  skipReason: string | null;
+  beforeValues: Record<string, unknown>;
+  afterValues: Record<string, unknown>;
+}
+
+interface PreviewData {
+  totalRows: number;
+  rowsToCreate: number;
+  rowsToUpdate: number;
+  rowsSkipped: number;
+  rowsNoChange: number;
+  duplicateKeyCount: number;
+  warningCount: number;
+  errorCount: number;
+  rows: PreviewRow[];
+}
+
+interface UploadResult {
   success: boolean;
   importJobId: string;
   completedStage: string;
@@ -24,16 +44,18 @@ interface ImportResult {
   failureReason: string | null;
   totalDurationMs: number;
   wasRolledBack: boolean;
-  stats: ImportStats;
   timings: StageTiming[];
+  preview?: PreviewData;
 }
 
-type UploadState = 'idle' | 'uploading' | 'success' | 'error';
+type UploadState = 'idle' | 'uploading' | 'review' | 'error';
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function CsvImportClient() {
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [result, setResult] = useState<ImportResult | null>(null);
+  const [result, setResult] = useState<UploadResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -72,9 +94,11 @@ export function CsvImportClient() {
       }
 
       setResult(data);
-      setUploadState(data.success ? 'success' : 'error');
-      if (!data.success) {
-        setErrorMessage(data.failureReason || 'Import failed.');
+      if (data.success && data.preview) {
+        setUploadState('review');
+      } else {
+        setUploadState('error');
+        setErrorMessage(data.failureReason || 'Upload failed.');
       }
     } catch (err) {
       setUploadState('error');
@@ -90,6 +114,21 @@ export function CsvImportClient() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
 
+  // ── Review State ─────────────────────────────────────────────────────────
+  if (uploadState === 'review' && result?.preview) {
+    return (
+      <ImportReviewClient
+        importJobId={result.importJobId}
+        filename={selectedFile?.name || 'upload.csv'}
+        preview={result.preview}
+        totalDurationMs={result.totalDurationMs}
+        onCancel={handleReset}
+        onBack={handleReset}
+      />
+    );
+  }
+
+  // ── Upload UI ────────────────────────────────────────────────────────────
   return (
     <div className="max-w-2xl mx-auto">
       {/* Upload Card */}
@@ -172,57 +211,17 @@ export function CsvImportClient() {
             {uploadState === 'uploading' ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Importing…
+                Analyzing…
               </>
             ) : (
               <>
                 <ArrowRight className="h-4 w-4" />
-                Import Deliveries
+                Preview Import
               </>
             )}
           </button>
         </div>
       </div>
-
-      {/* Result Card */}
-      {uploadState === 'success' && result && (
-        <div className="mt-6 bg-white rounded-xl border border-green-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <CheckCircle2 className="h-6 w-6 text-green-500" />
-              <h3 className="text-lg font-semibold text-gray-900">Import Successful</h3>
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label="Total Rows" value={result.stats.totalRows} color="gray" />
-              <StatCard label="Inserted" value={result.stats.inserted} color="green" />
-              <StatCard label="Updated" value={result.stats.updated} color="blue" />
-              <StatCard label="Skipped" value={result.stats.skipped} color="amber" />
-            </div>
-
-            {/* Pipeline Timing */}
-            {result.timings && result.timings.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="h-3.5 w-3.5 text-gray-400" />
-                  <p className="text-xs font-medium text-gray-500">Pipeline Timing</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {result.timings.map((t, i) => (
-                    <span key={i} className="text-xs px-2 py-1 bg-gray-50 rounded border border-gray-100 text-gray-600">
-                      {t.stage}: {t.durationMs.toFixed(1)}ms
-                    </span>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-400 mt-2">
-                  Total: {result.totalDurationMs.toFixed(1)}ms
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Error Card */}
       {uploadState === 'error' && (
@@ -261,22 +260,6 @@ export function CsvImportClient() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  const colorClasses: Record<string, string> = {
-    gray: 'bg-gray-50 text-gray-900 border-gray-200',
-    green: 'bg-green-50 text-green-700 border-green-200',
-    blue: 'bg-blue-50 text-blue-700 border-blue-200',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200',
-  };
-
-  return (
-    <div className={`rounded-lg border p-3 text-center ${colorClasses[color] || colorClasses.gray}`}>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs font-medium mt-0.5 opacity-70">{label}</p>
     </div>
   );
 }
