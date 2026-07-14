@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 10 — Import Details** ✅ COMPLETE
+**Sprint 11 — Review Import Workflow** ✅ COMPLETE
 
 ---
 
@@ -26,7 +26,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 8 — CSV Upload UI & API Routes |
 | ✅ Complete | Sprint 9 — Import History |
 | ✅ Complete | Sprint 10 — Import Details |
-| ⬜ Next | Sprint 11 — TBD |
+| ✅ Complete | Sprint 11 — Review Import Workflow |
+| ⬜ Next | Sprint 12 — TBD |
 
 ---
 
@@ -49,6 +50,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ CSV Import UI Page
 - ✅ Import History API & UI
 - ✅ Import Details API & UI
+- ✅ Review Import Workflow (Preview UI + Commit API)
 - ⬜ Driver Web App
 
 ---
@@ -197,16 +199,17 @@ No known issues.
 ## 10. Next Session Instructions
 
 1. Read this file first.
-2. Sprint 11 objective: TBD.
-3. The full pipeline is available at `lib/import/pipeline/` via `importCsv()`.
-4. The upload API is at `app/api/import/csv/route.ts`.
-5. The history API is at `app/api/import/history/route.ts`.
-6. The detail API is at `app/api/import/history/[id]/route.ts`.
-7. The Import page is at `app/(dashboard)/import/page.tsx`.
-8. The Import History page is at `app/(dashboard)/import/history/page.tsx`.
-9. The Import Detail page is at `app/(dashboard)/import/history/[id]/page.tsx`.
-10. Do NOT modify previously completed engines unless a bug is found.
-11. Update this file before ending the session.
+2. Sprint 12 objective: TBD.
+3. The pipeline supports `stopAfterPreview` for two-step import workflow.
+4. The upload API is at `app/api/import/csv/route.ts` (preview-only mode).
+5. The commit API is at `app/api/import/commit/route.ts`.
+6. The history API is at `app/api/import/history/route.ts`.
+7. The detail API is at `app/api/import/history/[id]/route.ts`.
+8. The Import page is at `app/(dashboard)/import/page.tsx`.
+9. The Import History page is at `app/(dashboard)/import/history/page.tsx`.
+10. The Import Detail page is at `app/(dashboard)/import/history/[id]/page.tsx`.
+11. Do NOT modify previously completed engines unless a bug is found.
+12. Update this file before ending the session.
 
 ---
 
@@ -215,28 +218,29 @@ No known issues.
 | Field | Value |
 |-------|-------|
 | Current Branch | `develop` |
-| Feature Branch | `feature/import-details` (merged) |
+| Feature Branch | `feature/review-import` (merged) |
 | Merge Status | ✅ Merged into develop, pushed to origin |
 
 ---
 
 ## 12. Sprint Summary
 
-### Sprint 10 — Completed
-- Import Detail API: `GET /api/import/history/[id]` returning a single ImportJob with all ImportRow records.
-- Company-scoped for tenant isolation.
-- Import Detail Page: `app/(dashboard)/import/history/[id]/page.tsx`.
-- ImportDetailClient component: metadata card, 7-column summary grid, expandable row table.
-- Each row expandable to show raw data, mapped data, errors, and warnings.
-- Diagnostic entries display severity icon, message, code, row, and column.
-- Failure reason card for failed/rolled-back imports.
-- Back link to Import History.
-- Import History rows now clickable — navigate to detail page.
+### Sprint 11 — Completed
+- Two-step import workflow: Upload → Preview → Review → Confirm → Commit → History.
+- Pipeline `stopAfterPreview` option added to `PipelineConfig`.
+- CSV upload API now stops after preview, saves ImportRows, sets ImportJob to READY_FOR_REVIEW.
+- New Commit API: `POST /api/import/commit` accepts importJobId, runs full pipeline with commit.
+- ImportReviewClient: summary cards (8 metrics), expandable row preview table, commit controls.
+- CsvImportClient updated: upload triggers preview, then shows review UI.
+- Button label changed from "Import Deliveries" to "Preview Import".
+- After commit, navigates to Import Details page.
+- Cancel/Back returns to upload form.
 - 173 existing tests still passing — zero regressions.
-- Production build verified.
+- Production build verified (33 routes).
+- Prisma schema validated.
 
 ### Intentionally Left for Future Sprints
-- Import Preview table
 - Retry / rollback actions
 - Background job processing
+- Excel support
 - Driver Web App

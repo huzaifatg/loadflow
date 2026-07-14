@@ -43,6 +43,8 @@ export interface PipelineConfig {
   readonly commitProfile: CommitProfile;
   /** Prisma transaction client for database writes. */
   readonly tx: PrismaTransactionClient;
+  /** If true, stop after preview stage and return results without committing. */
+  readonly stopAfterPreview?: boolean;
 }
 
 // ─── Stage Timing ─────────────────────────────────────────────────────────────

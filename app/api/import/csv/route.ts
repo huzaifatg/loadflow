@@ -8,7 +8,8 @@ import type { ExistingRecord } from '@/lib/import/preview';
 
 // ─── POST /api/import/csv ───────────────────────────────────────────────────
 // Accepts a multipart form upload with a CSV file.
-// Invokes the full import pipeline and returns the result.
+// Runs the pipeline through preview only (does NOT commit).
+// Returns preview data for user review.
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -98,7 +99,6 @@ export async function POST(request: NextRequest) {
       previewProfile: {
         matchKey: 'customerName',
         lookupFn: (_entity, _key, matchValue) => {
-          // Synchronous lookup — for production, pre-load or use async
           return null; // All rows treated as creates for now
         },
       },
@@ -109,13 +109,14 @@ export async function POST(request: NextRequest) {
         matchKey: 'customerName',
         source: 'CSV',
       },
-      tx: prisma as any, // Use Prisma client directly (not inside $transaction for now)
+      tx: prisma as any,
+      stopAfterPreview: true, // ← Stop after preview for user review
     };
 
-    // ── Execute pipeline ─────────────────────────────────────────────────
+    // ── Execute pipeline (preview only) ──────────────────────────────────
     const result = await importCsv(config);
 
-    // ── Update ImportJob on failure ───────────────────────────────────────
+    // ── Handle pipeline failure ──────────────────────────────────────────
     if (!result.success) {
       await prisma.importJob.update({
         where: { id: importJob.id },
@@ -129,25 +130,101 @@ export async function POST(request: NextRequest) {
           },
         },
       });
+
+      return NextResponse.json({
+        success: false,
+        importJobId: importJob.id,
+        completedStage: result.completedStage,
+        failedStage: result.failedStage,
+        failureReason: result.failureReason,
+        totalDurationMs: result.totalDurationMs,
+        wasRolledBack: result.wasRolledBack,
+        stats: { totalRows: 0, inserted: 0, updated: 0, failed: 0, skipped: 0 },
+        timings: result.timings,
+      });
     }
 
-    // ── Build response ───────────────────────────────────────────────────
+    // ── Save ImportRows for review ───────────────────────────────────────
+    const doc = result.document;
+    const previewSummary = result.previewSummary;
+
+    if (doc && doc.rows.length > 0) {
+      await prisma.importRow.createMany({
+        data: doc.rows.map((row) => {
+          const hasErrors = row.rowDiagnostics.some((d) => d.severity === 'error' || d.severity === 'fatal');
+          const hasWarnings = row.rowDiagnostics.some((d) => d.severity === 'warning');
+          const dbStatus = row.validationState?.status === 'invalid' || hasErrors ? 'ERROR'
+            : hasWarnings ? 'WARNING'
+            : 'VALID';
+
+          return {
+            importJobId: importJob.id,
+            rowNumber: row.sourceRowNumber,
+            rawData: row.originalValues as any,
+            mappedData: (row.mappingState?.mappedValues ?? null) as any,
+            status: dbStatus,
+            errors: row.rowDiagnostics
+              .filter((d) => d.severity === 'error' || d.severity === 'fatal')
+              .map((d) => ({ code: d.code, message: d.message, column: d.column })) as any,
+            warnings: row.rowDiagnostics
+              .filter((d) => d.severity === 'warning')
+              .map((d) => ({ code: d.code, message: d.message, column: d.column })) as any,
+          };
+        }),
+      });
+    }
+
+    // ── Update ImportJob to READY_FOR_REVIEW ──────────────────────────────
+    await prisma.importJob.update({
+      where: { id: importJob.id },
+      data: {
+        status: 'READY_FOR_REVIEW',
+        summary: {
+          totalRows: previewSummary?.totalRows ?? doc?.rows.length ?? 0,
+          rowsToCreate: previewSummary?.rowsToCreate ?? 0,
+          rowsToUpdate: previewSummary?.rowsToUpdate ?? 0,
+          rowsSkipped: previewSummary?.rowsSkipped ?? 0,
+          rowsNoChange: previewSummary?.rowsNoChange ?? 0,
+          duplicateKeyCount: previewSummary?.duplicateKeyCount ?? 0,
+          warningCount: previewSummary?.warningCount ?? 0,
+          errorCount: previewSummary?.errorCount ?? 0,
+          totalDurationMs: result.totalDurationMs,
+        },
+      },
+    });
+
+    // ── Build preview response ───────────────────────────────────────────
     return NextResponse.json({
-      success: result.success,
+      success: true,
       importJobId: importJob.id,
       completedStage: result.completedStage,
-      failedStage: result.failedStage,
-      failureReason: result.failureReason,
+      failedStage: null,
+      failureReason: null,
       totalDurationMs: result.totalDurationMs,
-      wasRolledBack: result.wasRolledBack,
-      stats: {
-        totalRows: result.document?.rows?.length ?? 0,
-        inserted: result.document?.statistics?.commit?.inserted ?? 0,
-        updated: result.document?.statistics?.commit?.updated ?? 0,
-        failed: result.document?.statistics?.commit?.failed ?? 0,
-        skipped: result.previewSummary?.rowsSkipped ?? 0,
-      },
+      wasRolledBack: false,
       timings: result.timings,
+      preview: {
+        totalRows: previewSummary?.totalRows ?? 0,
+        rowsToCreate: previewSummary?.rowsToCreate ?? 0,
+        rowsToUpdate: previewSummary?.rowsToUpdate ?? 0,
+        rowsSkipped: previewSummary?.rowsSkipped ?? 0,
+        rowsNoChange: previewSummary?.rowsNoChange ?? 0,
+        duplicateKeyCount: previewSummary?.duplicateKeyCount ?? 0,
+        warningCount: previewSummary?.warningCount ?? 0,
+        errorCount: previewSummary?.errorCount ?? 0,
+        rows: previewSummary?.rows?.map((r) => ({
+          rowNumber: r.sourceRowNumber,
+          action: r.action,
+          validationStatus: r.validationStatus,
+          mappingStatus: r.mappingStatus,
+          changedFieldCount: r.changedFieldCount,
+          changedFields: r.changedFields,
+          hasDuplicateKey: r.hasDuplicateKey,
+          skipReason: r.skipReason,
+          beforeValues: r.beforeValues,
+          afterValues: r.afterValues,
+        })) ?? [],
+      },
     });
   } catch (error) {
     console.error('[POST /api/import/csv] Unexpected error:', error);
