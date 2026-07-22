@@ -84,6 +84,11 @@ export async function POST(request: NextRequest) {
     ];
     const csvContent = csvLines.join('\n');
 
+    // ── Delete preview-phase ImportRows (commit engine will recreate them) ─
+    await prisma.importRow.deleteMany({
+      where: { importJobId },
+    });
+
     // ── Update status to IMPORTING ───────────────────────────────────────
     await prisma.importJob.update({
       where: { id: importJobId },
