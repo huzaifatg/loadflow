@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthContext } from '@/lib/auth'
+import { validatePathId, unauthorizedResponse, invalidIdResponse } from '@/lib/security'
 import type { UpdateDeliveryInput } from '@/types'
 import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items'
 
@@ -25,11 +26,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const id = validatePathId((await params).id)
+    if (!id) return invalidIdResponse()
     const auth = await getAuthContext()
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!auth) return unauthorizedResponse()
 
     const delivery = await prisma.delivery.findFirst({
       where: { id, companyId: auth.companyId },
@@ -75,11 +75,10 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const id = validatePathId((await params).id)
+    if (!id) return invalidIdResponse()
     const auth = await getAuthContext()
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!auth) return unauthorizedResponse()
 
     // Find existing delivery
     const existing = await prisma.delivery.findFirst({
@@ -231,8 +230,9 @@ export async function PUT(
         }
 
         // Update the delivery itself
+        // Defense-in-depth: include companyId in the update WHERE clause
         return tx.delivery.update({
-          where: { id },
+          where: { id, companyId: auth.companyId },
           data: updateData,
           include: {
             items: { orderBy: { sortOrder: 'asc' } },
@@ -248,8 +248,9 @@ export async function PUT(
     }
 
     // No items change — simple update
+    // Defense-in-depth: include companyId in the update WHERE clause
     const delivery = await prisma.delivery.update({
-      where: { id },
+      where: { id, companyId: auth.companyId },
       data: updateData,
       include: {
         items: { orderBy: { sortOrder: 'asc' } },
@@ -278,11 +279,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const id = validatePathId((await params).id)
+    if (!id) return invalidIdResponse()
     const auth = await getAuthContext()
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!auth) return unauthorizedResponse()
 
     await prisma.$transaction(async (tx) => {
       // Check and delete atomically
@@ -302,7 +302,8 @@ export async function DELETE(
         throw new Error('HAS_LOAD_PLANS')
       }
 
-      await tx.delivery.delete({ where: { id } })
+      // Defense-in-depth: include companyId in the delete WHERE clause
+      await tx.delivery.delete({ where: { id, companyId: auth.companyId } })
     })
 
     const { revalidatePath } = await import('next/cache');

@@ -1,14 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthContext } from '@/lib/auth';
+import { unauthorizedResponse } from '@/lib/security';
 import { validateTruckConflict, validateDriverConflict } from '@/lib/services/load-plan-validation';
 
 export async function GET() {
   try {
     const auth = await getAuthContext();
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!auth) return unauthorizedResponse();
     const company = auth.company;
 
     const loads = await prisma.loadPlan.findMany({

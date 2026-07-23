@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthContext } from '@/lib/auth'
+import { unauthorizedResponse } from '@/lib/security'
 import { startOfDay, endOfDay } from 'date-fns'
 import { optimizeLoads } from '@/lib/services/load-optimizer'
 
@@ -8,9 +9,7 @@ export async function POST(request: NextRequest) {
   try {
     // ── Auth & tenant isolation ──
     const auth = await getAuthContext()
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!auth) return unauthorizedResponse()
     const company = auth.company
 
     // ── Parse input ──

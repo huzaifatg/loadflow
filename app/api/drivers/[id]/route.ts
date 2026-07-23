@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getAuthContext } from '@/lib/auth'
+import { validatePathId, unauthorizedResponse, invalidIdResponse } from '@/lib/security'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -9,12 +10,11 @@ export async function GET(
 ) {
   try {
     const auth = await getAuthContext()
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!auth) return unauthorizedResponse()
     const company = auth.company
 
-    const { id } = await params
+    const id = validatePathId((await params).id)
+    if (!id) return invalidIdResponse()
 
     const driver = await prisma.driver.findFirst({
       where: { id, companyId: company.id },
@@ -47,12 +47,12 @@ export async function PUT(
 ) {
   try {
     const auth = await getAuthContext()
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!auth) return unauthorizedResponse()
     const company = auth.company
 
-    const { id } = await params
+    const id = validatePathId((await params).id)
+    if (!id) return invalidIdResponse()
+
     const body = await request.json()
 
     // Verify driver belongs to company
@@ -77,8 +77,9 @@ export async function PUT(
       )
     }
 
+    // Defense-in-depth: include companyId in the update WHERE clause
     const driver = await prisma.driver.update({
-      where: { id },
+      where: { id, companyId: company.id },
       data: {
         ...(body.name !== undefined ? { name: body.name.trim() } : {}),
         ...(body.phone !== undefined ? { phone: body.phone } : {}),
@@ -107,12 +108,11 @@ export async function DELETE(
 ) {
   try {
     const auth = await getAuthContext()
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!auth) return unauthorizedResponse()
     const company = auth.company
 
-    const { id } = await params
+    const id = validatePathId((await params).id)
+    if (!id) return invalidIdResponse()
 
     // Verify driver belongs to company
     const existing = await prisma.driver.findFirst({
@@ -122,7 +122,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Driver not found' }, { status: 404 })
     }
 
-    await prisma.driver.delete({ where: { id } })
+    // Defense-in-depth: include companyId in the delete WHERE clause
+    await prisma.driver.delete({ where: { id, companyId: company.id } })
 
     const { revalidatePath } = await import('next/cache');
     revalidatePath('/drivers');
