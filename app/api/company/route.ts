@@ -1,14 +1,13 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthContext } from '@/lib/auth';
+import { unauthorizedResponse } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 
 export async function PATCH(request: NextRequest) {
   try {
     const auth = await getAuthContext();
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!auth) return unauthorizedResponse();
     
     const company = auth.company;
     const body = await request.json();

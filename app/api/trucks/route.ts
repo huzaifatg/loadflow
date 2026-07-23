@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getAuthContext } from '@/lib/auth'
+import { unauthorizedResponse } from '@/lib/security'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { CreateTruckInput, TruckStatus } from '@/types'
@@ -7,9 +8,7 @@ import type { CreateTruckInput, TruckStatus } from '@/types'
 export async function GET(request: NextRequest) {
   try {
     const auth = await getAuthContext()
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!auth) return unauthorizedResponse()
     const companyId = auth.companyId
 
     const searchParams = request.nextUrl.searchParams
@@ -34,9 +33,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthContext()
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!auth) return unauthorizedResponse()
     const companyId = auth.companyId
 
     const body: CreateTruckInput = await request.json()

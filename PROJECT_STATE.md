@@ -8,8 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 11 — Review Import Workflow** ✅ COMPLETE
-
+**Sprint 12 — Security Hardening & Multi-Tenant Isolation** ✅ COMPLETE
 ---
 
 ## 3. Overall Progress
@@ -27,7 +26,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 9 — Import History |
 | ✅ Complete | Sprint 10 — Import Details |
 | ✅ Complete | Sprint 11 — Review Import Workflow |
-| ⬜ Next | Sprint 12 — TBD |
+| ✅ Complete | Sprint 12 — Security Hardening & Multi-Tenant Isolation |
+| ⬜ Next | Sprint 13 — TBD |
 
 ---
 
@@ -51,6 +51,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ Import History API & UI
 - ✅ Import Details API & UI
 - ✅ Review Import Workflow (Preview UI + Commit API)
+- ✅ Security Hardening & Multi-Tenant Isolation
 - ⬜ Driver Web App
 
 ---
@@ -239,7 +240,47 @@ No known issues.
 - Production build verified (33 routes).
 - Prisma schema validated.
 
+### Sprint 12 — Completed
+
+#### Security Architecture
+- **Centralized security layer**: `lib/security/` module with constants, UUID validation, ownership assertion, and standardized responses.
+- **Application-level tenant isolation** enforced across every API route and server component.
+- **UUID validation** on all externally-supplied path parameters and body IDs.
+- **Defense-in-depth**: `companyId` included in all `UPDATE` and `DELETE` `WHERE` clauses, even after ownership verification.
+- **Standardized security responses**: All auth failures return consistent error codes and messages via `unauthorizedResponse()`, `forbiddenResponse()`, and `invalidIdResponse()`.
+
+#### Authorization Improvements
+- Every API route uses `getAuthContext()` → centralized security response.
+- Every `[id]` route validates UUID format before database access.
+- Every mutation verifies ownership before executing.
+- Demo reset route hardened: production guard, secret length validation, execution timeout, and sensitive output suppression.
+
+#### Tenant Isolation Strategy
+- **Current model**: Strong application-level isolation appropriate for the Prisma + pgBouncer + postgres superuser architecture.
+- **Long-term goal**: True database-enforced RLS (requires non-superuser role).
+- **Future migration**: Complete RLS policies are version-controlled in `prisma/rls/policies.sql` with a migration guide in `prisma/rls/README.md`.
+
+#### Future RLS Migration Path
+1. Create a dedicated `loadflow_app` PostgreSQL role (non-superuser).
+2. Grant table-level permissions to the new role.
+3. Update `DATABASE_URL` to use the new role.
+4. Apply `prisma/rls/policies.sql` to the database.
+5. Verify tenant isolation at both application and database levels.
+
+#### Files Created
+- `lib/security/constants.ts` — Security constants, UUID regex, error codes
+- `lib/security/tenant.ts` — Tenant isolation utilities, ownership assertion
+- `lib/security/index.ts` — Barrel export
+- `prisma/rls/policies.sql` — Complete RLS policy definitions (10 tables)
+- `prisma/rls/README.md` — RLS migration guide
+
+#### Files Modified
+- All 15 API route files — Security hardening applied
+- `PROJECT_STATE.md` — Updated with security documentation
+
 ### Intentionally Left for Future Sprints
+- Database-enforced RLS activation (requires connection architecture change)
+- Role-based access control (OWNER/ADMIN/MEMBER enforcement)
 - Retry / rollback actions
 - Background job processing
 - Excel support

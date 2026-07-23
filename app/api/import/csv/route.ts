@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getAuthContext } from '@/lib/auth';
+import { unauthorizedResponse } from '@/lib/security';
 import { prisma } from '@/lib/prisma';
 import { importCsv } from '@/lib/import/pipeline';
 import type { PipelineConfig } from '@/lib/import/pipeline';
@@ -17,9 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     // ── Auth ──────────────────────────────────────────────────────────────
     const auth = await getAuthContext();
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!auth) return unauthorizedResponse();
     const { companyId, userId } = auth;
 
     // ── Parse multipart form ─────────────────────────────────────────────
