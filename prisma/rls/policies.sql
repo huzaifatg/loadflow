@@ -1,39 +1,30 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- LoadFlow — Row Level Security Policies (Version-Controlled)
+-- LoadFlow — Row Level Security: Database Migration
 -- ════════════════════════════════════════════════════════════════════════════
 --
--- STATUS: PREPARED — NOT YET ACTIVE
+-- This migration:
+--   1. Creates the public.get_user_company_id() helper function
+--   2. Enables RLS on all application tables
+--   3. Creates tenant-isolation policies
 --
--- These policies are version-controlled and ready for activation when
--- the connection architecture supports a non-superuser database role.
---
--- IMPORTANT: Under the current architecture (Prisma + pgBouncer + postgres
--- superuser role), these policies will NOT be enforced even if applied,
--- because PostgreSQL superusers bypass RLS entirely.
---
--- To activate these policies, you must:
---   1. Create a dedicated non-superuser role (see README.md)
---   2. Grant appropriate table permissions to the new role
---   3. Update DATABASE_URL to use the new role
---   4. Run this SQL file against the database
---
--- DESIGN PRINCIPLES:
---   - Every tenant-scoped table has RLS enabled
---   - Every policy filters by company_id using the JWT claim
---   - Child tables (delivery_items, load_plan_items, import_rows) inherit
---     security from their parent via JOIN-based policies
---   - The companies table itself allows users to read only companies they
---     belong to (via company_members)
+-- ARCHITECTURE:
+--   Prisma connects as the `postgres` role (BYPASSRLS = true).
+--   For RLS enforcement, the application uses SET LOCAL ROLE authenticated
+--   within transactions, after setting request.jwt.claim.sub via set_config.
+--   This causes auth.uid() to return the current user's ID, and the
+--   `authenticated` role (BYPASSRLS = false) enforces RLS policies.
 --
 -- ════════════════════════════════════════════════════════════════════════════
+
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
--- │  Helper: Extract company_id from the authenticated user's JWT claims  │
--- │  Supabase injects the user's ID into the JWT as `sub`.                │
--- │  We look up the user's company membership to resolve their company.   │
+-- │  1. Helper Function: public.get_user_company_id()                     │
+-- │     Resolves the authenticated user's company_id from company_members. │
+-- │     Uses auth.uid() which reads from request.jwt.claim.sub.           │
+-- │     Placed in `public` schema because Supabase restricts `auth`.      │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE OR REPLACE FUNCTION auth.user_company_id()
+CREATE OR REPLACE FUNCTION public.get_user_company_id()
 RETURNS uuid
 LANGUAGE sql
 STABLE
@@ -46,179 +37,198 @@ AS $$
   LIMIT 1;
 $$;
 
+-- Grant execute to authenticated role
+GRANT EXECUTE ON FUNCTION public.get_user_company_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_company_id() TO anon;
 
--- ════════════════════════════════════════════════════════════════════════════
--- COMPANIES
--- Users can only see companies they are a member of.
--- ════════════════════════════════════════════════════════════════════════════
+
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │  2. Grant table permissions to authenticated role                      │
+-- │     The authenticated role needs access to all application tables.     │
+-- └─────────────────────────────────────────────────────────────────────────┘
+
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+-- Ensure future tables/sequences are also accessible
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO authenticated;
+
+
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │  3. Enable RLS on all application tables                               │
+-- └─────────────────────────────────────────────────────────────────────────┘
 
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view their own company"
-  ON companies FOR SELECT
-  USING (id = auth.user_company_id());
-
-CREATE POLICY "Users can update their own company"
-  ON companies FOR UPDATE
-  USING (id = auth.user_company_id())
-  WITH CHECK (id = auth.user_company_id());
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- COMPANY_MEMBERS
--- Users can only see memberships in their own company.
--- ════════════════════════════════════════════════════════════════════════════
-
 ALTER TABLE company_members ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view members of their company"
-  ON company_members FOR SELECT
-  USING (company_id = auth.user_company_id());
-
--- INSERT restricted to company owners (future role-based feature)
-CREATE POLICY "Users can read their own membership"
-  ON company_members FOR SELECT
-  USING (user_id = auth.uid());
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- TRUCKS
--- Full CRUD scoped to the user's company.
--- ════════════════════════════════════════════════════════════════════════════
-
 ALTER TABLE trucks ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Tenant isolation: trucks"
-  ON trucks FOR ALL
-  USING (company_id = auth.user_company_id())
-  WITH CHECK (company_id = auth.user_company_id());
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- DRIVERS
--- Full CRUD scoped to the user's company.
--- ════════════════════════════════════════════════════════════════════════════
-
 ALTER TABLE drivers ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Tenant isolation: drivers"
-  ON drivers FOR ALL
-  USING (company_id = auth.user_company_id())
-  WITH CHECK (company_id = auth.user_company_id());
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- DELIVERIES
--- Full CRUD scoped to the user's company.
--- ════════════════════════════════════════════════════════════════════════════
-
 ALTER TABLE deliveries ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Tenant isolation: deliveries"
-  ON deliveries FOR ALL
-  USING (company_id = auth.user_company_id())
-  WITH CHECK (company_id = auth.user_company_id());
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- DELIVERY_ITEMS
--- Child of deliveries. Access granted if the parent delivery belongs to
--- the user's company. No direct company_id column on this table.
--- ════════════════════════════════════════════════════════════════════════════
-
 ALTER TABLE delivery_items ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Tenant isolation: delivery_items (via parent)"
-  ON delivery_items FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM deliveries
-      WHERE deliveries.id = delivery_items.delivery_id
-        AND deliveries.company_id = auth.user_company_id()
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM deliveries
-      WHERE deliveries.id = delivery_items.delivery_id
-        AND deliveries.company_id = auth.user_company_id()
-    )
-  );
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- LOAD_PLANS
--- Full CRUD scoped to the user's company.
--- ════════════════════════════════════════════════════════════════════════════
-
 ALTER TABLE load_plans ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Tenant isolation: load_plans"
-  ON load_plans FOR ALL
-  USING (company_id = auth.user_company_id())
-  WITH CHECK (company_id = auth.user_company_id());
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- LOAD_PLAN_ITEMS
--- Child of load_plans. Access granted if the parent load_plan belongs to
--- the user's company. No direct company_id column on this table.
--- ════════════════════════════════════════════════════════════════════════════
-
 ALTER TABLE load_plan_items ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Tenant isolation: load_plan_items (via parent)"
-  ON load_plan_items FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM load_plans
-      WHERE load_plans.id = load_plan_items.load_plan_id
-        AND load_plans.company_id = auth.user_company_id()
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM load_plans
-      WHERE load_plans.id = load_plan_items.load_plan_id
-        AND load_plans.company_id = auth.user_company_id()
-    )
-  );
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- IMPORT_JOBS
--- Full CRUD scoped to the user's company.
--- ════════════════════════════════════════════════════════════════════════════
-
 ALTER TABLE import_jobs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Tenant isolation: import_jobs"
-  ON import_jobs FOR ALL
-  USING (company_id = auth.user_company_id())
-  WITH CHECK (company_id = auth.user_company_id());
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- IMPORT_ROWS
--- Child of import_jobs. Access granted if the parent import_job belongs to
--- the user's company. No direct company_id column on this table.
--- ════════════════════════════════════════════════════════════════════════════
-
 ALTER TABLE import_rows ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Tenant isolation: import_rows (via parent)"
+
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │  4. RLS Policies                                                       │
+-- │     Every tenant-scoped table gets a policy filtering by company_id.   │
+-- │     Child tables use JOIN-based policies via their parent.             │
+-- └─────────────────────────────────────────────────────────────────────────┘
+
+-- ── COMPANIES ────────────────────────────────────────────────────────────
+
+CREATE POLICY "tenant_isolation_select"
+  ON companies FOR SELECT
+  TO authenticated
+  USING (id = public.get_user_company_id());
+
+CREATE POLICY "tenant_isolation_update"
+  ON companies FOR UPDATE
+  TO authenticated
+  USING (id = public.get_user_company_id())
+  WITH CHECK (id = public.get_user_company_id());
+
+-- Allow INSERT for auto-provisioning (new user signup creates a company)
+CREATE POLICY "tenant_isolation_insert"
+  ON companies FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+
+-- ── COMPANY_MEMBERS ──────────────────────────────────────────────────────
+
+-- SELECT: can see own company's members OR own membership (for initial lookup)
+CREATE POLICY "tenant_isolation_select"
+  ON company_members FOR SELECT
+  TO authenticated
+  USING (company_id = public.get_user_company_id() OR user_id = auth.uid());
+
+-- INSERT: allowed for auto-provisioning during signup
+CREATE POLICY "tenant_isolation_insert"
+  ON company_members FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "tenant_isolation_update"
+  ON company_members FOR UPDATE
+  TO authenticated
+  USING (company_id = public.get_user_company_id())
+  WITH CHECK (company_id = public.get_user_company_id());
+
+CREATE POLICY "tenant_isolation_delete"
+  ON company_members FOR DELETE
+  TO authenticated
+  USING (company_id = public.get_user_company_id());
+
+
+-- ── TRUCKS ───────────────────────────────────────────────────────────────
+
+CREATE POLICY "tenant_isolation"
+  ON trucks FOR ALL
+  TO authenticated
+  USING (company_id = public.get_user_company_id())
+  WITH CHECK (company_id = public.get_user_company_id());
+
+
+-- ── DRIVERS ──────────────────────────────────────────────────────────────
+
+CREATE POLICY "tenant_isolation"
+  ON drivers FOR ALL
+  TO authenticated
+  USING (company_id = public.get_user_company_id())
+  WITH CHECK (company_id = public.get_user_company_id());
+
+
+-- ── DELIVERIES ───────────────────────────────────────────────────────────
+
+CREATE POLICY "tenant_isolation"
+  ON deliveries FOR ALL
+  TO authenticated
+  USING (company_id = public.get_user_company_id())
+  WITH CHECK (company_id = public.get_user_company_id());
+
+
+-- ── DELIVERY_ITEMS (child of deliveries) ─────────────────────────────────
+
+CREATE POLICY "tenant_isolation"
+  ON delivery_items FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM deliveries
+      WHERE deliveries.id = delivery_items.delivery_id
+        AND deliveries.company_id = public.get_user_company_id()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM deliveries
+      WHERE deliveries.id = delivery_items.delivery_id
+        AND deliveries.company_id = public.get_user_company_id()
+    )
+  );
+
+
+-- ── LOAD_PLANS ───────────────────────────────────────────────────────────
+
+CREATE POLICY "tenant_isolation"
+  ON load_plans FOR ALL
+  TO authenticated
+  USING (company_id = public.get_user_company_id())
+  WITH CHECK (company_id = public.get_user_company_id());
+
+
+-- ── LOAD_PLAN_ITEMS (child of load_plans) ────────────────────────────────
+
+CREATE POLICY "tenant_isolation"
+  ON load_plan_items FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM load_plans
+      WHERE load_plans.id = load_plan_items.load_plan_id
+        AND load_plans.company_id = public.get_user_company_id()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM load_plans
+      WHERE load_plans.id = load_plan_items.load_plan_id
+        AND load_plans.company_id = public.get_user_company_id()
+    )
+  );
+
+
+-- ── IMPORT_JOBS ──────────────────────────────────────────────────────────
+
+CREATE POLICY "tenant_isolation"
+  ON import_jobs FOR ALL
+  TO authenticated
+  USING (company_id = public.get_user_company_id())
+  WITH CHECK (company_id = public.get_user_company_id());
+
+
+-- ── IMPORT_ROWS (child of import_jobs) ───────────────────────────────────
+
+CREATE POLICY "tenant_isolation"
   ON import_rows FOR ALL
+  TO authenticated
   USING (
     EXISTS (
       SELECT 1 FROM import_jobs
       WHERE import_jobs.id = import_rows.import_job_id
-        AND import_jobs.company_id = auth.user_company_id()
+        AND import_jobs.company_id = public.get_user_company_id()
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM import_jobs
       WHERE import_jobs.id = import_rows.import_job_id
-        AND import_jobs.company_id = auth.user_company_id()
+        AND import_jobs.company_id = public.get_user_company_id()
     )
   );
