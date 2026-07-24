@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthContext } from '@/lib/auth'
+import { unauthorizedResponse } from '@/lib/security'
 import type { CreateDeliveryInput } from '@/types'
 import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items'
 
@@ -11,9 +12,7 @@ import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items
 export async function GET(request: NextRequest) {
   try {
     const auth = await getAuthContext()
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!auth) return unauthorizedResponse()
     const { companyId } = auth
 
     // Parse query filters

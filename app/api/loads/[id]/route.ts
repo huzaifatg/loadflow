@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthContext } from '@/lib/auth';
+import { validatePathId, unauthorizedResponse, invalidIdResponse } from '@/lib/security';
 import { Prisma } from '@prisma/client';
 import {
   validateCapacity,
@@ -16,12 +17,11 @@ export async function GET(
 ) {
   try {
     const auth = await getAuthContext();
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!auth) return unauthorizedResponse();
     const company = auth.company;
 
-    const id = (await params).id;
+    const id = validatePathId((await params).id);
+    if (!id) return invalidIdResponse();
 
     const load = await prisma.loadPlan.findUnique({
       where: { 
@@ -66,12 +66,11 @@ export async function PATCH(
 ) {
   try {
     const auth = await getAuthContext();
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!auth) return unauthorizedResponse();
     const company = auth.company;
 
-    const id = (await params).id;
+    const id = validatePathId((await params).id);
+    if (!id) return invalidIdResponse();
     const body = await request.json();
     const { truckId, driverId, status, notes, items } = body;
 
@@ -298,12 +297,11 @@ export async function DELETE(
 ) {
   try {
     const auth = await getAuthContext();
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!auth) return unauthorizedResponse();
     const company = auth.company;
 
-    const id = (await params).id;
+    const id = validatePathId((await params).id);
+    if (!id) return invalidIdResponse();
 
     const existingPlan = await prisma.loadPlan.findUnique({
       where: { id, companyId: company.id }

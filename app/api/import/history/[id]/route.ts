@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthContext } from '@/lib/auth';
+import { validatePathId, unauthorizedResponse, invalidIdResponse } from '@/lib/security';
 
 // ─── GET /api/import/history/[id] ───────────────────────────────────────────
 // Returns a single ImportJob with all its ImportRow records.
@@ -11,11 +12,10 @@ export async function GET(
 ) {
   try {
     const auth = await getAuthContext();
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!auth) return unauthorizedResponse();
 
-    const { id } = await params;
+    const id = validatePathId((await params).id);
+    if (!id) return invalidIdResponse();
 
     const job = await prisma.importJob.findFirst({
       where: {

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getAuthContext } from '@/lib/auth';
+import { unauthorizedResponse, invalidIdResponse, isValidUuid } from '@/lib/security';
 import { prisma } from '@/lib/prisma';
 import { importCsv } from '@/lib/import/pipeline';
 import type { PipelineConfig } from '@/lib/import/pipeline';
@@ -13,9 +14,7 @@ export async function POST(request: NextRequest) {
   try {
     // ── Auth ──────────────────────────────────────────────────────────────
     const auth = await getAuthContext();
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!auth) return unauthorizedResponse();
     const { companyId, userId } = auth;
 
     // ── Parse body ───────────────────────────────────────────────────────
@@ -36,6 +35,7 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (!isValidUuid(importJobId)) return invalidIdResponse();
 
     // ── Load ImportJob ───────────────────────────────────────────────────
     const importJob = await prisma.importJob.findFirst({
@@ -90,8 +90,9 @@ export async function POST(request: NextRequest) {
     });
 
     // ── Update status to IMPORTING ───────────────────────────────────────
+    // Defense-in-depth: include companyId in update WHERE clause
     await prisma.importJob.update({
-      where: { id: importJobId },
+      where: { id: importJobId, companyId },
       data: { status: 'IMPORTING' },
     });
 
@@ -131,8 +132,9 @@ export async function POST(request: NextRequest) {
 
     // ── Update ImportJob ─────────────────────────────────────────────────
     if (!result.success) {
+      // Defense-in-depth: include companyId in update WHERE clause
       await prisma.importJob.update({
-        where: { id: importJobId },
+        where: { id: importJobId, companyId },
         data: {
           status: 'FAILED',
           completedAt: new Date(),

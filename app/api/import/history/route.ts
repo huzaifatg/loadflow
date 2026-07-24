@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthContext } from '@/lib/auth';
+import { unauthorizedResponse } from '@/lib/security';
 
 // ─── GET /api/import/history ────────────────────────────────────────────────
 // Returns all ImportJob records for the authenticated user's company.
@@ -9,9 +10,7 @@ import { getAuthContext } from '@/lib/auth';
 export async function GET() {
   try {
     const auth = await getAuthContext();
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!auth) return unauthorizedResponse();
     const { companyId } = auth;
 
     const jobs = await prisma.importJob.findMany({
