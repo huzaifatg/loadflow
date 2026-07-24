@@ -1,87 +1,111 @@
-# Row Level Security — Migration Guide
+# Row Level Security — Architecture & Operations
 
-## Current Status: **PREPARED (NOT ACTIVE)**
+## Status: **ACTIVE ✓**
 
-The policies in `policies.sql` are version-controlled and ready for activation. They are **not currently enforced** because the application connects to the database as the PostgreSQL `postgres` superuser (via Supabase's pgBouncer connection pooler), and PostgreSQL superusers bypass all RLS policies by design.
+Database-enforced tenant isolation is enabled on all application tables. RLS policies are actively enforced whenever the application operates within an authenticated context.
 
-## Current Security Model
+## Architecture
 
-Application-level tenant isolation is enforced through:
-
-1. **Centralized authentication** via `getAuthContext()` in `lib/auth.ts`
-2. **Centralized security utilities** in `lib/security/` (UUID validation, ownership assertion, standardized responses)
-3. **Mandatory `companyId` filtering** on every database query
-4. **Defense-in-depth `companyId`** in all `UPDATE` and `DELETE` `WHERE` clauses
-5. **UUID validation** on all externally-supplied identifiers
-
-This provides strong production-grade tenant isolation appropriate for the current architecture, while true database-enforced RLS remains the long-term goal.
-
-## Prerequisites for RLS Activation
-
-To enforce RLS, the following architectural changes are required:
-
-### 1. Create a Non-Superuser Role
-
-Connect to the database via the Supabase SQL Editor and execute:
-
-```sql
--- Create a dedicated application role
-CREATE ROLE loadflow_app LOGIN PASSWORD 'your-secure-password';
-
--- Grant schema usage
-GRANT USAGE ON SCHEMA public TO loadflow_app;
-
--- Grant table-level access
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO loadflow_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO loadflow_app;
-
--- Ensure future tables are accessible
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO loadflow_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT USAGE, SELECT ON SEQUENCES TO loadflow_app;
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Next.js Application                                            │
+│                                                                 │
+│  getAuthContext() → userId                                      │
+│       │                                                         │
+│       ▼                                                         │
+│  withRLS(userId, async (tx) => { ... })                        │
+│       │                                                         │
+│       ├── set_config('request.jwt.claim.sub', userId, true)    │
+│       ├── SET LOCAL ROLE authenticated                          │
+│       │   (transaction-scoped, auto-resets on commit/rollback)  │
+│       │                                                         │
+│       ▼                                                         │
+│  PostgreSQL evaluates RLS policies                              │
+│       │                                                         │
+│       ├── auth.uid() → userId (from JWT claim)                 │
+│       ├── public.get_user_company_id() → companyId             │
+│       │   (resolves via company_members table)                  │
+│       │                                                         │
+│       ▼                                                         │
+│  Only rows matching the user's company are returned/modified    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Update Connection Strings
+### Connection Roles
 
-Update `DATABASE_URL` and `DIRECT_URL` in `.env` (and Vercel environment variables) to use the new role instead of the `postgres` superuser.
+| Role | `rolbypassrls` | Used For |
+|------|---------------|----------|
+| `postgres` | `true` | Default Prisma connection, migrations, management |
+| `authenticated` | `false` | RLS-enforced operations via `SET LOCAL ROLE` |
 
-> **Note:** Supabase's pgBouncer pooler only supports the `postgres` role at the time of writing. You may need to use a direct connection string or a self-managed connection pooler for the non-superuser role.
+### How It Works
 
-### 3. Apply RLS Policies
+1. **Prisma connects as `postgres`** — this role has `BYPASSRLS = true`, so direct queries bypass RLS. This is intentional for management operations and migrations.
 
-Execute `policies.sql` against the database:
+2. **For tenant-scoped operations**, the application calls `withRLS(userId, fn)` which:
+   - Opens a Prisma `$transaction`
+   - Sets `request.jwt.claim.sub` to the user's Supabase auth ID
+   - Switches to `SET LOCAL ROLE authenticated` (transaction-scoped)
+   - Executes the provided function within the RLS-enforced context
+   - On commit/rollback, the role automatically resets to `postgres`
 
-```bash
-psql "$DIRECT_URL" -f prisma/rls/policies.sql
+3. **`auth.uid()`** reads from the `request.jwt.claim.sub` session variable, returning the current user's UUID.
+
+4. **`public.get_user_company_id()`** looks up the user's company from `company_members` using `auth.uid()`.
+
+5. **RLS policies** filter all rows by `company_id = public.get_user_company_id()`.
+
+## Security Layers
+
+The application implements defense-in-depth with TWO layers of tenant isolation:
+
+1. **Application-level** (Sprint 12): `getAuthContext()` + `companyId` filtering in every Prisma query
+2. **Database-level** (this migration): RLS policies enforced by PostgreSQL when using `withRLS()`
+
+## Tables & Policies
+
+| Table | RLS | Policy Strategy |
+|-------|-----|-----------------|
+| `companies` | ✓ Enabled | `id = get_user_company_id()` |
+| `company_members` | ✓ Enabled | `company_id = get_user_company_id() OR user_id = auth.uid()` |
+| `trucks` | ✓ Enabled | `company_id = get_user_company_id()` |
+| `drivers` | ✓ Enabled | `company_id = get_user_company_id()` |
+| `deliveries` | ✓ Enabled | `company_id = get_user_company_id()` |
+| `delivery_items` | ✓ Enabled | JOIN via `deliveries.company_id` |
+| `load_plans` | ✓ Enabled | `company_id = get_user_company_id()` |
+| `load_plan_items` | ✓ Enabled | JOIN via `load_plans.company_id` |
+| `import_jobs` | ✓ Enabled | `company_id = get_user_company_id()` |
+| `import_rows` | ✓ Enabled | JOIN via `import_jobs.company_id` |
+
+## Connection Configuration
+
+```env
+# Transaction-mode pooler (port 6543) — used for Prisma runtime queries
+DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Direct connection (port 5432) — used for migrations and schema operations
+DIRECT_URL="postgresql://postgres.<ref>:<password>@db.<ref>.supabase.co:5432/postgres"
 ```
-
-### 4. Verify
-
-- Confirm that all application queries still succeed through the new role.
-- Confirm that a user in Company A cannot see data from Company B.
-- Confirm that the application-level `companyId` filtering and the database-level RLS policies agree on access.
-
-## Policy Design
-
-| Table | Strategy | Scope |
-|-------|----------|-------|
-| `companies` | Direct: `id = auth.user_company_id()` | SELECT, UPDATE |
-| `company_members` | Direct: `company_id = auth.user_company_id()` | SELECT |
-| `trucks` | Direct: `company_id = auth.user_company_id()` | ALL |
-| `drivers` | Direct: `company_id = auth.user_company_id()` | ALL |
-| `deliveries` | Direct: `company_id = auth.user_company_id()` | ALL |
-| `delivery_items` | Join-based: via `deliveries.company_id` | ALL |
-| `load_plans` | Direct: `company_id = auth.user_company_id()` | ALL |
-| `load_plan_items` | Join-based: via `load_plans.company_id` | ALL |
-| `import_jobs` | Direct: `company_id = auth.user_company_id()` | ALL |
-| `import_rows` | Join-based: via `import_jobs.company_id` | ALL |
-
-### `auth.user_company_id()` Function
-
-A `SECURITY DEFINER` function that resolves the authenticated user's `company_id` from the `company_members` table using the Supabase JWT claim `auth.uid()`.
 
 ## Files
 
-- **`policies.sql`** — Complete RLS policy definitions for all tables
-- **`README.md`** — This migration guide
+- **`prisma/rls/policies.sql`** — Complete RLS migration (function, grants, policies)
+- **`prisma/rls/README.md`** — This document
+- **`lib/rls.ts`** — `withRLS()` helper for RLS-enforced Prisma transactions
+
+## Rollback
+
+To disable RLS (emergency only):
+
+```sql
+ALTER TABLE companies DISABLE ROW LEVEL SECURITY;
+ALTER TABLE company_members DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trucks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE drivers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE deliveries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE delivery_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE load_plans DISABLE ROW LEVEL SECURITY;
+ALTER TABLE load_plan_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE import_jobs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE import_rows DISABLE ROW LEVEL SECURITY;
+```

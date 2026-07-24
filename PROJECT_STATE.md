@@ -52,6 +52,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ Import Details API & UI
 - ✅ Review Import Workflow (Preview UI + Commit API)
 - ✅ Security Hardening & Multi-Tenant Isolation
+- ✅ Database-Enforced Row Level Security (RLS)
 - ⬜ Driver Web App
 
 ---
@@ -256,30 +257,33 @@ No known issues.
 - Demo reset route hardened: production guard, secret length validation, execution timeout, and sensitive output suppression.
 
 #### Tenant Isolation Strategy
-- **Current model**: Strong application-level isolation appropriate for the Prisma + pgBouncer + postgres superuser architecture.
-- **Long-term goal**: True database-enforced RLS (requires non-superuser role).
-- **Future migration**: Complete RLS policies are version-controlled in `prisma/rls/policies.sql` with a migration guide in `prisma/rls/README.md`.
+- **Database-enforced RLS**: Active on all 10 application tables with 15 policies.
+- **Application-level isolation**: `getAuthContext()` + `companyId` filtering retained as defense-in-depth.
+- **RLS mechanism**: `SET LOCAL ROLE authenticated` + `set_config('request.jwt.claim.sub', userId)` within Prisma `$transaction`.
+- **Helper function**: `public.get_user_company_id()` resolves company via `company_members` and `auth.uid()`.
+- **`lib/rls.ts`**: `withRLS(userId, fn)` — opt-in wrapper for database-enforced tenant isolation.
 
-#### Future RLS Migration Path
-1. Create a dedicated `loadflow_app` PostgreSQL role (non-superuser).
-2. Grant table-level permissions to the new role.
-3. Update `DATABASE_URL` to use the new role.
-4. Apply `prisma/rls/policies.sql` to the database.
-5. Verify tenant isolation at both application and database levels.
+#### Connection Architecture
+- **DATABASE_URL**: Supabase pgBouncer transaction-mode pooler (port 6543)
+- **DIRECT_URL**: Supabase direct connection (port 5432) for migrations/schema operations
+- **Role**: `postgres` (BYPASSRLS=true) for management; `authenticated` (BYPASSRLS=false) for RLS enforcement
 
 #### Files Created
 - `lib/security/constants.ts` — Security constants, UUID regex, error codes
 - `lib/security/tenant.ts` — Tenant isolation utilities, ownership assertion
 - `lib/security/index.ts` — Barrel export
-- `prisma/rls/policies.sql` — Complete RLS policy definitions (10 tables)
-- `prisma/rls/README.md` — RLS migration guide
+- `lib/rls.ts` — RLS-aware Prisma transaction wrapper
+- `prisma/rls/policies.sql` — Complete RLS migration (function, grants, policies)
+- `prisma/rls/README.md` — RLS architecture documentation
 
 #### Files Modified
 - All 15 API route files — Security hardening applied
-- `PROJECT_STATE.md` — Updated with security documentation
+- `lib/prisma.ts` — Added logging configuration
+- `.env` — Fixed DATABASE_URL port (6543) and DIRECT_URL (direct connection)
+- `PROJECT_STATE.md` — Updated with security and RLS documentation
 
 ### Intentionally Left for Future Sprints
-- Database-enforced RLS activation (requires connection architecture change)
+- Migrate all API routes to use `withRLS()` for full database-enforced isolation
 - Role-based access control (OWNER/ADMIN/MEMBER enforcement)
 - Retry / rollback actions
 - Background job processing
