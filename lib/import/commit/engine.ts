@@ -52,7 +52,7 @@ export async function commitDocument(
 
   let inserted = 0;
   let updated = 0;
-  let failed = 0;
+  const failed = 0;
   let skipped = 0;
 
   try {
