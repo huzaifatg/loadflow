@@ -67,7 +67,7 @@ export function previewDocument(
   // ── Preview each row ───────────────────────────────────────────────────
   let creates = 0;
   let updates = 0;
-  let deletes = 0;
+  const deletes = 0;
   let noChange = 0;
   let skipped = 0;
 
