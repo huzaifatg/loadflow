@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import type { LoadPlan, Truck, Driver, Delivery } from '@prisma/client';
 import { getAuthContext } from '@/lib/auth';
 import { toNumber } from '@/lib/delivery-items';
-import { Package, Plus, Sparkles } from 'lucide-react';
+import { Package, Plus, Sparkles, Lightbulb } from 'lucide-react';
 import Link from 'next/link';
 
 type LoadPlanWithRelations = LoadPlan & {
@@ -71,6 +71,13 @@ export default async function LoadsPage() {
         actionLabel="Create Plan"
         actionHref="/loads/new" 
       >
+        <Link
+          href="/loads/recommend"
+          className="inline-flex items-center gap-2 rounded-lg bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 shadow-sm ring-1 ring-inset ring-violet-600/20 hover:bg-violet-100 transition-colors"
+        >
+          <Lightbulb className="h-4 w-4" />
+          Recommend
+        </Link>
         <Link
           href="/loads/optimize"
           className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 shadow-sm ring-1 ring-inset ring-indigo-600/20 hover:bg-indigo-100 transition-colors"

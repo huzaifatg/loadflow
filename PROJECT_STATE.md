@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 12 — Security Hardening & Multi-Tenant Isolation** ✅ COMPLETE
+**Sprint 13.1 — Recommendation Engine** ✅ COMPLETE
 ---
 
 ## 3. Overall Progress
@@ -27,7 +27,8 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 10 — Import Details |
 | ✅ Complete | Sprint 11 — Review Import Workflow |
 | ✅ Complete | Sprint 12 — Security Hardening & Multi-Tenant Isolation |
-| ⬜ Next | Sprint 13 — TBD |
+| ✅ Complete | Sprint 13.1 — Recommendation Engine |
+| ⬜ Next | Sprint 13.2 — TBD |
 
 ---
 
@@ -53,6 +54,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 - ✅ Review Import Workflow (Preview UI + Commit API)
 - ✅ Security Hardening & Multi-Tenant Isolation
 - ✅ Database-Enforced Row Level Security (RLS)
+- ✅ Recommendation Engine (truck + driver scoring)
 - ⬜ Driver Web App
 
 ---
@@ -289,3 +291,60 @@ No known issues.
 - Background job processing
 - Excel support
 - Driver Web App
+
+---
+
+### Sprint 13.1 — Recommendation Engine
+
+#### Architecture
+Deterministic, rule-based scoring engine that recommends the best truck and driver for a delivery batch. The engine uses a weighted multi-factor scoring system with configurable weights, human-readable explanations, and confidence levels.
+
+**Scoring Factors (Trucks):**
+- Capacity Fit (30%) — Bell-curve peaking at 80% utilization
+- Remaining Capacity (15%) — Prefers moderate remaining capacity
+- Truck Availability (15%) — AVAILABLE > IN_USE > MAINTENANCE
+- Truck Workload (10%) — Fewer active load plans = higher score
+
+**Scoring Factors (Drivers):**
+- Driver Availability (20%) — AVAILABLE > ON_TRIP > OFF_DUTY
+- Driver Workload (10%) — Fewer active load plans = higher score
+
+**Hard Constraints:**
+- MAINTENANCE trucks are excluded (hard filter)
+- OFF_DUTY drivers are excluded (hard filter)
+- Trucks whose remaining capacity < delivery weight receive score 0
+
+**Confidence Levels:**
+- HIGH (≥75): Strong match, safe to assign
+- MEDIUM (50–74): Acceptable match, review recommended
+- LOW (1–49): Significant constraints detected
+- NONE (0): No viable recommendation
+
+#### API
+- `POST /api/recommendations` — Accepts `{ date, deliveryIds? }`, returns scored truck/driver recommendations with explanations.
+
+#### UI
+- `/loads/recommend` — Smart Recommendations page with score rings, factor breakdowns, confidence badges, ranked candidate lists, explanation panel, and delivery evaluation table.
+- Accessible via "Recommend" button on the Load Plans page.
+
+#### Files Created
+- `lib/services/recommendation-engine.ts` — Core scoring engine (pure computation, no DB)
+- `lib/services/__tests__/recommendation-engine.test.ts` — 23 automated tests
+- `app/api/recommendations/route.ts` — Tenant-scoped API route with workload queries
+- `app/(dashboard)/loads/recommend/page.tsx` — Server page
+- `components/loads/RecommendationView.tsx` — Client-side UI component
+
+#### Files Modified
+- `app/(dashboard)/loads/page.tsx` — Added "Recommend" navigation link
+- `PROJECT_STATE.md` — Sprint 13.1 documentation
+
+#### Testing
+- 23 dedicated tests covering: basic recommendations, capacity constraints, unavailable trucks/drivers, workload scoring, confidence levels, edge cases, custom weights, ranking, and factor details.
+- Full test suite: 196/196 passing (173 import pipeline + 23 recommendation engine).
+
+#### Future Extension Points
+- Replace `generateRecommendation()` with ML model without changing API contract
+- Add delivery priority scoring factor
+- Add geographic proximity factor
+- Add historical performance factor
+- Configurable weights via company settings UI
