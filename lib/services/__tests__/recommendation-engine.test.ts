@@ -1,9 +1,8 @@
 // ─── Recommendation Engine Tests ────────────────────────────────────────────
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   generateRecommendation,
-  DEFAULT_WEIGHTS,
   type RecommendationInput,
   type RecommendationTruck,
   type RecommendationDriver,
@@ -141,6 +140,43 @@ describe('Recommendation Engine', () => {
       const result = generateRecommendation(input);
       // Free truck has 10000 remaining, loaded has 4000 remaining (can't fit 5000)
       assert.equal(result.recommendation.truck?.truckId, 'free');
+    });
+
+    it('explains oversized truck as poor fit, not "cannot fit"', () => {
+      const input: RecommendationInput = {
+        deliveries: [makeDelivery({ weight: 95.7 })],
+        trucks: [makeTruck({ weightCapacity: 3500 })],
+        drivers: [makeDriver()],
+      };
+
+      const result = generateRecommendation(input);
+      const capFactor = result.recommendation.allTrucks[0].factors.find(f => f.factor === 'capacityFit');
+      assert.ok(capFactor, 'Should have capacityFit factor');
+      // Should NOT say "Cannot fit" — the delivery physically fits
+      assert.ok(
+        !capFactor.explanation.includes('Cannot fit'),
+        `Explanation should not say "Cannot fit" when delivery fits. Got: "${capFactor.explanation}"`,
+      );
+      assert.ok(
+        capFactor.explanation.includes('oversized'),
+        `Explanation should mention oversized. Got: "${capFactor.explanation}"`,
+      );
+    });
+
+    it('explains genuinely overloaded truck as "Cannot fit"', () => {
+      const input: RecommendationInput = {
+        deliveries: [makeDelivery({ weight: 15000 })],
+        trucks: [makeTruck({ weightCapacity: 10000 })],
+        drivers: [makeDriver()],
+      };
+
+      const result = generateRecommendation(input);
+      const capFactor = result.recommendation.allTrucks[0].factors.find(f => f.factor === 'capacityFit');
+      assert.ok(capFactor, 'Should have capacityFit factor');
+      assert.ok(
+        capFactor.explanation.includes('Cannot fit'),
+        `Explanation should say "Cannot fit" when delivery exceeds capacity. Got: "${capFactor.explanation}"`,
+      );
     });
   });
 
@@ -368,6 +404,29 @@ describe('Recommendation Engine', () => {
         assert.ok(
           result.recommendation.allDrivers[i - 1].totalScore >= result.recommendation.allDrivers[i].totalScore,
           'Drivers should be sorted by score descending',
+        );
+      }
+    });
+
+    it('breaks ties deterministically by remaining capacity', () => {
+      // Two trucks with identical status, workload, and similar capacity — should tie on score
+      const input: RecommendationInput = {
+        deliveries: [makeDelivery({ weight: 5000 })],
+        trucks: [
+          makeTruck({ id: 'smaller', name: 'Smaller', weightCapacity: 10000 }),
+          makeTruck({ id: 'larger', name: 'Larger', weightCapacity: 12000 }),
+        ],
+        drivers: [makeDriver()],
+      };
+
+      const result = generateRecommendation(input);
+      const trucks = result.recommendation.allTrucks;
+      assert.equal(trucks.length, 2);
+      // If scores are equal, the truck with more remaining capacity should come first
+      if (trucks[0].totalScore === trucks[1].totalScore) {
+        assert.ok(
+          trucks[0].remainingCapacity >= trucks[1].remainingCapacity,
+          'Tie should be broken by remaining capacity descending',
         );
       }
     });

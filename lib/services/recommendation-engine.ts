@@ -306,15 +306,19 @@ export function generateRecommendation(input: RecommendationInput): Recommendati
       const factors: FactorScore[] = [];
 
       // Capacity fit
+      const canFitPhysically = totalWeight <= remainingCapacity;
       const capFit = scoreCapacityFit(remainingCapacity, totalWeight);
+      const capFitExplanation = !canFitPhysically
+        ? `Cannot fit ${totalWeight.toLocaleString()} kg into ${remainingCapacity.toLocaleString()} kg remaining`
+        : capFit > 0
+          ? `Capacity fit: ${Math.round((totalWeight / remainingCapacity) * 100)}% utilization`
+          : `Poor capacity fit — truck is oversized (${Math.round((totalWeight / remainingCapacity) * 100)}% utilization)`;
       factors.push({
         factor: 'capacityFit',
         score: capFit,
         weight: weights.capacityFit,
         weighted: capFit * weights.capacityFit,
-        explanation: capFit > 0
-          ? `Capacity fit: ${Math.round((totalWeight / remainingCapacity) * 100)}% utilization`
-          : `Cannot fit ${totalWeight.toLocaleString()} kg into ${remainingCapacity.toLocaleString()} kg remaining`,
+        explanation: capFitExplanation,
       });
 
       // Remaining capacity
@@ -352,11 +356,10 @@ export function generateRecommendation(input: RecommendationInput): Recommendati
       });
 
       // Hard constraint: if delivery cannot physically fit, zero the score
-      const canFit = totalWeight <= remainingCapacity;
       const rawScore = factors.reduce((sum, f) => sum + f.weighted, 0);
       const maxTruckWeight = weights.capacityFit + weights.remainingCapacity +
         weights.truckAvailability + weights.truckWorkload;
-      const totalScore = canFit ? Math.round((rawScore / maxTruckWeight) * 100) : 0;
+      const totalScore = canFitPhysically ? Math.round((rawScore / maxTruckWeight) * 100) : 0;
 
       return {
         truckId: truck.id,
@@ -369,7 +372,8 @@ export function generateRecommendation(input: RecommendationInput): Recommendati
         factors,
       };
     })
-    .sort((a, b) => b.totalScore - a.totalScore);
+    // Stable sort: primary by score descending, secondary by remaining capacity descending
+    .sort((a, b) => b.totalScore - a.totalScore || b.remainingCapacity - a.remainingCapacity);
 
   // Score all drivers
   const scoredDrivers: DriverRecommendation[] = input.drivers

@@ -14,7 +14,7 @@ export default async function RecommendPage() {
     <div className="space-y-6">
       <PageHeader
         title="Smart Recommendations"
-        description="Get AI-powered truck and driver recommendations for your deliveries."
+        description="Get intelligent truck and driver recommendations based on capacity, availability, and workload."
       />
       <RecommendationView />
     </div>
