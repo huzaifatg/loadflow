@@ -509,6 +509,76 @@ Get a single import job with all its rows.
 
 ---
 
+## Recommendations
+
+### `POST /api/recommendations`
+
+Generate a truck and driver recommendation for pending deliveries on a target date.
+
+**Request Body:**
+```json
+{
+  "date": "2026-09-01",
+  "deliveryIds": ["uuid", "..."]  // optional — omit to evaluate all eligible deliveries
+}
+```
+
+**Response:** `200` — Recommendation result with ranked trucks, ranked drivers, scoring factors, explanations, and evaluated deliveries.
+
+---
+
+### `POST /api/recommendations/assign`
+
+Create a Load Plan from a dispatcher-approved recommendation. Validates all inputs server-side before transactional assignment.
+
+**Request Body:**
+```json
+{
+  "truckId": "uuid",
+  "driverId": "uuid | null",
+  "deliveryIds": ["uuid", "..."],
+  "date": "2026-09-01"
+}
+```
+
+**Server-Side Validation:** Authentication, UUID format, date validity, truck/driver/delivery ownership (company), truck status (not MAINTENANCE), driver status (not OFF_DUTY), delivery eligibility (PENDING only), capacity fit, truck/driver date conflicts.
+
+**Response:** `200`
+```json
+{
+  "success": true,
+  "loadPlan": {
+    "id": "uuid",
+    "companyId": "uuid",
+    "truckId": "uuid",
+    "driverId": "uuid | null",
+    "date": "2026-09-01T00:00:00.000Z",
+    "status": "DRAFT",
+    "truck": { ... },
+    "driver": { ... },
+    "items": [{ "deliveryId": "uuid", "sortOrder": 0, "delivery": { ... } }]
+  },
+  "warnings": [{ "deliveryId": "uuid", "message": "..." }]
+}
+```
+
+**Error Responses:**
+
+| Code | Condition |
+|------|-----------|
+| `400` | Missing/invalid fields, invalid UUID format, invalid date |
+| `401` | Not authenticated |
+| `404` | Truck/driver/delivery not found or belongs to another company |
+| `409` | Truck in MAINTENANCE, driver OFF_DUTY, delivery not PENDING, capacity exceeded, truck/driver conflict |
+| `500` | Internal error (transaction rolled back, no partial state) |
+
+**Side Effects:**
+- Creates a LoadPlan (status: DRAFT) with associated LoadPlanItems
+- Updates delivery statuses from PENDING → ASSIGNED
+- All operations are transactional — failure rolls back everything
+
+---
+
 ## Demo
 
 ### `GET /api/demo`

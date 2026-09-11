@@ -119,7 +119,8 @@ This is the highest-value next feature because:
 | Commit Engine | 19 | ✅ Passing |
 | Import Pipeline | 15 | ✅ Passing |
 | Recommendation Engine | 51 | ✅ Passing |
-| **Total** | **224** (approx, see note) | **✅ All Passing** |
+| Recommendation Assignment | 37 | ✅ Passing |
+| **Total** | **261** (approx, see note) | **✅ All Passing** |
 
 Note: Import pipeline test counts are approximate from last full run. Tests use Node.js built-in test runner (`node:test`).
 
