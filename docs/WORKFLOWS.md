@@ -251,3 +251,65 @@ sequenceDiagram
 ```
 
 The optimizer uses the **First Fit Decreasing** algorithm: deliveries are sorted heaviest-first, and each is assigned to the first truck that has enough remaining capacity. This produces good utilization without exponential computation.
+
+---
+
+## Recommendation-to-Load-Plan Assignment Flow
+
+`mermaid
+sequenceDiagram
+    participant D as Dispatcher
+    participant UI as Recommendation UI
+    participant RE as POST /api/recommendations
+    participant AS as POST /api/recommendations/assign
+    participant DB as Database
+
+    D->>UI: Select target date
+    D->>UI: Click "Generate Recommendation"
+    UI->>RE: POST { date }
+    RE->>DB: Fetch pending deliveries, trucks, drivers
+    RE->>RE: Score & rank (deterministic engine)
+    RE-->>UI: Ranked trucks, drivers, explanations
+
+    D->>UI: Click "Create Load Plan"
+    UI->>AS: POST { truckId, driverId, deliveryIds, date }
+
+    AS->>AS: Authenticate (getAuthContext)
+    AS->>AS: Validate UUIDs
+    AS->>DB: Verify truck ownership + status
+    AS->>DB: Verify driver ownership + status
+    AS->>DB: Verify delivery ownership + eligibility
+    AS->>DB: Check capacity fit
+    AS->>DB: Check truck date conflict
+    AS->>DB: Check driver date conflict
+
+    alt Validation passes
+        AS->>DB: BEGIN TRANSACTION
+        AS->>DB: Create LoadPlan (DRAFT)
+        AS->>DB: Create LoadPlanItems
+        AS->>DB: Update deliveries PENDING ? ASSIGNED
+        AS->>DB: COMMIT
+        AS-->>UI: { success: true, loadPlan }
+        UI-->>D: Success + link to Load Plan
+    else Validation fails
+        AS-->>UI: { error: "reason" }
+        UI-->>D: Error toast with explanation
+    end
+`
+
+### Delivery Status Transition
+
+When a dispatcher accepts a recommendation:
+
+- Deliveries transition from `PENDING` ? `ASSIGNED`
+- This matches the existing manual assignment behavior in `PATCH /api/loads/[id]`
+- Only `PENDING` deliveries are eligible for recommendation assignment
+- `ASSIGNED`, `IN_TRANSIT`, `DELIVERED`, and `CANCELLED` deliveries are rejected
+
+### Load Plan Status
+
+The created Load Plan uses `DRAFT` status. This is consistent with the existing manual Load Plan creation flow and allows the dispatcher to review and modify the plan before dispatching.
+
+### Transaction Safety
+
+All database operations (create plan, create items, update delivery statuses) execute inside a single Prisma transaction. If any operation fails, the entire transaction rolls back with zero partial state.

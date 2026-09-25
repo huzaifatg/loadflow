@@ -55,7 +55,6 @@
 | `aria-expanded` on toggles | Low | `RecommendationView.tsx` | Factor detail expand buttons lack `aria-expanded` attribute |
 | `middleware` → `proxy` convention | Low | `middleware.ts` | Next.js 16 deprecation warning; cosmetic |
 | Pre-existing ESLint warnings | Low | Various legacy files | ~40 errors, ~48 warnings in legacy code (none in Sprint 13.1+ code) |
-| Hardcoded bell curve peak | Low | `recommendation-engine.ts` | Capacity fit peaks at 80% utilization — may need per-fleet tuning |
 | No pagination on list endpoints | Medium | `app/api/*/route.ts` | All list queries return full result sets; adequate for current data volumes |
 | Weight unit assumption | Low | Schema-wide | All weights assumed kg; `Company.units` setting not applied to weight calculations |
 
@@ -119,8 +118,9 @@ This is the highest-value next feature because:
 | Preview Engine | 26 | ✅ Passing |
 | Commit Engine | 19 | ✅ Passing |
 | Import Pipeline | 15 | ✅ Passing |
-| Recommendation Engine | 26 | ✅ Passing |
-| **Total** | **199** (approx, see note) | **✅ All Passing** |
+| Recommendation Engine | 51 | ✅ Passing |
+| Recommendation Assignment | 37 | ✅ Passing |
+| **Total** | **261** (approx, see note) | **✅ All Passing** |
 
 Note: Import pipeline test counts are approximate from last full run. Tests use Node.js built-in test runner (`node:test`).
 

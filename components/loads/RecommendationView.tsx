@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 import {
   Sparkles,
   Truck,
@@ -303,15 +304,19 @@ function DriverCard({
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export function RecommendationView() {
+  const router = useRouter();
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RecommendationResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [assignedPlanId, setAssignedPlanId] = useState<string | null>(null);
 
   async function handleGenerate() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setAssignedPlanId(null);
 
     try {
       const res = await fetch('/api/recommendations', {
@@ -337,8 +342,41 @@ export function RecommendationView() {
     }
   }
 
+  async function handleAssign() {
+    if (!result || !result.recommendation.truck) return;
+    setAssigning(true);
+
+    try {
+      const res = await fetch('/api/recommendations/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          truckId: result.recommendation.truck.truckId,
+          driverId: result.recommendation.driver?.driverId || null,
+          deliveryIds: result.deliveries.map(d => d.id),
+          date,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to create load plan.');
+        return;
+      }
+
+      setAssignedPlanId(data.loadPlan.id);
+      toast.success('Load Plan created successfully!');
+      router.refresh();
+    } catch {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setAssigning(false);
+    }
+  }
+
   const rec = result?.recommendation;
   const conf = rec ? confidenceConfig[rec.confidence] : null;
+  const canAssign = rec && rec.truck && rec.confidence !== 'NONE' && !assignedPlanId;
 
   return (
     <div className="space-y-6">
@@ -436,6 +474,71 @@ export function RecommendationView() {
               </div>
             </div>
           </Card>
+
+          {/* ── Assignment Action ── */}
+          {rec.truck && (
+            <Card className={cn(
+              'p-5 border-2 transition-all duration-200',
+              assignedPlanId
+                ? 'border-emerald-200 bg-emerald-50/50'
+                : 'border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white',
+            )}>
+              {assignedPlanId ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-emerald-800">Load Plan Created</p>
+                      <p className="text-sm text-emerald-600">
+                        {rec.truck.truckName} assigned with {result.deliveries.length} deliver{result.deliveries.length !== 1 ? 'ies' : 'y'}
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/loads/${assignedPlanId}`}
+                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+                  >
+                    View Load Plan
+                  </Link>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                      <Sparkles className="h-5 w-5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">Accept Recommendation</p>
+                      <p className="text-sm text-gray-500">
+                        Create a Load Plan using {rec.truck.truckName}
+                        {rec.driver ? ` with ${rec.driver.driverName}` : ''}
+                        {' '}for {result.deliveries.length} deliver{result.deliveries.length !== 1 ? 'ies' : 'y'}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleAssign}
+                    disabled={!canAssign || assigning}
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    {assigning ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" />
+                        Create Load Plan
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </Card>
+          )}
 
           {/* Truck Recommendations */}
           <div>
