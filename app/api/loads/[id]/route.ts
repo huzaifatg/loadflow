@@ -115,9 +115,13 @@ export async function PATCH(
 
     // Capacity enforcement: validate BEFORE entering the write transaction
     if (items && Array.isArray(items) && items.length > 0) {
-      const capacityResult = await validateCapacity(prisma, finalTruckId, items);
+      const capacityResult = await validateCapacity(prisma, finalTruckId, items, company.id);
       if (!capacityResult.valid) {
-        return NextResponse.json({ error: capacityResult.error!.message }, { status: 400 });
+        // Out-of-company resources behave as not found (no existence leak)
+        return NextResponse.json(
+          { error: capacityResult.error!.message },
+          { status: capacityResult.notFound ? 404 : 400 },
+        );
       }
     }
 
@@ -144,7 +148,7 @@ export async function PATCH(
     // Delivery date warnings (non-blocking)
     let dateWarnings: DateWarning[] = [];
     if (items && Array.isArray(items) && items.length > 0) {
-      dateWarnings = await getDeliveryDateWarnings(prisma, items, finalDate);
+      dateWarnings = await getDeliveryDateWarnings(prisma, items, finalDate, company.id);
     }
 
     // ── Write transaction ──
@@ -179,13 +183,13 @@ export async function PATCH(
         // H-5: Only update deliveries that are not CANCELLED
         if (toUnassign.length > 0) {
           await tx.delivery.updateMany({
-            where: { id: { in: toUnassign }, status: { not: 'CANCELLED' } },
+            where: { id: { in: toUnassign }, companyId: company.id, status: { not: 'CANCELLED' } },
             data: { status: 'PENDING' }
           });
         }
         if (toAssign.length > 0) {
           await tx.delivery.updateMany({
-            where: { id: { in: toAssign }, status: { not: 'CANCELLED' } },
+            where: { id: { in: toAssign }, companyId: company.id, status: { not: 'CANCELLED' } },
             data: { status: 'ASSIGNED' }
           });
         }
@@ -202,7 +206,7 @@ export async function PATCH(
           if (deliveryIds.length > 0) {
             // H-5: Only transition non-cancelled deliveries
             await tx.delivery.updateMany({
-              where: { id: { in: deliveryIds }, status: { not: 'CANCELLED' } },
+              where: { id: { in: deliveryIds }, companyId: company.id, status: { not: 'CANCELLED' } },
               data: { status: 'IN_TRANSIT' }
             });
           }
@@ -222,7 +226,7 @@ export async function PATCH(
           if (deliveryIds.length > 0) {
             // H-5: Only transition non-cancelled deliveries
             await tx.delivery.updateMany({
-              where: { id: { in: deliveryIds }, status: { not: 'CANCELLED' } },
+              where: { id: { in: deliveryIds }, companyId: company.id, status: { not: 'CANCELLED' } },
               data: { status: 'DELIVERED' }
             });
           }
@@ -324,7 +328,7 @@ export async function DELETE(
       
       if (deliveryIds.length > 0) {
         await tx.delivery.updateMany({
-          where: { id: { in: deliveryIds } },
+          where: { id: { in: deliveryIds }, companyId: company.id },
           data: { status: 'PENDING' }
         });
       }

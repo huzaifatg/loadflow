@@ -28,6 +28,8 @@ export interface CapacityValidationResult {
   totalWeight: number
   truckCapacity: number
   error?: ValidationError
+  /** Set when the truck or some deliveries do not exist within the company. */
+  notFound?: boolean
 }
 
 export interface ConflictValidationResult {
@@ -44,22 +46,28 @@ export type PrismaClient = Prisma.TransactionClient
  * Validate that the total weight of the given deliveries does not exceed
  * the truck's weight capacity.
  *
+ * Both the truck and every delivery must belong to `companyId`. Deliveries
+ * outside the company are rejected (never silently ignored), so the result
+ * can be trusted by callers that subsequently write the same IDs.
+ *
  * @param tx        Prisma client or transaction
  * @param truckId   The truck to validate against
  * @param deliveryIds  The set of delivery IDs being assigned
+ * @param companyId Tenant boundary (from trusted server auth context)
  * @returns Structured result with `valid`, weights, and optional error
  */
 export async function validateCapacity(
   tx: PrismaClient,
   truckId: string,
   deliveryIds: string[],
+  companyId: string,
 ): Promise<CapacityValidationResult> {
   if (deliveryIds.length === 0) {
     return { valid: true, totalWeight: 0, truckCapacity: 0 }
   }
 
-  const truck = await tx.truck.findUnique({
-    where: { id: truckId },
+  const truck = await tx.truck.findFirst({
+    where: { id: truckId, companyId },
     select: { weightCapacity: true },
   })
 
@@ -68,14 +76,26 @@ export async function validateCapacity(
       valid: false,
       totalWeight: 0,
       truckCapacity: 0,
+      notFound: true,
       error: { field: 'truckId', message: 'Truck not found.' },
     }
   }
 
+  const uniqueIds = Array.from(new Set(deliveryIds))
   const deliveries = await tx.delivery.findMany({
-    where: { id: { in: deliveryIds } },
+    where: { id: { in: uniqueIds }, companyId },
     select: { weight: true },
   })
+
+  if (deliveries.length !== uniqueIds.length) {
+    return {
+      valid: false,
+      totalWeight: 0,
+      truckCapacity: truck.weightCapacity,
+      notFound: true,
+      error: { field: 'items', message: 'One or more deliveries were not found.' },
+    }
+  }
 
   const totalWeight = deliveries.reduce(
     (sum, d) => sum + toNumber(d.weight),
@@ -194,16 +214,18 @@ export async function validateDriverConflict(
 /**
  * Compare each delivery's scheduledDate against the load plan date.
  * Returns warnings for mismatches — does NOT block the operation.
+ * Only deliveries belonging to `companyId` are read.
  */
 export async function getDeliveryDateWarnings(
   tx: PrismaClient,
   deliveryIds: string[],
   planDate: Date,
+  companyId: string,
 ): Promise<DateWarning[]> {
   if (deliveryIds.length === 0) return []
 
   const deliveries = await tx.delivery.findMany({
-    where: { id: { in: deliveryIds } },
+    where: { id: { in: deliveryIds }, companyId },
     select: { id: true, customerName: true, scheduledDate: true },
   })
 
