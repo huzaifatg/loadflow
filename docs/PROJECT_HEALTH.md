@@ -1,8 +1,8 @@
 # Project Health
 
 **Last Updated:** 2026-10-24  
-**Version:** v0.8.0 (Production), Sprint 14 (Active Feature Branch)  
-**Branch:** `main` (stable production v0.8.0), `develop` (integration), `feature/load-plan-lifecycle-integrity` (Sprint 14)
+**Version:** v0.9.0  
+**Branch:** `main` (stable production v0.9.0), `develop` (integration)
 
 ---
 
@@ -47,7 +47,7 @@
 | Recommendation Engine | Sprint 13.1 | v0.7.0 |
 | Vehicle-Fit Intelligence | Sprint 13.2 | v0.7.2 |
 | Recommendation-to-Plan Assignment | Sprint 13.3 | v0.8.0 |
-| Load Plan Lifecycle Integrity | Sprint 14 | In Progress (Feature Branch) |
+| Load Plan Lifecycle Integrity | Sprint 14 | v0.9.0 |
 
 ---
 
