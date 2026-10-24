@@ -1,8 +1,8 @@
 # Project Health
 
-**Last Updated:** 2026-08-05  
-**Version:** v0.7.1  
-**Branch:** `main` (stable), `develop` (active)
+**Last Updated:** 2026-10-24  
+**Version:** v0.9.0  
+**Branch:** `main` (stable production v0.9.0), `develop` (integration)
 
 ---
 
@@ -14,14 +14,15 @@
 | Authorization | ✅ Production | Company-scoped access on every query |
 | Multi-tenancy | ✅ Production | Application-layer + RLS defense-in-depth |
 | Core CRUD | ✅ Production | Deliveries, Trucks, Drivers, Load Plans |
+| Load Plan Lifecycle | ✅ Hardened (Sprint 14) | State machine, atomic dispatch preconditions, lock rules, safe release |
 | CSV Import | ✅ Production | 6-stage pipeline with rollback support |
-| Recommendations | ✅ Production | Deterministic scoring engine, 26 tests |
+| Recommendations | ✅ Production | Deterministic scoring engine with vehicle-fit intelligence & 1-click assign |
 | Route Optimization | ✅ Production | FFD bin-packing algorithm |
 | Dashboard | ✅ Production | KPI stats, quick actions |
 | Settings | ✅ Production | Company profile and preferences |
-| TypeScript | ✅ Zero errors | Full type coverage |
-| Build | ✅ Passing | 35 routes compiled, 9.3s |
-| Tests | ✅ 199/199 | Zero failures |
+| TypeScript | ✅ Baseline clean | 0 errors in application code; 9 pre-existing test mock typing errors isolated |
+| Build | ✅ Passing | 42 routes compiled cleanly |
+| Tests | ✅ 319/319 | 58 load plan, 88 recommendation, 173 import (0 failures) |
 
 ---
 
@@ -44,7 +45,9 @@
 | Import Review Flow | Sprint 11 | v0.5.0 |
 | Security Hardening & RLS | Sprint 12 | v0.6.0 |
 | Recommendation Engine | Sprint 13.1 | v0.7.0 |
-| Engineering Audit & Polish | Post-sprint | v0.7.1 |
+| Vehicle-Fit Intelligence | Sprint 13.2 | v0.7.2 |
+| Recommendation-to-Plan Assignment | Sprint 13.3 | v0.8.0 |
+| Load Plan Lifecycle Integrity | Sprint 14 | v0.9.0 |
 
 ---
 

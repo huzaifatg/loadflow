@@ -20,8 +20,8 @@ stateDiagram-v2
 ```
 
 ### Key Rules
-- `PENDING → ASSIGNED`: Automatic when delivery is added to a load plan via `PATCH /api/loads/:id`.
-- `ASSIGNED → PENDING`: Automatic when delivery is removed from a load plan or plan is deleted.
+- `PENDING → ASSIGNED`: Automatic when delivery is added to a load plan in `DRAFT` status via `POST /api/loads`, `PATCH /api/loads/:id`, or `POST /api/recommendations/assign`.
+- `ASSIGNED → PENDING`: Automatic safe release when delivery is removed from a plan or plan is deleted. Deliveries in terminal or non-assigned statuses (e.g. `CANCELLED`, `DELIVERED`, `IN_TRANSIT`) are never reverted to `PENDING`.
 - `IN_TRANSIT → DELIVERED`: Only via load plan completion (`PATCH /api/loads/:id` with `status: COMPLETED`).
 - Direct status changes are limited to cancellation only. All other transitions go through the load plan workflow.
 - Core fields cannot be edited once status is `IN_TRANSIT` or `DELIVERED`.
@@ -32,26 +32,44 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DRAFT: Created
+    [*] --> DRAFT: Created (unlocked)
 
-    DRAFT --> READY: All details confirmed
-    READY --> DISPATCHED: Driver departs
-    DISPATCHED --> COMPLETED: All deliveries done
+    DRAFT --> READY: Finalize details (locked)
+    READY --> DRAFT: Revert to unlock for editing
+    READY --> DISPATCHED: Dispatch execution starts
+    DISPATCHED --> COMPLETED: Execution finished (terminal)
 
-    note right of DRAFT: Add/remove deliveries freely
-    note right of DISPATCHED: Deliveries → IN_TRANSIT
-    note right of COMPLETED: Deliveries → DELIVERED, Truck → AVAILABLE
+    note right of DRAFT: Editable: items, truck, driver can change freely
+    note right of READY: Locked: content cannot change; revert to DRAFT to edit
+    note right of DISPATCHED: Deliveries → IN_TRANSIT, Truck → IN_USE, Driver → ON_TRIP
+    note right of COMPLETED: Terminal state: Deliveries → DELIVERED, Truck & Driver → AVAILABLE
 ```
+
+### Plan Editing & Deletion Rules
+
+- **Editable Status:** A load plan can **ONLY** be modified (items, truck, driver) while in `DRAFT` status. Plans in `READY`, `DISPATCHED`, or `COMPLETED` reject item/resource edits with `400 Bad Request`.
+- **Reverting to Edit:** If a finalized `READY` plan needs changes, dispatchers can transition `READY → DRAFT`. This re-opens the plan for modifications.
+- **Deletable Statuses:** A load plan may only be deleted when in `DRAFT` or `READY` status. Plans that have started execution (`DISPATCHED` or `COMPLETED`) cannot be deleted (`400 Bad Request`).
+- **Safe Delivery Release:** When a plan is deleted or items are removed, only deliveries in `ASSIGNED` status are returned to `PENDING`. Any `CANCELLED` or other terminal deliveries remain untouched.
+
+### Dispatch Preconditions (`READY → DISPATCHED`)
+
+All preconditions are verified atomically within a database transaction:
+1. **Plan Status:** Current plan status must be strictly `READY`. Attempting to dispatch from `DRAFT` is rejected with `409 Conflict`.
+2. **Truck Readiness:** Truck must be assigned, non-archived, and not in `MAINTENANCE` status.
+3. **Driver Readiness:** Driver must be assigned, non-archived, and not in `OFF_DUTY` status.
+4. **Dispatchable Deliveries:** Plan must have at least 1 dispatchable delivery item (in `ASSIGNED` status). CANCELLED items in the plan are skipped.
 
 ### Side Effects by Status Transition
 
-| Transition | Side Effect |
-|-----------|-------------|
-| `→ DRAFT` | No side effects |
-| `→ READY` | No side effects |
-| `→ DISPATCHED` | All assigned deliveries → `IN_TRANSIT` |
-| `→ COMPLETED` | All assigned deliveries → `DELIVERED`, truck status → `AVAILABLE` |
-| Load plan deleted | All assigned deliveries → `PENDING` |
+| Transition | Side Effects | Guard / Conditions |
+|------------|--------------|-------------------|
+| `[*] → DRAFT` | Deliveries → `ASSIGNED` | Company-scoped, pending deliveries only, capacity & conflict checks |
+| `DRAFT → READY` | Plan locked from content edits | Valid transition |
+| `READY → DRAFT` | Plan unlocked for editing | Valid transition |
+| `READY → DISPATCHED` | Deliveries → `IN_TRANSIT`, Truck → `IN_USE`, Driver → `ON_TRIP` | Preconditions: active truck (not maint), active driver (not off-duty), >=1 delivery |
+| `DISPATCHED → COMPLETED` | Deliveries → `DELIVERED`, Truck → `AVAILABLE`, Driver → `AVAILABLE` | Plan must be currently `DISPATCHED` |
+| `DRAFT / READY` deleted | All `ASSIGNED` deliveries → `PENDING` | Plan deleted, `CANCELLED` deliveries left untouched |
 
 ---
 

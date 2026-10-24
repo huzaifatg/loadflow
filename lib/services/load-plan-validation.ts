@@ -7,6 +7,7 @@
 import type { Prisma } from '@prisma/client'
 import { toNumber } from '@/lib/delivery-items'
 import { startOfDay, endOfDay } from 'date-fns'
+import { evaluateDeliveryEligibility, isActivePlanStatus } from './load-plan-lifecycle'
 
 // ─── Result Types ────────────────────────────────────────────────────────────
 
@@ -28,6 +29,8 @@ export interface CapacityValidationResult {
   totalWeight: number
   truckCapacity: number
   error?: ValidationError
+  /** Set when the truck or some deliveries do not exist within the company. */
+  notFound?: boolean
 }
 
 export interface ConflictValidationResult {
@@ -44,22 +47,28 @@ export type PrismaClient = Prisma.TransactionClient
  * Validate that the total weight of the given deliveries does not exceed
  * the truck's weight capacity.
  *
+ * Both the truck and every delivery must belong to `companyId`. Deliveries
+ * outside the company are rejected (never silently ignored), so the result
+ * can be trusted by callers that subsequently write the same IDs.
+ *
  * @param tx        Prisma client or transaction
  * @param truckId   The truck to validate against
  * @param deliveryIds  The set of delivery IDs being assigned
+ * @param companyId Tenant boundary (from trusted server auth context)
  * @returns Structured result with `valid`, weights, and optional error
  */
 export async function validateCapacity(
   tx: PrismaClient,
   truckId: string,
   deliveryIds: string[],
+  companyId: string,
 ): Promise<CapacityValidationResult> {
   if (deliveryIds.length === 0) {
     return { valid: true, totalWeight: 0, truckCapacity: 0 }
   }
 
-  const truck = await tx.truck.findUnique({
-    where: { id: truckId },
+  const truck = await tx.truck.findFirst({
+    where: { id: truckId, companyId },
     select: { weightCapacity: true },
   })
 
@@ -68,14 +77,26 @@ export async function validateCapacity(
       valid: false,
       totalWeight: 0,
       truckCapacity: 0,
+      notFound: true,
       error: { field: 'truckId', message: 'Truck not found.' },
     }
   }
 
+  const uniqueIds = Array.from(new Set(deliveryIds))
   const deliveries = await tx.delivery.findMany({
-    where: { id: { in: deliveryIds } },
+    where: { id: { in: uniqueIds }, companyId },
     select: { weight: true },
   })
+
+  if (deliveries.length !== uniqueIds.length) {
+    return {
+      valid: false,
+      totalWeight: 0,
+      truckCapacity: truck.weightCapacity,
+      notFound: true,
+      error: { field: 'items', message: 'One or more deliveries were not found.' },
+    }
+  }
 
   const totalWeight = deliveries.reduce(
     (sum, d) => sum + toNumber(d.weight),
@@ -137,7 +158,7 @@ export async function validateTruckConflict(
       conflictingPlanId: conflict.id,
       error: {
         field: 'truckId',
-        message: `${conflict.truck.name} is already assigned to another load plan on this date.`,
+        message: `${conflict.truck?.name ?? 'This truck'} is already assigned to another load plan on this date.`,
       },
     }
   }
@@ -194,16 +215,18 @@ export async function validateDriverConflict(
 /**
  * Compare each delivery's scheduledDate against the load plan date.
  * Returns warnings for mismatches — does NOT block the operation.
+ * Only deliveries belonging to `companyId` are read.
  */
 export async function getDeliveryDateWarnings(
   tx: PrismaClient,
   deliveryIds: string[],
   planDate: Date,
+  companyId: string,
 ): Promise<DateWarning[]> {
   if (deliveryIds.length === 0) return []
 
   const deliveries = await tx.delivery.findMany({
-    where: { id: { in: deliveryIds } },
+    where: { id: { in: deliveryIds }, companyId },
     select: { id: true, customerName: true, scheduledDate: true },
   })
 
@@ -227,3 +250,86 @@ export async function getDeliveryDateWarnings(
 
   return warnings
 }
+
+// ─── 5. Delivery Eligibility ─────────────────────────────────────────────────
+
+export interface IneligibleDelivery {
+  deliveryId: string
+  customerName: string
+  status: string
+  reason: string
+}
+
+export interface EligibilityValidationResult {
+  valid: boolean
+  /** Some IDs do not exist within the company (treat as not found). */
+  notFound?: boolean
+  ineligible: IneligibleDelivery[]
+  error?: ValidationError
+}
+
+/**
+ * Verify that every delivery belongs to `companyId` and is eligible to be in
+ * the item set of `planId` (null when creating a new plan). The rule itself
+ * lives in the pure `evaluateDeliveryEligibility()`:
+ *   - already an item of this plan → may remain
+ *   - otherwise must be PENDING, not archived, and in no other ACTIVE plan
+ */
+export async function validateDeliveryEligibility(
+  tx: PrismaClient,
+  companyId: string,
+  deliveryIds: string[],
+  planId: string | null,
+): Promise<EligibilityValidationResult> {
+  if (deliveryIds.length === 0) return { valid: true, ineligible: [] }
+
+  const uniqueIds = Array.from(new Set(deliveryIds))
+  const deliveries = await tx.delivery.findMany({
+    where: { id: { in: uniqueIds }, companyId },
+    select: {
+      id: true,
+      customerName: true,
+      status: true,
+      isArchived: true,
+      loadPlanItems: {
+        select: { loadPlanId: true, loadPlan: { select: { status: true } } },
+      },
+    },
+  })
+
+  if (deliveries.length !== uniqueIds.length) {
+    return {
+      valid: false,
+      notFound: true,
+      ineligible: [],
+      error: { field: 'items', message: 'One or more deliveries were not found.' },
+    }
+  }
+
+  const ineligible: IneligibleDelivery[] = []
+  for (const d of deliveries) {
+    // Fail closed: any active plan holding the delivery counts as an allocation.
+    const activePlanIds = d.loadPlanItems
+      .filter(i => isActivePlanStatus(i.loadPlan.status))
+      .map(i => i.loadPlanId)
+    const verdict = evaluateDeliveryEligibility(
+      { status: d.status, isArchived: d.isArchived, activePlanIds },
+      planId,
+    )
+    if (!verdict.eligible) {
+      ineligible.push({ deliveryId: d.id, customerName: d.customerName, status: d.status, reason: verdict.reason })
+    }
+  }
+
+  if (ineligible.length > 0) {
+    const details = ineligible.map(i => `"${i.customerName}" ${i.reason}`).join('; ')
+    return {
+      valid: false,
+      ineligible,
+      error: { field: 'items', message: `The following deliveries are not eligible: ${details}.` },
+    }
+  }
+
+  return { valid: true, ineligible: [] }
+}
+

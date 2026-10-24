@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 9. Capacity check ──
-    const capacityResult = await validateCapacity(prisma, truckId, deliveryIds);
+    const capacityResult = await validateCapacity(prisma, truckId, deliveryIds, companyId);
     if (!capacityResult.valid) {
       return NextResponse.json(
         { error: capacityResult.error!.message },
@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
 
     // ── 12. Date warnings (non-blocking) ──
     const dateWarnings = await getDeliveryDateWarnings(
-      prisma, deliveryIds, targetDate,
+      prisma, deliveryIds, targetDate, companyId,
     );
 
     // ── 13. Transactional assignment ──
