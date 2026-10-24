@@ -298,13 +298,13 @@ List all load plans for the authenticated company, grouped by date.
 
 ### `POST /api/loads`
 
-Create a new load plan with optional delivery items.
+Create a new load plan with optional delivery items. Handled transactionally with full company isolation and resource validation.
 
 **Request Body:**
 ```json
 {
   "truckId": "uuid",
-  "driverId": "uuid",
+  "driverId": "uuid | null",
   "date": "2026-08-10",
   "status": "DRAFT",
   "notes": null,
@@ -314,11 +314,38 @@ Create a new load plan with optional delivery items.
 }
 ```
 
-**Required:** `truckId`, `date`.
+**Required:** `truckId`, `date`. `driverId` is optional at creation (defaults to `null` for draft plans).
 
-When items are added, the referenced deliveries' status is updated to `ASSIGNED`.
+**Server-Side Validations:**
+- **Company scoping:** Truck, driver, and all deliveries must belong to the caller's company (`404` if not found or cross-tenant).
+- **Resource status:** Truck cannot be in `MAINTENANCE` (`409`). Driver cannot be in `OFF_DUTY` (`409`).
+- **Conflict detection:** Neither truck nor driver may be assigned to another load plan on the same calendar day (`409`).
+- **Delivery eligibility:** Every added delivery must be `PENDING`, unarchived, and not allocated to another active plan (`409`).
+- **Capacity fit:** Total weight cannot exceed truck capacity (`409`).
 
-**Response:** `201` — Created load plan with relations.
+When items are added, referenced deliveries transition to `ASSIGNED`. Returns delivery date warnings if scheduled dates differ from plan date.
+
+**Response:** `201`
+```json
+{
+  "data": {
+    "id": "uuid",
+    "companyId": "uuid",
+    "truckId": "uuid",
+    "driverId": "uuid | null",
+    "date": "2026-08-10T00:00:00.000Z",
+    "status": "DRAFT",
+    "notes": null,
+    "truck": { ... },
+    "driver": { ... },
+    "items": [{ "deliveryId": "uuid", "sortOrder": 0, "delivery": { ... } }]
+  },
+  "warnings": [{ "deliveryId": "uuid", "message": "Scheduled for 2026-08-12, but load plan is on 2026-08-10" }],
+  "error": null
+}
+```
+
+**Errors:** `400` Validation error, `401` Unauthorized, `404` Resource not found, `409` Status/schedule/capacity conflict, `500` Internal error.
 
 ---
 
@@ -332,12 +359,13 @@ Get a single load plan with truck, driver, and delivery items.
 
 ### `PATCH /api/loads/:id`
 
-Update a load plan. Supports status transitions and item management.
+Update a load plan. Supports lifecycle status transitions, driver assignment, notes, and transactional delivery item replacement.
 
 **Request Body:**
 ```json
 {
-  "status": "DISPATCHED",
+  "status": "READY",
+  "truckId": "uuid",
   "driverId": "uuid",
   "notes": "Updated notes",
   "items": [
@@ -345,23 +373,46 @@ Update a load plan. Supports status transitions and item management.
   ]
 }
 ```
+All fields optional.
 
-**Status Transitions:**
-- `DRAFT` → `READY` → `DISPATCHED` → `COMPLETED`
-- When `DISPATCHED`: delivery statuses → `IN_TRANSIT`
-- When `COMPLETED`: delivery statuses → `DELIVERED`, truck → `AVAILABLE`
+**Editing & Lock Rules:**
+- Modifying `items`, `truckId`, or `driverId` is **ONLY** permitted when the plan is in `DRAFT` status.
+- Once a plan is `READY`, `DISPATCHED`, or `COMPLETED`, content edits return `400` ("Cannot modify a load plan that is READY. Revert to DRAFT first.").
+- A `READY` plan can be reverted to `DRAFT` by passing `{"status": "DRAFT"}`.
 
-If `items[]` is provided, it replaces all existing items (transactional). Removed deliveries revert to `PENDING`; added deliveries become `ASSIGNED`.
+**Lifecycle State Machine (`DRAFT` → `READY` ↔ `DISPATCHED` → `COMPLETED`):**
+- `DRAFT` → `READY`: Locks the plan for dispatch preparation.
+- `READY` → `DRAFT`: Unlocks the plan for editing.
+- `READY` → `DISPATCHED`: Dispatches the load. Preconditions enforced atomically:
+  - Plan must be in `READY` status.
+  - Truck must be assigned, active, and not in `MAINTENANCE`.
+  - Driver must be assigned, active, and not `OFF_DUTY`.
+  - Plan must contain at least 1 dispatchable delivery item.
+  - Atomically transitions plan to `DISPATCHED`, delivery items to `IN_TRANSIT`, truck to `IN_USE`, driver to `ON_TRIP`.
+- `DISPATCHED` → `COMPLETED`: Terminal transition. Marks plan `COMPLETED`, delivery items `DELIVERED`, truck `AVAILABLE`, driver `AVAILABLE`.
+- Illegal transitions (e.g. `DRAFT` → `DISPATCHED`, `DISPATCHED` → `READY`, or changing `COMPLETED`) return `400`.
 
-**Response:** `200` — Updated load plan.
+**Delivery Release Semantics:**
+- When items are removed from a `DRAFT` plan, deliveries with status `ASSIGNED` revert to `PENDING`.
+- Deliveries in terminal or non-assigned states (e.g. `CANCELLED`, `DELIVERED`, `IN_TRANSIT`) are preserved as-is and never reset to `PENDING`.
+
+**Response:** `200` — `{ data: { ...loadPlan }, warnings: [...], error: null }`.
+
+**Errors:** `400` Invalid transition / plan locked, `401` Unauthorized, `404` Not found, `409` Precondition failure (off-duty driver, maintenance truck, no items, capacity exceeded), `500` Internal error.
 
 ---
 
 ### `DELETE /api/loads/:id`
 
-Delete a load plan. All assigned deliveries revert to `PENDING`.
+Delete a load plan. Only allowed for plans in `DRAFT` or `READY` status.
+
+Plans that have started execution (`DISPATCHED` or `COMPLETED`) cannot be deleted (`400`).
+
+On deletion, all `ASSIGNED` deliveries in the plan atomically revert to `PENDING`. Any `CANCELLED` deliveries remain unchanged.
 
 **Response:** `200` — `{ data: { id }, error: null }`.
+
+**Errors:** `400` Plan already dispatched/completed, `401` Unauthorized, `404` Not found.
 
 ---
 
@@ -464,6 +515,58 @@ Generate truck and driver recommendations for a delivery batch.
 
 ---
 
+### `POST /api/recommendations/assign`
+
+Create a Load Plan from a dispatcher-approved recommendation. Validates all inputs server-side before transactional assignment.
+
+**Request Body:**
+```json
+{
+  "truckId": "uuid",
+  "driverId": "uuid | null",
+  "deliveryIds": ["uuid", "..."],
+  "date": "2026-09-01"
+}
+```
+
+**Server-Side Validation:** Authentication, UUID format, date validity, truck/driver/delivery ownership (company), truck status (not MAINTENANCE), driver status (not OFF_DUTY), delivery eligibility (PENDING only, not archived, not in another active plan), capacity fit, truck/driver date conflicts.
+
+**Response:** `200`
+```json
+{
+  "success": true,
+  "loadPlan": {
+    "id": "uuid",
+    "companyId": "uuid",
+    "truckId": "uuid",
+    "driverId": "uuid | null",
+    "date": "2026-09-01T00:00:00.000Z",
+    "status": "DRAFT",
+    "truck": { ... },
+    "driver": { ... },
+    "items": [{ "deliveryId": "uuid", "sortOrder": 0, "delivery": { ... } }]
+  },
+  "warnings": [{ "deliveryId": "uuid", "message": "..." }]
+}
+```
+
+**Error Responses:**
+
+| Code | Condition |
+|------|-----------|
+| `400` | Missing/invalid fields, invalid UUID format, invalid date |
+| `401` | Not authenticated |
+| `404` | Truck/driver/delivery not found or belongs to another company |
+| `409` | Truck in MAINTENANCE, driver OFF_DUTY, delivery not PENDING, capacity exceeded, truck/driver conflict |
+| `500` | Internal error (transaction rolled back, no partial state) |
+
+**Side Effects:**
+- Creates a LoadPlan (status: DRAFT) with associated LoadPlanItems
+- Updates delivery statuses from PENDING → ASSIGNED
+- All operations are transactional — failure rolls back everything
+
+---
+
 ## CSV Import
 
 ### `POST /api/import/csv`
@@ -506,76 +609,6 @@ List all import jobs for the authenticated company, newest first.
 Get a single import job with all its rows.
 
 **Response:** `200` — Import job with `rows[]` (including `rawData`, `mappedData`, `status`, `errors`).
-
----
-
-## Recommendations
-
-### `POST /api/recommendations`
-
-Generate a truck and driver recommendation for pending deliveries on a target date.
-
-**Request Body:**
-```json
-{
-  "date": "2026-09-01",
-  "deliveryIds": ["uuid", "..."]  // optional — omit to evaluate all eligible deliveries
-}
-```
-
-**Response:** `200` — Recommendation result with ranked trucks, ranked drivers, scoring factors, explanations, and evaluated deliveries.
-
----
-
-### `POST /api/recommendations/assign`
-
-Create a Load Plan from a dispatcher-approved recommendation. Validates all inputs server-side before transactional assignment.
-
-**Request Body:**
-```json
-{
-  "truckId": "uuid",
-  "driverId": "uuid | null",
-  "deliveryIds": ["uuid", "..."],
-  "date": "2026-09-01"
-}
-```
-
-**Server-Side Validation:** Authentication, UUID format, date validity, truck/driver/delivery ownership (company), truck status (not MAINTENANCE), driver status (not OFF_DUTY), delivery eligibility (PENDING only), capacity fit, truck/driver date conflicts.
-
-**Response:** `200`
-```json
-{
-  "success": true,
-  "loadPlan": {
-    "id": "uuid",
-    "companyId": "uuid",
-    "truckId": "uuid",
-    "driverId": "uuid | null",
-    "date": "2026-09-01T00:00:00.000Z",
-    "status": "DRAFT",
-    "truck": { ... },
-    "driver": { ... },
-    "items": [{ "deliveryId": "uuid", "sortOrder": 0, "delivery": { ... } }]
-  },
-  "warnings": [{ "deliveryId": "uuid", "message": "..." }]
-}
-```
-
-**Error Responses:**
-
-| Code | Condition |
-|------|-----------|
-| `400` | Missing/invalid fields, invalid UUID format, invalid date |
-| `401` | Not authenticated |
-| `404` | Truck/driver/delivery not found or belongs to another company |
-| `409` | Truck in MAINTENANCE, driver OFF_DUTY, delivery not PENDING, capacity exceeded, truck/driver conflict |
-| `500` | Internal error (transaction rolled back, no partial state) |
-
-**Side Effects:**
-- Creates a LoadPlan (status: DRAFT) with associated LoadPlanItems
-- Updates delivery statuses from PENDING → ASSIGNED
-- All operations are transactional — failure rolls back everything
 
 ---
 
