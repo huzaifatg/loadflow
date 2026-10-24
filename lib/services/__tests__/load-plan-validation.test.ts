@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import {
   validateCapacity,
   getDeliveryDateWarnings,
+  validateDeliveryEligibility,
   type PrismaClient,
 } from '../load-plan-validation';
 
@@ -22,6 +23,8 @@ const TRUCK_B = '00000000-0000-4000-8000-0000000000b1';
 const DEL_A1 = '00000000-0000-4000-8000-00000000a001';
 const DEL_A2 = '00000000-0000-4000-8000-00000000a002';
 const DEL_A3 = '00000000-0000-4000-8000-00000000a003';
+const DEL_A_DELIVERED = '00000000-0000-4000-8000-00000000a004';
+const DEL_A_IN_PLAN = '00000000-0000-4000-8000-00000000a005';
 const DEL_B1 = '00000000-0000-4000-8000-00000000b001';
 
 const PLAN_DATE = new Date('2026-10-20T00:00:00.000Z');
@@ -32,11 +35,24 @@ const trucks = [
   { id: TRUCK_B, companyId: COMPANY_B, weightCapacity: 50000 },
 ];
 const deliveries = [
-  { id: DEL_A1, companyId: COMPANY_A, weight: 300, customerName: 'A One', scheduledDate: PLAN_DATE },
-  { id: DEL_A2, companyId: COMPANY_A, weight: 400, customerName: 'A Two', scheduledDate: OTHER_DATE },
-  { id: DEL_A3, companyId: COMPANY_A, weight: 800, customerName: 'A Three', scheduledDate: PLAN_DATE },
+  { id: DEL_A1, companyId: COMPANY_A, weight: 300, customerName: 'A One', scheduledDate: PLAN_DATE, status: 'PENDING', isArchived: false, loadPlanItems: [] },
+  { id: DEL_A2, companyId: COMPANY_A, weight: 400, customerName: 'A Two', scheduledDate: OTHER_DATE, status: 'PENDING', isArchived: false, loadPlanItems: [] },
+  { id: DEL_A3, companyId: COMPANY_A, weight: 800, customerName: 'A Three', scheduledDate: PLAN_DATE, status: 'PENDING', isArchived: false, loadPlanItems: [] },
+  { id: DEL_A_DELIVERED, companyId: COMPANY_A, weight: 100, customerName: 'A Delivered', scheduledDate: PLAN_DATE, status: 'DELIVERED', isArchived: false, loadPlanItems: [] },
+  {
+    id: DEL_A_IN_PLAN,
+    companyId: COMPANY_A,
+    weight: 200,
+    customerName: 'A In Plan',
+    scheduledDate: PLAN_DATE,
+    status: 'ASSIGNED',
+    isArchived: false,
+    loadPlanItems: [
+      { loadPlanId: 'plan-existing', loadPlan: { status: 'READY' } },
+    ],
+  },
   // Light enough that excluding it would NOT trip capacity; heavy enough to matter if counted.
-  { id: DEL_B1, companyId: COMPANY_B, weight: 200, customerName: 'B One', scheduledDate: OTHER_DATE },
+  { id: DEL_B1, companyId: COMPANY_B, weight: 200, customerName: 'B One', scheduledDate: OTHER_DATE, status: 'PENDING', isArchived: false, loadPlanItems: [] },
 ];
 
 type Where = { id?: string | { in: string[] }; companyId?: string };
@@ -157,4 +173,50 @@ describe('Load Plan Validation — tenant scoping (Sprint 14 P0)', () => {
       assert.equal(calls[0].where.companyId, COMPANY_A);
     });
   });
+
+  describe('validateDeliveryEligibility', () => {
+    it('accepts pending, unallocated, non-archived own-company deliveries', async () => {
+      const r = await validateDeliveryEligibility(fakeTx, COMPANY_A, [DEL_A1, DEL_A2], null);
+      assert.equal(r.valid, true);
+      assert.deepEqual(r.ineligible, []);
+    });
+
+    it('returns notFound when delivery belongs to another company', async () => {
+      const r = await validateDeliveryEligibility(fakeTx, COMPANY_A, [DEL_A1, DEL_B1], null);
+      assert.equal(r.valid, false);
+      assert.equal(r.notFound, true);
+    });
+
+    it('returns notFound when delivery ID does not exist', async () => {
+      const r = await validateDeliveryEligibility(fakeTx, COMPANY_A, ['00000000-0000-4000-8000-00000000ffff'], null);
+      assert.equal(r.valid, false);
+      assert.equal(r.notFound, true);
+    });
+
+    it('rejects delivery in non-PENDING status', async () => {
+      const r = await validateDeliveryEligibility(fakeTx, COMPANY_A, [DEL_A_DELIVERED], null);
+      assert.equal(r.valid, false);
+      assert.equal(r.notFound, undefined);
+      assert.equal(r.ineligible.length, 1);
+      assert.match(r.ineligible[0].reason, /DELIVERED/);
+    });
+
+    it('rejects delivery already allocated to another active plan', async () => {
+      const r = await validateDeliveryEligibility(fakeTx, COMPANY_A, [DEL_A_IN_PLAN], 'plan-other');
+      assert.equal(r.valid, false);
+      assert.equal(r.ineligible.length, 1);
+      assert.match(r.ineligible[0].reason, /already allocated/);
+    });
+
+    it('allows delivery already allocated to the SAME plan to remain', async () => {
+      const r = await validateDeliveryEligibility(fakeTx, COMPANY_A, [DEL_A_IN_PLAN], 'plan-existing');
+      assert.equal(r.valid, true);
+    });
+
+    it('scopes queries by companyId', async () => {
+      await validateDeliveryEligibility(fakeTx, COMPANY_A, [DEL_A1], null);
+      assert.equal(calls[0].where.companyId, COMPANY_A);
+    });
+  });
 });
+

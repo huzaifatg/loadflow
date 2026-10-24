@@ -37,3 +37,9 @@ Multi-tenant SaaS applications must prevent data leakage between tenants. The op
 - Developers must remember to include `companyId` in every query. The centralized `getAuthContext()` pattern makes this straightforward.
 - Cross-tenant queries (admin dashboards, analytics) require careful RLS policy management.
 - A single bad query without `companyId` filtering would be caught by RLS but should never reach production.
+
+## Sprint 14 Update (2026-10-24)
+
+Auditing revealed that standard Prisma client connections operate using elevated database privileges that bypass PostgreSQL RLS unless session variables (`app.company_id`) are explicitly injected per-transaction (e.g. via `withRLS()`). Consequently, **application-level company scoping (`where: { companyId }`) is the primary, fail-closed security boundary** across all routes and services (`load-plan-service.ts`, `load-plan-validation.ts`, etc.). 
+
+All service operations, validation routines, and cross-resource checks (truck, driver, delivery, load plan) must strictly scope all queries and mutations by `companyId`, returning 404 on any foreign or non-existent resource ID rather than leaking existence or state across tenant boundaries.

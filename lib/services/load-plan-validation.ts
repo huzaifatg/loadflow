@@ -7,6 +7,7 @@
 import type { Prisma } from '@prisma/client'
 import { toNumber } from '@/lib/delivery-items'
 import { startOfDay, endOfDay } from 'date-fns'
+import { evaluateDeliveryEligibility, isActivePlanStatus } from './load-plan-lifecycle'
 
 // ─── Result Types ────────────────────────────────────────────────────────────
 
@@ -157,7 +158,7 @@ export async function validateTruckConflict(
       conflictingPlanId: conflict.id,
       error: {
         field: 'truckId',
-        message: `${conflict.truck.name} is already assigned to another load plan on this date.`,
+        message: `${conflict.truck?.name ?? 'This truck'} is already assigned to another load plan on this date.`,
       },
     }
   }
@@ -249,3 +250,86 @@ export async function getDeliveryDateWarnings(
 
   return warnings
 }
+
+// ─── 5. Delivery Eligibility ─────────────────────────────────────────────────
+
+export interface IneligibleDelivery {
+  deliveryId: string
+  customerName: string
+  status: string
+  reason: string
+}
+
+export interface EligibilityValidationResult {
+  valid: boolean
+  /** Some IDs do not exist within the company (treat as not found). */
+  notFound?: boolean
+  ineligible: IneligibleDelivery[]
+  error?: ValidationError
+}
+
+/**
+ * Verify that every delivery belongs to `companyId` and is eligible to be in
+ * the item set of `planId` (null when creating a new plan). The rule itself
+ * lives in the pure `evaluateDeliveryEligibility()`:
+ *   - already an item of this plan → may remain
+ *   - otherwise must be PENDING, not archived, and in no other ACTIVE plan
+ */
+export async function validateDeliveryEligibility(
+  tx: PrismaClient,
+  companyId: string,
+  deliveryIds: string[],
+  planId: string | null,
+): Promise<EligibilityValidationResult> {
+  if (deliveryIds.length === 0) return { valid: true, ineligible: [] }
+
+  const uniqueIds = Array.from(new Set(deliveryIds))
+  const deliveries = await tx.delivery.findMany({
+    where: { id: { in: uniqueIds }, companyId },
+    select: {
+      id: true,
+      customerName: true,
+      status: true,
+      isArchived: true,
+      loadPlanItems: {
+        select: { loadPlanId: true, loadPlan: { select: { status: true } } },
+      },
+    },
+  })
+
+  if (deliveries.length !== uniqueIds.length) {
+    return {
+      valid: false,
+      notFound: true,
+      ineligible: [],
+      error: { field: 'items', message: 'One or more deliveries were not found.' },
+    }
+  }
+
+  const ineligible: IneligibleDelivery[] = []
+  for (const d of deliveries) {
+    // Fail closed: any active plan holding the delivery counts as an allocation.
+    const activePlanIds = d.loadPlanItems
+      .filter(i => isActivePlanStatus(i.loadPlan.status))
+      .map(i => i.loadPlanId)
+    const verdict = evaluateDeliveryEligibility(
+      { status: d.status, isArchived: d.isArchived, activePlanIds },
+      planId,
+    )
+    if (!verdict.eligible) {
+      ineligible.push({ deliveryId: d.id, customerName: d.customerName, status: d.status, reason: verdict.reason })
+    }
+  }
+
+  if (ineligible.length > 0) {
+    const details = ineligible.map(i => `"${i.customerName}" ${i.reason}`).join('; ')
+    return {
+      valid: false,
+      ineligible,
+      error: { field: 'items', message: `The following deliveries are not eligible: ${details}.` },
+    }
+  }
+
+  return { valid: true, ineligible: [] }
+}
+

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthContext } from '@/lib/auth';
 import { unauthorizedResponse } from '@/lib/security';
-import { validateTruckConflict, validateDriverConflict } from '@/lib/services/load-plan-validation';
+import { createLoadPlan } from '@/lib/services/load-plan-service';
 
 export async function GET() {
   try {
@@ -42,52 +42,40 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthContext();
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!auth) return unauthorizedResponse();
     const company = auth.company;
 
-    const body = await request.json();
-    const { truckId, driverId, date, notes } = body;
-    const planDate = new Date(date);
-
-    // ── Conflict validation ──
-    const truckConflict = await validateTruckConflict(
-      prisma, truckId, planDate, company.id,
-    );
-    if (!truckConflict.valid) {
-      return NextResponse.json({ error: truckConflict.error!.message }, { status: 409 });
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+    }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
     }
 
-    const driverConflict = await validateDriverConflict(
-      prisma, driverId || null, planDate, company.id,
-    );
-    if (!driverConflict.valid) {
-      return NextResponse.json({ error: driverConflict.error!.message }, { status: 409 });
-    }
-
-    const load = await prisma.loadPlan.create({
-      data: {
-        companyId: company.id,
-        truckId,
-        driverId: driverId || null,
-        date: planDate,
-        notes,
-        status: 'DRAFT',
-      },
-      include: {
-        truck: true,
-        driver: true,
-      }
+    // Truck/driver ownership, status, UUIDs, date and conflicts are validated
+    // server-side in createLoadPlan(). Driver is optional for a DRAFT.
+    const result = await createLoadPlan(prisma, company.id, {
+      truckId: body.truckId,
+      driverId: body.driverId,
+      date: body.date,
+      notes: body.notes,
     });
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
 
     const { revalidatePath } = await import('next/cache');
     revalidatePath('/loads');
     revalidatePath('/schedule');
 
-    return NextResponse.json(load);
+    return NextResponse.json(result.data);
   } catch (error) {
     console.error('[loads_POST]', error);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
+
