@@ -1,14 +1,16 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { InboxIcon } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button, ButtonLink } from '@/components/ui/Button';
 
 export interface EmptyStateProps {
   icon?: React.ReactNode;
   title: string;
   description?: string;
   actionLabel?: string;
+  actionHref?: string;
   onAction?: () => void;
+  secondaryAction?: React.ReactNode;
   className?: string;
 }
 
@@ -17,37 +19,45 @@ export function EmptyState({
   title,
   description,
   actionLabel,
+  actionHref,
   onAction,
+  secondaryAction,
   className,
 }: EmptyStateProps) {
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center py-16 px-6 text-center',
+        'flex flex-col items-center justify-center py-14 px-6 text-center',
         className
       )}
     >
-      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
-        {icon ?? <InboxIcon className="h-7 w-7" />}
+      <div className="mb-3.5 flex h-12 w-12 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-500 shadow-xs">
+        {icon ?? <InboxIcon className="h-5 w-5" />}
       </div>
 
-      <h3 className="text-base font-semibold text-gray-900">
-        {title}
-      </h3>
+      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
 
       {description && (
-        <p className="mt-1.5 max-w-sm text-sm text-gray-500">
+        <p className="mt-1 max-w-md text-xs leading-relaxed text-gray-500">
           {description}
         </p>
       )}
 
-      {actionLabel && onAction && (
-        <div className="mt-5">
-          <Button variant="primary" size="sm" onClick={onAction}>
-            {actionLabel}
-          </Button>
+      {(actionLabel && (actionHref || onAction)) || secondaryAction ? (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+          {actionLabel && actionHref && (
+            <ButtonLink href={actionHref} variant="primary" size="sm">
+              {actionLabel}
+            </ButtonLink>
+          )}
+          {actionLabel && onAction && !actionHref && (
+            <Button variant="primary" size="sm" onClick={onAction}>
+              {actionLabel}
+            </Button>
+          )}
+          {secondaryAction}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
