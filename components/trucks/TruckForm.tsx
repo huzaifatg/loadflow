@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { toast } from 'sonner';
@@ -31,10 +33,11 @@ export function TruckForm() {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to add truck');
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || 'Failed to add truck');
       }
 
-      toast.success('Truck added successfully');
+      toast.success('Truck added to fleet');
       router.push('/trucks');
       router.refresh();
     } catch (err: unknown) {
@@ -49,71 +52,62 @@ export function TruckForm() {
   }
 
   return (
-    <Card className="max-w-2xl p-6">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="md:col-span-2">
+    <Card padding="lg" className="max-w-2xl">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="sm:col-span-2">
             <Input
               name="name"
-              label="Truck Name"
+              label="Vehicle Name / Identifier"
               required
-              placeholder="e.g. Volvo FH16"
+              placeholder="e.g. Freightliner M2 #104"
+              hint="Friendly name shown on load plans and dispatch schedules."
             />
           </div>
-          <div>
-            <Input
-              name="plateNumber"
-              label="License Plate"
-              required
-              placeholder="e.g. ABC-123"
-            />
-          </div>
-          <div>
-            <Input
-              name="type"
-              label="Truck Type"
-              required
-              placeholder="e.g. Refrigerated"
-            />
-          </div>
-          <div>
-            <Input
-              name="weightCapacity"
-              label="Weight Capacity (kg)"
-              type="number"
-              min="0"
-              step="0.1"
-              required
-              placeholder="e.g. 45000"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
-              name="status"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
-            >
-              <option value="AVAILABLE">Available</option>
-              <option value="IN_USE">In Use</option>
-              <option value="MAINTENANCE">Maintenance</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes (Optional)
-            </label>
-            <textarea
+          <Input
+            name="plateNumber"
+            label="License Plate Number"
+            required
+            placeholder="e.g. TX-8492A"
+          />
+          <Input
+            name="type"
+            label="Vehicle Type"
+            required
+            defaultValue="Box Truck"
+            placeholder="e.g. Box Truck, Refrigerated, Flatbed"
+          />
+          <Input
+            name="weightCapacity"
+            label="Maximum Payload Capacity (kg)"
+            type="number"
+            min="1"
+            step="0.1"
+            required
+            placeholder="e.g. 12000"
+            hint="Used to enforce load plan capacity limits."
+          />
+          <Select
+            name="status"
+            label="Initial Status"
+            defaultValue="AVAILABLE"
+            options={[
+              { value: 'AVAILABLE', label: 'Available for Dispatch' },
+              { value: 'IN_USE', label: 'In Use' },
+              { value: 'MAINTENANCE', label: 'In Maintenance' },
+            ]}
+          />
+          <div className="sm:col-span-2">
+            <Textarea
               name="notes"
+              label="Vehicle Notes (Optional)"
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              placeholder="Any additional information..."
+              placeholder="Liftgate equipped, temperature range, or maintenance notes..."
             />
           </div>
         </div>
-        
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+
+        <div className="flex items-center justify-end gap-2.5 border-t border-gray-200 pt-4">
           <Button
             type="button"
             variant="secondary"
@@ -122,8 +116,8 @@ export function TruckForm() {
           >
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
-            Add Truck
+          <Button type="submit" variant="primary" loading={loading}>
+            Register Truck
           </Button>
         </div>
       </form>

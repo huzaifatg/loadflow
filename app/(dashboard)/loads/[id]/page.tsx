@@ -1,36 +1,67 @@
 import React from 'react';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { format } from 'date-fns';
+import {
+  Truck,
+  CheckCircle2,
+  AlertTriangle,
+  Lock,
+  Calendar,
+  Package,
+  ArrowLeft,
+} from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { AllocationPanel } from '@/components/loads/AllocationPanel';
+import {
+  LoadPlanActions,
+  DraftDriverSelector,
+} from '@/components/loads/LoadPlanActions';
+import { StatusBadge, Badge } from '@/components/ui/Badge';
+import { ButtonLink } from '@/components/ui/Button';
+import { CapacityBar } from '@/components/ui/CapacityBar';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
-import { StatusPill } from '@/components/ui/StatusPill';
-import { LoadPlanActions } from '@/components/loads/LoadPlanActions';
-import { toNumber, getItemSummary, aggregateByUnit } from '@/lib/delivery-items';
+import {
+  toNumber,
+  getItemSummary,
+  aggregateByUnit,
+} from '@/lib/delivery-items';
+import {
+  LIFECYCLE_STEPS,
+  getLifecycleStepIndex,
+  getCapacityLevel,
+} from '@/lib/ui/status';
 import { cn } from '@/lib/utils';
 import { getAuthContext } from '@/lib/auth';
 
-export default async function LoadPlanBuilderPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LoadPlanBuilderPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) redirect('/login');
 
   let company = null;
   try {
     const auth = await getAuthContext();
     company = auth?.company;
-  } catch(e) {
-    console.error("DB error:", e);
+  } catch (e) {
+    console.error('DB error:', e);
   }
 
   const id = (await params).id;
 
-  // Real fetch if it exists
   let loadPlan = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let unassignedDeliveries: any[] = [];
-  
+  let availableDrivers: { id: string; name: string }[] = [];
+
   if (company) {
     try {
       loadPlan = await prisma.loadPlan.findUnique({
@@ -47,179 +78,369 @@ export default async function LoadPlanBuilderPage({ params }: { params: Promise<
                 },
               },
             },
-            orderBy: { sortOrder: 'asc' }
-          }
-        }
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
       });
 
       if (loadPlan) {
-        unassignedDeliveries = await prisma.delivery.findMany({
-          where: {
-            companyId: company.id,
-            status: 'PENDING',
-            loadPlanItems: { none: {} }
-          },
-          include: {
-            items: { orderBy: { sortOrder: 'asc' } },
-            _count: { select: { items: true } },
-          },
-        });
+        [unassignedDeliveries, availableDrivers] = await prisma.$transaction([
+          prisma.delivery.findMany({
+            where: {
+              companyId: company.id,
+              status: 'PENDING',
+              isArchived: false,
+              loadPlanItems: { none: {} },
+            },
+            include: {
+              items: { orderBy: { sortOrder: 'asc' } },
+              _count: { select: { items: true } },
+            },
+            orderBy: [{ scheduledDate: 'asc' }, { createdAt: 'desc' }],
+          }),
+          prisma.driver.findMany({
+            where: {
+              companyId: company.id,
+              status: 'AVAILABLE',
+              isArchived: false,
+            },
+            select: { id: true, name: true },
+            orderBy: { name: 'asc' },
+          }),
+        ]);
       }
-    } catch(e) {
-      console.error("Load plan fetch error", e);
+    } catch (e) {
+      console.error('Load plan fetch error', e);
     }
   }
 
   if (!loadPlan) {
     return (
-      <div className="space-y-6 flex flex-col items-center justify-center h-[50vh]">
-        <h2 className="text-xl font-bold text-gray-900">Load Plan Not Found</h2>
-        <p className="text-gray-500">The load plan you are looking for does not exist.</p>
+      <div className="flex h-[50vh] flex-col items-center justify-center space-y-4 text-center">
+        <h2 className="text-lg font-bold text-gray-900">Load Plan Not Found</h2>
+        <p className="max-w-sm text-xs text-gray-500">
+          The requested load plan does not exist or belongs to another workspace.
+        </p>
+        <ButtonLink href="/loads" variant="secondary" size="sm">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to Load Plans
+        </ButtonLink>
       </div>
     );
   }
 
-  const truckCapacity = loadPlan.truck?.weightCapacity || 40000;
-  
-  const initialAssigned = loadPlan.items.map(item => ({
+  const truckCapacity = loadPlan.truck?.weightCapacity ?? 0;
+
+  const initialAssigned = loadPlan.items.map((item) => ({
     id: item.delivery.id,
     customerName: item.delivery.customerName,
     pickupAddress: item.delivery.pickupAddress,
     deliveryAddress: item.delivery.deliveryAddress,
-    scheduledDate: item.delivery.scheduledDate ? item.delivery.scheduledDate.toISOString() : null,
+    scheduledDate: item.delivery.scheduledDate
+      ? item.delivery.scheduledDate.toISOString()
+      : null,
     weight: toNumber(item.delivery.weight),
     itemCount: item.delivery._count?.items || 0,
     itemSummary: getItemSummary(item.delivery.items || []),
   }));
 
-  const initialUnassigned = unassignedDeliveries.map(d => ({
+  const initialUnassigned = unassignedDeliveries.map((d) => ({
     id: d.id,
     customerName: d.customerName,
     pickupAddress: d.pickupAddress,
     deliveryAddress: d.deliveryAddress,
-    scheduledDate: d.scheduledDate ? new Date(d.scheduledDate).toISOString() : null,
+    scheduledDate: d.scheduledDate
+      ? new Date(d.scheduledDate).toISOString()
+      : null,
     weight: toNumber(d.weight),
     itemCount: d._count?.items || 0,
     itemSummary: getItemSummary(d.items || []),
   }));
 
-  // Compute load summary for assigned deliveries
-  const allAssignedItems = loadPlan.items.flatMap(lpi => 
-    (lpi.delivery.items || []).map(item => ({
+  const allAssignedItems = loadPlan.items.flatMap((lpi) =>
+    (lpi.delivery.items || []).map((item) => ({
       quantity: item.quantity,
       quantityUnit: item.quantityUnit,
     }))
   );
   const unitBreakdown = aggregateByUnit(allAssignedItems);
   const totalWeight = initialAssigned.reduce((sum, d) => sum + d.weight, 0);
-
   const remainingCapacity = truckCapacity - totalWeight;
-  const utilizationPct = truckCapacity > 0 ? (totalWeight / truckCapacity) * 100 : 0;
-  const isOverCapacity = totalWeight > truckCapacity;
+  const { isOverweight } = getCapacityLevel(totalWeight, truckCapacity);
 
-  /**
-   * Derive utilization color classes from a percentage.
-   * Matches CapacityBar thresholds: <60% emerald, 60–85% amber, >85% rose, >100% red.
-   */
-  function getUtilizationStyle(pct: number) {
-    if (pct > 100) return { bar: 'bg-red-500', text: 'text-red-600', label: 'Over Capacity', labelBg: 'bg-red-50 text-red-700 ring-red-200' };
-    if (pct > 85)  return { bar: 'bg-rose-500', text: 'text-rose-600', label: 'High', labelBg: 'bg-rose-50 text-rose-700 ring-rose-200' };
-    if (pct >= 60) return { bar: 'bg-amber-500', text: 'text-amber-600', label: 'Medium', labelBg: 'bg-amber-50 text-amber-700 ring-amber-200' };
-    return { bar: 'bg-emerald-500', text: 'text-emerald-600', label: 'Low', labelBg: 'bg-emerald-50 text-emerald-700 ring-emerald-200' };
-  }
-
-  const utilStyle = getUtilizationStyle(utilizationPct);
+  const currentStepIdx = getLifecycleStepIndex(loadPlan.status);
+  const isDraft = loadPlan.status === 'DRAFT';
+  const hasDriver = Boolean(loadPlan.driverId);
+  const hasStops = initialAssigned.length > 0;
 
   return (
-    <div className="space-y-6 flex flex-col h-full">
-      <PageHeader 
-        title={`Load Plan Builder`} 
-        description={loadPlan ? `Plan for ${loadPlan.truck.name} on ${new Date(loadPlan.date).toLocaleDateString()}` : "Drag and drop deliveries to allocate capacity."}
+    <div className="space-y-5">
+      <PageHeader
+        breadcrumbs={[
+          { label: 'Load Plans', href: '/loads' },
+          { label: `Plan #${loadPlan.id.slice(-6).toUpperCase()}` },
+        ]}
+        title={`Load Plan #${loadPlan.id.slice(-6).toUpperCase()}`}
+        description={`${loadPlan.truck.name} (${loadPlan.truck.plateNumber}) • Planned for ${format(new Date(loadPlan.date), 'MMMM d, yyyy')}`}
+        meta={<StatusBadge domain="loadPlan" status={loadPlan.status} />}
       >
-        <div className="flex items-center gap-3">
-          <StatusPill status={loadPlan?.status || 'DRAFT'} />
-          <LoadPlanActions loadPlanId={id} currentStatus={loadPlan?.status || 'DRAFT'} />
-        </div>
+        <LoadPlanActions
+          loadPlanId={id}
+          currentStatus={loadPlan.status}
+          hasDriver={hasDriver}
+          deliveryCount={initialAssigned.length}
+          isOverCapacity={isOverweight}
+        />
       </PageHeader>
 
-      {/* ── Utilization Metrics Summary ──────────────────────────────────────── */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-gray-100">
-          {/* Total Deliveries */}
-          <div className="px-4 py-3 sm:px-5 sm:py-4">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Deliveries</p>
-            <p className="mt-1 text-xl font-bold text-gray-900">{initialAssigned.length}</p>
+      {/* ── Visual Lifecycle Stepper ─────────────────────────────────────────── */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+          {LIFECYCLE_STEPS.map((step, idx) => {
+            const isComplete = idx < currentStepIdx || loadPlan.status === 'COMPLETED';
+            const isCurrent = idx === currentStepIdx;
+            return (
+              <div
+                key={step.status}
+                className={cn(
+                  'flex items-start gap-3 rounded-lg border p-3 transition-colors',
+                  isCurrent
+                    ? 'border-primary-300 bg-primary-50/40'
+                    : isComplete
+                      ? 'border-emerald-200 bg-emerald-50/30'
+                      : 'border-gray-100 bg-gray-50/50 opacity-70'
+                )}
+              >
+                <div
+                  className={cn(
+                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                    isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : isCurrent
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                  )}
+                >
+                  {isComplete ? <CheckCircle2 className="h-3.5 w-3.5" /> : idx + 1}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-gray-900">
+                      {step.label}
+                    </span>
+                    {isCurrent && (
+                      <Badge tone="primary" size="sm">
+                        Current
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-[11px] leading-snug text-gray-500">
+                    {step.description}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Dispatch Readiness Checklist when in DRAFT or READY */}
+        {(loadPlan.status === 'DRAFT' || loadPlan.status === 'READY') && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 text-xs">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="font-semibold text-gray-700">
+                Dispatch Preconditions:
+              </span>
+              <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                Truck assigned ({loadPlan.truck.name})
+              </span>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 font-medium',
+                  hasDriver ? 'text-emerald-700' : 'text-amber-700'
+                )}
+              >
+                {hasDriver ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                ) : (
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                )}
+                {hasDriver
+                  ? `Driver assigned (${loadPlan.driver?.name})`
+                  : 'Driver required before dispatch'}
+              </span>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 font-medium',
+                  hasStops ? 'text-emerald-700' : 'text-amber-700'
+                )}
+              >
+                {hasStops ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                ) : (
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                )}
+                {hasStops
+                  ? `${initialAssigned.length} ${initialAssigned.length === 1 ? 'delivery' : 'deliveries'} allocated`
+                  : 'At least 1 delivery required'}
+              </span>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 font-medium',
+                  !isOverweight ? 'text-emerald-700' : 'text-rose-700'
+                )}
+              >
+                {!isOverweight ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                ) : (
+                  <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                )}
+                {!isOverweight ? 'Within truck weight capacity' : 'Over truck weight capacity'}
+              </span>
+            </div>
+
+            {!isDraft && (
+              <span className="inline-flex items-center gap-1 text-gray-500">
+                <Lock className="h-3.5 w-3.5" />
+                Revert to Draft to modify driver or deliveries
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Resource & Capacity Summary Card ─────────────────────────────────── */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-xs overflow-hidden">
+        <div className="grid grid-cols-2 divide-x divide-y divide-gray-100 sm:grid-cols-3 lg:grid-cols-6 sm:divide-y-0">
+          {/* Assigned Truck */}
+          <div className="p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              Assigned Truck
+            </p>
+            <Link
+              href={`/trucks/${loadPlan.truck.id}`}
+              className="mt-1 flex items-center gap-1.5 text-sm font-bold text-gray-900 hover:text-primary-600"
+            >
+              <Truck className="h-4 w-4 text-primary-600 shrink-0" />
+              <span className="truncate">{loadPlan.truck.name}</span>
+            </Link>
+            <p className="mt-0.5 text-xs text-gray-500 font-mono">
+              {loadPlan.truck.plateNumber}
+            </p>
+          </div>
+
+          {/* Assigned Driver */}
+          <div className="p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              Assigned Driver
+            </p>
+            <DraftDriverSelector
+              loadPlanId={loadPlan.id}
+              currentDriverId={loadPlan.driverId}
+              currentDriverName={loadPlan.driver?.name || null}
+              availableDrivers={availableDrivers}
+              isEditable={isDraft}
+            />
+            {!hasDriver && !isDraft && (
+              <p className="mt-0.5 text-[11px] font-medium text-amber-600">
+                Revert to Draft to assign driver
+              </p>
+            )}
+          </div>
+
+          {/* Planned Date */}
+          <div className="p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              Planned Date
+            </p>
+            <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-gray-900 tabular-nums">
+              <Calendar className="h-4 w-4 text-gray-400" />
+              {format(new Date(loadPlan.date), 'MMM d, yyyy')}
+            </p>
+            {loadPlan.notes && (
+              <p className="mt-0.5 truncate text-xs text-gray-500" title={loadPlan.notes}>
+                {loadPlan.notes}
+              </p>
+            )}
+          </div>
+
+          {/* Deliveries / Stops */}
+          <div className="p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              Allocated Stops
+            </p>
+            <p className="mt-1 flex items-center gap-1.5 text-lg font-bold text-gray-900 tabular-nums">
+              <Package className="h-4 w-4 text-gray-400" />
+              {initialAssigned.length}
+            </p>
             {initialAssigned.length > 0 && unitBreakdown.length > 0 && (
-              <p className="text-xs text-gray-400 mt-0.5 truncate">
-                {unitBreakdown.map(u => `${u.count.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${u.unit}`).join(', ')}
+              <p className="mt-0.5 truncate text-xs text-gray-500">
+                {unitBreakdown
+                  .map(
+                    (u) =>
+                      `${u.count.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${u.unit}`
+                  )
+                  .join(', ')}
               </p>
             )}
           </div>
 
           {/* Total Weight */}
-          <div className="px-4 py-3 sm:px-5 sm:py-4">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Weight</p>
-            <p className="mt-1 text-xl font-bold text-gray-900">
-              {totalWeight.toLocaleString(undefined, { maximumFractionDigits: 1 })}
-              <span className="text-sm font-normal text-gray-400 ml-1">kg</span>
+          <div className="p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              Total Payload
             </p>
-          </div>
-
-          {/* Truck Capacity */}
-          <div className="px-4 py-3 sm:px-5 sm:py-4">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Truck Capacity</p>
-            <p className="mt-1 text-xl font-bold text-gray-900">
-              {truckCapacity.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              <span className="text-sm font-normal text-gray-400 ml-1">kg</span>
+            <p className="mt-1 text-lg font-bold text-gray-900 tabular-nums">
+              {totalWeight.toLocaleString(undefined, { maximumFractionDigits: 1 })}{' '}
+              <span className="text-xs font-normal text-gray-400">kg</span>
+            </p>
+            <p className="mt-0.5 text-xs text-gray-500 tabular-nums">
+              Max: {truckCapacity.toLocaleString()} kg
             </p>
           </div>
 
           {/* Remaining Capacity */}
-          <div className="px-4 py-3 sm:px-5 sm:py-4">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Remaining</p>
-            <p className={cn("mt-1 text-xl font-bold", isOverCapacity ? "text-red-600" : "text-gray-900")}>
-              {isOverCapacity ? '-' : ''}{Math.abs(remainingCapacity).toLocaleString(undefined, { maximumFractionDigits: 1 })}
-              <span className={cn("text-sm font-normal ml-1", isOverCapacity ? "text-red-400" : "text-gray-400")}>kg</span>
+          <div className="p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              Remaining Capacity
             </p>
-            {isOverCapacity && (
-              <p className="text-[10px] font-medium text-red-500 mt-0.5">Over by {Math.abs(remainingCapacity).toLocaleString(undefined, { maximumFractionDigits: 1 })} kg</p>
+            <p
+              className={cn(
+                'mt-1 text-lg font-bold tabular-nums',
+                isOverweight ? 'text-rose-600' : 'text-gray-900'
+              )}
+            >
+              {isOverweight ? '-' : ''}
+              {Math.abs(remainingCapacity).toLocaleString(undefined, {
+                maximumFractionDigits: 1,
+              })}{' '}
+              <span className="text-xs font-normal text-gray-400">kg</span>
+            </p>
+            {isOverweight && (
+              <p className="mt-0.5 text-[11px] font-semibold text-rose-600">
+                Overweight by {Math.abs(remainingCapacity).toLocaleString()} kg
+              </p>
             )}
           </div>
-
-          {/* Utilization */}
-          <div className="px-4 py-3 sm:px-5 sm:py-4">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Utilization</p>
-            <div className="mt-1 flex items-baseline gap-2">
-              <p className={cn("text-xl font-bold", utilStyle.text)}>
-                {Math.round(utilizationPct)}%
-              </p>
-              <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", utilStyle.labelBg)}>
-                {utilStyle.label}
-              </span>
-            </div>
-          </div>
         </div>
 
-        {/* Utilization Bar */}
-        <div className="px-4 sm:px-5 pb-3">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-            <div
-              className={cn('h-full rounded-full transition-all duration-500 ease-out animate-fill', utilStyle.bar)}
-              style={{ width: `${Math.min(utilizationPct, 100)}%` }}
-            />
-          </div>
+        {/* Full-width Capacity Bar */}
+        <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-2.5">
+          <CapacityBar
+            current={Math.round(totalWeight)}
+            max={truckCapacity}
+            size="md"
+          />
         </div>
       </div>
-      
-      <AllocationPanel 
+
+      <AllocationPanel
         loadPlanId={id}
         initialUnassigned={initialUnassigned}
         initialAssigned={initialAssigned}
         truckCapacity={truckCapacity}
-        isFinalized={loadPlan?.status !== 'DRAFT'}
+        isFinalized={loadPlan.status !== 'DRAFT'}
       />
     </div>
   );
 }
-

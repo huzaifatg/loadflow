@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { toast } from 'sonner';
@@ -10,12 +12,10 @@ import { toast } from 'sonner';
 export function DriverForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData.entries());
@@ -28,10 +28,11 @@ export function DriverForm() {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to add driver');
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || 'Failed to add driver');
       }
 
-      toast.success('Driver added successfully');
+      toast.success('Driver added to roster');
       router.push('/drivers');
       router.refresh();
     } catch (err: unknown) {
@@ -46,64 +47,51 @@ export function DriverForm() {
   }
 
   return (
-    <Card className="max-w-2xl p-6">
-      {error && (
-        <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="md:col-span-2">
+    <Card padding="lg" className="max-w-2xl">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="sm:col-span-2">
             <Input
               name="name"
-              label="Driver Name"
+              label="Driver Full Name"
               required
               placeholder="e.g. Marcus Johnson"
             />
           </div>
-          <div>
-            <Input
-              name="phone"
-              label="Phone Number"
-              placeholder="e.g. 555-0101"
-            />
-          </div>
-          <div>
-            <Input
-              name="licenseNumber"
-              label="License Number"
-              placeholder="e.g. DL-123456"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
+          <Input
+            name="phone"
+            label="Phone Number"
+            placeholder="e.g. (555) 234-5678"
+            hint="Direct contact number for dispatch notifications."
+          />
+          <Input
+            name="licenseNumber"
+            label="CDL / License Number"
+            placeholder="e.g. CDL-849201"
+          />
+          <div className="sm:col-span-2">
+            <Select
               name="status"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
-            >
-              <option value="AVAILABLE">Available</option>
-              <option value="OFF_DUTY">Off Duty</option>
-              <option value="ON_TRIP">On Trip</option>
-            </select>
+              label="Initial Availability Status"
+              defaultValue="AVAILABLE"
+              options={[
+                { value: 'AVAILABLE', label: 'Available for Dispatch' },
+                { value: 'OFF_DUTY', label: 'Off Duty' },
+                { value: 'ON_TRIP', label: 'On Trip' },
+              ]}
+            />
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes (Optional)
-            </label>
-            <textarea
+          <div className="sm:col-span-2">
+            <Textarea
               name="notes"
+              label="Driver Notes (Optional)"
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              placeholder="Any additional information..."
+              placeholder="Certifications, shift preferences, or route familiarity..."
             />
           </div>
         </div>
-        
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+
+        <div className="flex items-center justify-end gap-2.5 border-t border-gray-200 pt-4">
           <Button
             type="button"
             variant="secondary"
@@ -112,7 +100,7 @@ export function DriverForm() {
           >
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
+          <Button type="submit" variant="primary" loading={loading}>
             Add Driver
           </Button>
         </div>

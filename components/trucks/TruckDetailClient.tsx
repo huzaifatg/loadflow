@@ -1,14 +1,31 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card } from '@/components/ui/Card';
-import { StatusPill } from '@/components/ui/StatusPill';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Truck as TruckIcon, Gauge, Calendar, Edit2, Archive, Save, X, ClipboardList } from 'lucide-react';
-import type { Truck } from '@prisma/client';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import type { Truck } from '@prisma/client';
+import {
+  Truck as TruckIcon,
+  Gauge,
+  Calendar,
+  Edit2,
+  Archive,
+  Save,
+  X,
+  ClipboardList,
+  ArrowRight,
+  Tag,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { Card, CardHeader } from '@/components/ui/Card';
+import { StatusBadge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Button, ButtonLink } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface LoadPlanSummary {
   id: string;
@@ -17,20 +34,32 @@ interface LoadPlanSummary {
   _count?: { items: number };
 }
 
-export function TruckDetailClient({ truck, loadPlans = [] }: { truck: Truck; loadPlans?: LoadPlanSummary[] }) {
+export function TruckDetailClient({
+  truck,
+  loadPlans = [],
+}: {
+  truck: Truck;
+  loadPlans?: LoadPlanSummary[];
+}) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: truck.name,
+    type: truck.type,
     plateNumber: truck.plateNumber,
     weightCapacity: truck.weightCapacity,
     status: truck.status,
-    notes: truck.notes || ''
+    notes: truck.notes || '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSave = async () => {
@@ -38,22 +67,22 @@ export function TruckDetailClient({ truck, loadPlans = [] }: { truck: Truck; loa
     try {
       const payload = {
         ...formData,
-        weightCapacity: Number(formData.weightCapacity)
+        weightCapacity: Number(formData.weightCapacity),
       };
-      
+
       const res = await fetch(`/api/trucks/${truck.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
-      
+
       if (res.ok) {
-        toast.success('Truck updated successfully');
+        toast.success('Truck updated');
         setIsEditing(false);
         router.refresh();
       } else {
-        const err = await res.json();
-        toast.error(err.error?.message || 'Failed to update truck');
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error?.message || err?.error || 'Failed to update truck');
       }
     } catch (e) {
       console.error(e);
@@ -64,21 +93,23 @@ export function TruckDetailClient({ truck, loadPlans = [] }: { truck: Truck; loa
   };
 
   const handleArchive = async () => {
-    if (!confirm('Are you sure you want to archive this truck?')) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/trucks/${truck.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isArchived: true })
+        body: JSON.stringify({ isArchived: true }),
       });
-      
+
       if (res.ok) {
-        toast.success('Truck archived successfully');
+        toast.success('Truck archived');
+        setShowArchiveConfirm(false);
         router.push('/trucks');
         router.refresh();
       } else {
-        toast.error('Failed to archive truck');
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error || 'Failed to archive truck');
+        setShowArchiveConfirm(false);
       }
     } catch (e) {
       console.error(e);
@@ -90,147 +121,241 @@ export function TruckDetailClient({ truck, loadPlans = [] }: { truck: Truck; loa
 
   return (
     <div className="space-y-6">
-      <PageHeader 
-        title={truck.name} 
-        description={`Plate: ${truck.plateNumber}`}
+      <ConfirmDialog
+        isOpen={showArchiveConfirm}
+        onClose={() => setShowArchiveConfirm(false)}
+        onConfirm={handleArchive}
+        loading={loading}
+        tone="danger"
+        title={`Archive ${truck.name}?`}
+        description="Archiving removes this vehicle from active fleet selection while preserving historical load plan records."
+        consequences={[
+          'Vehicle will no longer appear in active truck lists or recommendations.',
+          'Historical load plans referencing this truck remain intact.',
+        ]}
+        confirmLabel="Archive Truck"
+      />
+
+      <PageHeader
+        breadcrumbs={[
+          { label: 'Trucks', href: '/trucks' },
+          { label: truck.name },
+        ]}
+        title={truck.name}
+        description={`License Plate: ${truck.plateNumber} • ${truck.type}`}
+        meta={!isEditing && <StatusBadge domain="truck" status={truck.status} />}
       >
-        <div className="flex items-center gap-3">
-          {!isEditing && <StatusPill status={truck.status} />}
-          {!isEditing ? (
-            <>
-              <button 
-                onClick={() => setIsEditing(true)}
-                className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-              >
-                <Edit2 className="h-4 w-4 text-gray-500" /> Edit
-              </button>
-              <button 
-                onClick={handleArchive}
-                className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-red-600 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-red-50"
-              >
-                <Archive className="h-4 w-4" /> Archive
-              </button>
-            </>
-          ) : (
-            <>
-              <button 
-                onClick={handleSave}
-                disabled={loading}
-                className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50"
-              >
-                <Save className="h-4 w-4" /> Save
-              </button>
-              <button 
-                onClick={() => setIsEditing(false)}
-                disabled={loading}
-                className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-              >
-                <X className="h-4 w-4" /> Cancel
-              </button>
-            </>
-          )}
-        </div>
+        {!isEditing ? (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+              Edit Vehicle
+            </Button>
+            <Button
+              type="button"
+              variant="danger-subtle"
+              size="sm"
+              onClick={() => setShowArchiveConfirm(true)}
+            >
+              <Archive className="h-3.5 w-3.5" />
+              Archive
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={loading}
+              onClick={() => setIsEditing(false)}
+            >
+              <X className="h-3.5 w-3.5" />
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              loading={loading}
+              onClick={handleSave}
+            >
+              <Save className="h-3.5 w-3.5" />
+              Save Changes
+            </Button>
+          </>
+        )}
       </PageHeader>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-6 space-y-6 md:col-span-1">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 bg-primary-50 text-primary-600 rounded-2xl flex items-center justify-center">
-              <TruckIcon className="h-7 w-7" />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="p-5 space-y-5 lg:col-span-1">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-primary-100 bg-primary-50 text-primary-600">
+              <TruckIcon className="h-6 w-6" />
             </div>
-            <div className="flex-1">
-              {isEditing ? (
-                <div className="space-y-2">
-                  <input 
-                    type="text" name="name" value={formData.name} onChange={handleChange}
-                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                  />
-                  <input 
-                    type="text" name="plateNumber" value={formData.plateNumber} onChange={handleChange}
-                    className="block w-full rounded-md border-0 py-1.5 font-mono text-sm text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                  />
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                  >
-                    <option value="AVAILABLE">AVAILABLE</option>
-                    <option value="IN_USE">IN USE</option>
-                    <option value="MAINTENANCE">MAINTENANCE</option>
-                  </select>
-                </div>
-              ) : (
-                <>
-                  <h2 className="text-lg font-bold text-gray-900">{truck.name}</h2>
-                  <p className="font-mono text-sm text-gray-500">{truck.plateNumber}</p>
-                </>
-              )}
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-base font-bold text-gray-900">
+                {truck.name}
+              </h2>
+              <p className="font-mono text-xs font-semibold text-gray-500">
+                {truck.plateNumber}
+              </p>
             </div>
           </div>
-          <div className="space-y-3 pt-4 border-t border-gray-100">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500 flex items-center gap-1.5">
-                <Gauge className="h-3.5 w-3.5" /> Capacity (kg)
-              </span>
-              {isEditing ? (
-                <input 
-                  type="number" name="weightCapacity" value={formData.weightCapacity} onChange={handleChange}
-                  className="block w-24 rounded-md border-0 py-1 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 text-right"
-                />
-              ) : (
-                <span className="text-sm font-semibold text-gray-900">{truck.weightCapacity.toLocaleString()} kg</span>
-              )}
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500 flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5" /> Added
-              </span>
-              <span className="text-sm font-medium text-gray-900">{new Date(truck.createdAt).toLocaleDateString()}</span>
-            </div>
-          </div>
-          <div className="pt-4 border-t border-gray-100">
-            <span className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Notes</span>
-            {isEditing ? (
-              <textarea 
-                name="notes" value={formData.notes} onChange={handleChange} rows={3}
-                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-              />
-            ) : (
-              <p className="text-sm text-gray-700">{truck.notes || 'No notes added.'}</p>
-            )}
-          </div>
-        </Card>
 
-        <Card className="p-6 md:col-span-2">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Recent Load Plans</h3>
-          {loadPlans.length > 0 ? (
-            <div className="space-y-3">
-              {loadPlans.map((plan) => (
-                <Link key={plan.id} href={`/loads/${plan.id}`} className="block">
-                  <div className="flex items-center justify-between rounded-lg border border-gray-100 p-3 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <ClipboardList className="h-4 w-4 text-gray-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{new Date(plan.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                        <p className="text-xs text-gray-500">{plan._count?.items || 0} deliveries</p>
-                      </div>
-                    </div>
-                    <StatusPill status={plan.status} />
-                  </div>
-                </Link>
-              ))}
+          {isEditing ? (
+            <div className="space-y-4 border-t border-gray-100 pt-4">
+              <Input
+                label="Vehicle Name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+              />
+              <Input
+                label="License Plate"
+                name="plateNumber"
+                value={formData.plateNumber}
+                onChange={handleChange}
+                required
+              />
+              <Input
+                label="Vehicle Type"
+                name="type"
+                value={formData.type}
+                onChange={handleChange}
+                required
+              />
+              <Input
+                label="Weight Capacity (kg)"
+                type="number"
+                name="weightCapacity"
+                value={formData.weightCapacity}
+                onChange={handleChange}
+                required
+              />
+              <Select
+                label="Operational Status"
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                options={[
+                  { value: 'AVAILABLE', label: 'Available' },
+                  { value: 'IN_USE', label: 'In Use' },
+                  { value: 'MAINTENANCE', label: 'Maintenance' },
+                ]}
+              />
+              <Textarea
+                label="Notes"
+                name="notes"
+                rows={3}
+                value={formData.notes}
+                onChange={handleChange}
+              />
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                <TruckIcon className="h-6 w-6 text-gray-400" />
+            <>
+              <div className="space-y-3 border-t border-gray-100 pt-4 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-gray-500">
+                    <Tag className="h-3.5 w-3.5 text-gray-400" />
+                    Vehicle Type
+                  </span>
+                  <span className="font-semibold text-gray-900">{truck.type}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-gray-500">
+                    <Gauge className="h-3.5 w-3.5 text-gray-400" />
+                    Max Payload
+                  </span>
+                  <span className="font-bold text-gray-900 tabular-nums">
+                    {truck.weightCapacity.toLocaleString()} kg
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-gray-500">
+                    <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                    Registered
+                  </span>
+                  <span className="font-medium text-gray-900 tabular-nums">
+                    {new Date(truck.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
-              <p className="text-sm text-gray-500">No load plans assigned to this truck yet.</p>
-            </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <span className="block text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                  Operational Notes
+                </span>
+                <p className="text-xs leading-relaxed text-gray-600">
+                  {truck.notes || 'No vehicle notes recorded.'}
+                </p>
+              </div>
+            </>
           )}
+        </Card>
+
+        <Card className="lg:col-span-2 flex flex-col">
+          <CardHeader
+            title="Assigned Load Plans"
+            description="Recent load plans scheduled on this vehicle"
+            bordered
+            actions={
+              <ButtonLink href="/loads/new" variant="secondary" size="xs">
+                New Load Plan
+              </ButtonLink>
+            }
+          />
+          <div className="flex-1">
+            {loadPlans.length > 0 ? (
+              <div className="divide-y divide-gray-100">
+                {loadPlans.map((plan) => (
+                  <Link
+                    key={plan.id}
+                    href={`/loads/${plan.id}`}
+                    className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50/80 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-500">
+                        <ClipboardList className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-900">
+                          Plan #{plan.id.slice(-6).toUpperCase()} •{' '}
+                          {new Date(plan.date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {plan._count?.items || 0}{' '}
+                          {plan._count?.items === 1 ? 'delivery' : 'deliveries'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <StatusBadge domain="loadPlan" status={plan.status} />
+                      <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={<ClipboardList className="h-5 w-5" />}
+                title="No load plans assigned to this truck"
+                description="Create a new load plan and select this truck to begin allocating deliveries."
+                actionLabel="Create Load Plan"
+                actionHref="/loads/new"
+              />
+            )}
+          </div>
         </Card>
       </div>
     </div>

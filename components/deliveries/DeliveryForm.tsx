@@ -3,10 +3,14 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { toast } from 'sonner';
-import { DeliveryItemsEditor, type DeliveryItemFormData } from './DeliveryItemsEditor';
+import {
+  DeliveryItemsEditor,
+  type DeliveryItemFormData,
+} from './DeliveryItemsEditor';
 import { computeItemWeight } from '@/lib/delivery-items';
 
 export function DeliveryForm() {
@@ -15,14 +19,16 @@ export function DeliveryForm() {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<DeliveryItemFormData[]>([]);
 
-  // Compute total weight from items
   const itemsWeight = items.reduce((sum, item) => {
-    return sum + computeItemWeight({
-      unitType: item.unitType,
-      quantity: item.quantity,
-      unitWeight: item.unitWeight,
-      totalWeight: item.totalWeight,
-    });
+    return (
+      sum +
+      computeItemWeight({
+        unitType: item.unitType,
+        quantity: item.quantity,
+        unitWeight: item.unitWeight,
+        totalWeight: item.totalWeight,
+      })
+    );
   }, 0);
 
   const hasItems = items.length > 0;
@@ -34,17 +40,16 @@ export function DeliveryForm() {
 
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData.entries());
-    
-    // Build payload
+
     const payload: Record<string, unknown> = {
       customerName: data.customerName,
       pickupAddress: data.pickupAddress,
       deliveryAddress: data.deliveryAddress,
       scheduledDate: data.scheduledDate || null,
+      notes: data.notes || null,
     };
 
     if (hasItems) {
-      // Items mode: weight is computed from items
       payload.items = items.map((item, i) => ({
         productName: item.productName,
         sku: item.sku || null,
@@ -56,14 +61,14 @@ export function DeliveryForm() {
         sortOrder: i,
       }));
 
-      // H-7: Validate items have meaningful weight
       if (itemsWeight <= 0) {
-        toast.error('Items must have a total weight greater than zero. Check your item weights.');
+        toast.error(
+          'Items must have a total weight greater than zero. Check your item weights.'
+        );
         setLoading(false);
         return;
       }
     } else {
-      // Legacy mode: manual weight entry
       payload.weight = parseFloat(data.weight as string) || 0;
     }
 
@@ -75,11 +80,13 @@ export function DeliveryForm() {
       });
 
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error?.message || 'Failed to create delivery');
+        const errData = await res.json().catch(() => null);
+        throw new Error(
+          errData?.error?.message || errData?.error || 'Failed to create delivery'
+        );
       }
 
-      toast.success('Delivery created successfully');
+      toast.success('Delivery order created');
       router.push('/deliveries');
       router.refresh();
     } catch (err: unknown) {
@@ -94,80 +101,84 @@ export function DeliveryForm() {
   }
 
   return (
-    <Card className="max-w-2xl p-6">
+    <Card padding="lg" className="max-w-3xl">
       {error && (
-        <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-700">
+        <div className="mb-5 rounded-lg border border-rose-200 bg-rose-50 p-3.5 text-xs font-medium text-rose-700">
           {error}
         </div>
       )}
-      
+
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="md:col-span-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="sm:col-span-2">
             <Input
               name="customerName"
-              label="Customer Name"
+              label="Customer / Recipient Name"
               required
-              placeholder="e.g. Acme Corp"
+              placeholder="e.g. Sysco Midwest Distribution"
             />
           </div>
-          <div className="md:col-span-2">
+          <div className="sm:col-span-2">
             <Input
               name="pickupAddress"
-              label="Pickup Address"
+              label="Origin / Pickup Address"
               required
-              placeholder="Full address"
+              placeholder="e.g. 1400 Industrial Pkwy, Dallas, TX"
             />
           </div>
-          <div className="md:col-span-2">
+          <div className="sm:col-span-2">
             <Input
               name="deliveryAddress"
-              label="Delivery Address"
+              label="Destination / Delivery Address"
               required
-              placeholder="Full address"
+              placeholder="e.g. 820 Commerce Blvd, Austin, TX"
             />
           </div>
-          <div>
+          <Input
+            name="scheduledDate"
+            label="Requested Delivery Date & Time"
+            type="datetime-local"
+          />
+
+          {!hasItems ? (
             <Input
-              name="scheduledDate"
-              label="Scheduled Date"
-              type="datetime-local"
+              name="weight"
+              label="Total Order Weight (kg)"
+              type="number"
+              min="0.1"
+              step="0.1"
+              required={!hasItems}
+              placeholder="e.g. 2400"
+              hint="Or add itemized SKUs below to auto-compute weight."
             />
-          </div>
-          {/* Show manual weight only if no items */}
-          {!hasItems && (
-            <div>
-              <Input
-                name="weight"
-                label="Total Weight (kg)"
-                type="number"
-                min="0"
-                step="0.1"
-                required={!hasItems}
-                placeholder="e.g. 4500"
-              />
-            </div>
-          )}
-          {/* Show computed weight if items exist */}
-          {hasItems && (
+          ) : (
             <div className="flex flex-col justify-end">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Total Delivery Weight</label>
-              <div className="flex items-center h-[38px] px-3 rounded-md bg-primary-50/50 text-sm font-semibold text-primary-900 ring-1 ring-inset ring-primary-500/20">
+              <label className="mb-1.5 block text-xs font-semibold text-gray-700">
+                Computed Order Weight
+              </label>
+              <div className="flex h-9 items-center rounded-lg border border-primary-200 bg-primary-50/60 px-3 text-sm font-bold text-primary-900 tabular-nums">
                 {itemsWeight > 0
                   ? `${itemsWeight.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`
-                  : 'Add items below to compute'
-                }
+                  : 'Enter item quantities below'}
               </div>
             </div>
           )}
+
+          <div className="sm:col-span-2">
+            <Textarea
+              name="notes"
+              label="Delivery Notes (Optional)"
+              rows={2}
+              placeholder="Receiving hours, dock gate code, or handling instructions..."
+            />
+          </div>
         </div>
 
-        {/* Delivery Items Editor */}
-        <div className="pt-6 mt-2 border-t border-gray-200">
+        <div className="border-t border-gray-200 pt-5">
           <DeliveryItemsEditor items={items} onChange={setItems} />
         </div>
-        
-        <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-gray-200">
+
+        <div className="flex items-center justify-end gap-2.5 border-t border-gray-200 pt-4">
           <Button
             type="button"
             variant="secondary"
@@ -176,8 +187,8 @@ export function DeliveryForm() {
           >
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
-            Create Delivery
+          <Button type="submit" variant="primary" loading={loading}>
+            Create Delivery Order
           </Button>
         </div>
       </form>
