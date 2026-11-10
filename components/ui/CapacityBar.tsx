@@ -1,55 +1,62 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { getCapacityLevel, CAPACITY_TONE } from '@/lib/ui/status';
 
 export interface CapacityBarProps {
   current: number;
   max: number;
+  size?: 'sm' | 'md';
+  showLabel?: boolean;
+  unit?: string;
   className?: string;
 }
 
 export function CapacityBar({
   current,
   max,
+  size = 'md',
+  showLabel = true,
+  unit = 'kg',
   className,
 }: CapacityBarProps) {
-  const pct = max > 0 ? Math.min((current / max) * 100, 100) : 0;
-  const rounded = Math.round(pct);
+  const { pct, rounded, level, isOverweight } = getCapacityLevel(current, max);
+  const colors = CAPACITY_TONE[level];
 
-  const barColor =
-    pct > 85
-      ? 'bg-rose-500'
-      : pct >= 60
-        ? 'bg-amber-500'
-        : 'bg-emerald-500';
-
-  const textColor =
-    pct > 85
-      ? 'text-rose-600'
-      : pct >= 60
-        ? 'text-amber-600'
-        : 'text-emerald-600';
+  if (max <= 0) {
+    return (
+      <div className={cn('text-xs text-gray-400', className)}>
+        No capacity configured
+      </div>
+    );
+  }
 
   return (
     <div className={cn('w-full', className)}>
-      {/* Label */}
-      <div className="mb-1.5 flex items-baseline justify-between text-xs">
-        <span className="font-medium text-gray-700">
-          {current.toLocaleString()}kg{' '}
-          <span className="text-gray-400">
-            / {max.toLocaleString()}kg
+      {showLabel && (
+        <div className="mb-1.5 flex items-baseline justify-between gap-2 text-xs tabular-nums">
+          <span className="font-medium text-gray-700">
+            {current.toLocaleString()} {unit}{' '}
+            <span className="text-gray-400">
+              / {max.toLocaleString()} {unit}
+            </span>
           </span>
-        </span>
-        <span className={cn('font-semibold', textColor)}>
-          {rounded}%
-        </span>
-      </div>
+          <span className={cn('font-semibold', colors.text)}>
+            {rounded}%{isOverweight ? ' (Over)' : ''}
+          </span>
+        </div>
+      )}
 
-      {/* Track */}
-      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+      <div
+        className={cn(
+          'w-full overflow-hidden rounded-full',
+          size === 'sm' ? 'h-1.5' : 'h-2',
+          colors.track
+        )}
+      >
         <div
           className={cn(
-            'h-full rounded-full transition-all duration-500 ease-out animate-fill',
-            barColor
+            'h-full rounded-full transition-all duration-300 ease-out',
+            colors.bar
           )}
           style={{ width: `${pct}%` }}
         />

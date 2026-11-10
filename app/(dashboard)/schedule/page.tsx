@@ -1,14 +1,15 @@
 import React from 'react';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { addDays, startOfWeek, format, isSameDay } from 'date-fns';
+import { ChevronLeft, ChevronRight, Calendar, Plus } from 'lucide-react';
+import type { LoadPlan, Truck, Driver } from '@prisma/client';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { ButtonLink } from '@/components/ui/Button';
+import { StatusBadge } from '@/components/ui/Badge';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
-import { addDays, startOfWeek, format } from 'date-fns';
-import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
-import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-import type { LoadPlan, Truck, Driver } from '@prisma/client';
 import { getAuthContext } from '@/lib/auth';
 
 type LoadPlanWithRelations = LoadPlan & {
@@ -23,20 +24,22 @@ export default async function SchedulePage({
   searchParams: Promise<{ date?: string }>;
 }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) redirect('/login');
 
   const rawDate = (await searchParams).date;
   const baseDate = rawDate ? new Date(rawDate) : new Date();
-  const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 }); // Monday start
+  const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 7);
+  const today = new Date();
 
   let loadPlans: LoadPlanWithRelations[] = [];
   try {
     const auth = await getAuthContext();
-  const company = auth?.company;
-  const companyId = auth?.companyId;
+    const company = auth?.company;
     if (company) {
       loadPlans = await prisma.loadPlan.findMany({
         where: {
@@ -44,98 +47,141 @@ export default async function SchedulePage({
           date: {
             gte: weekStart,
             lt: weekEnd,
-          }
+          },
         },
         include: {
           truck: true,
           driver: true,
-          _count: { select: { items: true } }
-        }
+          _count: { select: { items: true } },
+        },
+        orderBy: { date: 'asc' },
       });
     }
   } catch (err) {
-    console.error("Prisma Connection Error in Schedule:", err);
+    console.error('Prisma Connection Error in Schedule:', err);
   }
 
   const prevWeekStr = format(addDays(weekStart, -7), 'yyyy-MM-dd');
   const nextWeekStr = format(addDays(weekStart, 7), 'yyyy-MM-dd');
+  const todayStr = format(today, 'yyyy-MM-dd');
 
-  // Generate days array
   const days = Array.from({ length: 7 }).map((_, i) => {
     const d = addDays(weekStart, i);
+    const dStr = format(d, 'yyyy-MM-dd');
     return {
       date: d,
-      dateStr: format(d, 'yyyy-MM-dd'),
-      label: format(d, 'EEE, MMM d'),
-      plans: loadPlans.filter(p => format(new Date(p.date), 'yyyy-MM-dd') === format(d, 'yyyy-MM-dd'))
+      dateStr: dStr,
+      dayName: format(d, 'EEE'),
+      dayNumber: format(d, 'MMM d'),
+      isToday: isSameDay(d, today),
+      plans: loadPlans.filter(
+        (p) => format(new Date(p.date), 'yyyy-MM-dd') === dStr
+      ),
     };
   });
 
-  // Sort plans chronologically
-  days.forEach(day => {
-    day.plans.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  });
-
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <PageHeader 
-          title="Schedule Overview" 
-          description="Weekly view of your dispatched and upcoming load plans."
-        >
-          <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-500/10">
-            <Lock className="w-3 h-3 mr-1" />
-            Read-Only View
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Weekly Dispatch Calendar"
+        title="Schedule Overview"
+        description="Chronological 7-day calendar of draft, ready, dispatched, and completed load plans."
+        actionLabel="New Load Plan"
+        actionHref="/loads/new"
+      >
+        <div className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white p-1 shadow-2xs">
+          <ButtonLink
+            href={`/schedule?date=${prevWeekStr}`}
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Previous week"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </ButtonLink>
+          <span className="px-2.5 text-xs font-semibold text-gray-800 tabular-nums">
+            {format(weekStart, 'MMM d')} –{' '}
+            {format(addDays(weekStart, 6), 'MMM d, yyyy')}
           </span>
-        </PageHeader>
-        <div className="flex items-center gap-2 pb-8">
-          <Link href={`/schedule?date=${prevWeekStr}`}>
-            <Button variant="secondary" size="sm"><ChevronLeft className="h-4 w-4" /></Button>
-          </Link>
-          <span className="text-sm font-medium px-4 text-gray-700">
-            {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d, yyyy')}
-          </span>
-          <Link href={`/schedule?date=${nextWeekStr}`}>
-            <Button variant="secondary" size="sm"><ChevronRight className="h-4 w-4" /></Button>
-          </Link>
+          <ButtonLink
+            href={`/schedule?date=${nextWeekStr}`}
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Next week"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </ButtonLink>
+          <ButtonLink
+            href={`/schedule?date=${todayStr}`}
+            variant="secondary"
+            size="xs"
+          >
+            Today
+          </ButtonLink>
         </div>
-      </div>
+      </PageHeader>
 
-      <div className="grid grid-cols-1 xl:grid-cols-7 gap-4 flex-1">
+      <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-7">
         {days.map((day) => (
-          <div key={day.dateStr} className="flex flex-col h-full bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">
-            <div className="bg-gray-50/80 px-4 py-3 border-b border-gray-200 text-center">
-              <span className="text-sm font-semibold text-gray-700">{day.label}</span>
+          <div
+            key={day.dateStr}
+            className={cn(
+              'flex min-h-[260px] flex-col overflow-hidden rounded-xl border bg-white shadow-xs',
+              day.isToday ? 'border-primary-300 ring-1 ring-primary-200' : 'border-gray-200'
+            )}
+          >
+            <div
+              className={cn(
+                'flex items-center justify-between border-b px-3.5 py-2.5',
+                day.isToday
+                  ? 'border-primary-200 bg-primary-50/60'
+                  : 'border-gray-200 bg-gray-50/80'
+              )}
+            >
+              <div>
+                <span
+                  className={cn(
+                    'text-xs font-bold uppercase tracking-wider',
+                    day.isToday ? 'text-primary-700' : 'text-gray-500'
+                  )}
+                >
+                  {day.dayName}
+                </span>
+                <p className="text-xs font-semibold text-gray-900">
+                  {day.dayNumber}
+                </p>
+              </div>
+              <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-600 ring-1 ring-inset ring-gray-200 tabular-nums">
+                {day.plans.length}
+              </span>
             </div>
-            <div className="flex-1 p-3 space-y-3 bg-gray-50/30 overflow-y-auto">
-              {day.plans.map(plan => (
-                <Link key={plan.id} href={`/loads/${plan.id}`}>
-                  <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg group hover:border-gray-200 transition-colors">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className={cn(
-                        "text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase",
-                        plan.status === 'DRAFT' ? "bg-gray-200 text-gray-700" :
-                        plan.status === 'READY' ? "bg-amber-100 text-amber-800" :
-                        plan.status === 'DISPATCHED' ? "bg-blue-100 text-blue-800" :
-                        plan.status === 'COMPLETED' ? "bg-emerald-100 text-emerald-800" :
-                        "bg-gray-100 text-gray-800"
-                      )}>
-                        {plan.status}
-                      </span>
-                      <span className="text-xs font-medium text-gray-500">{plan._count?.items || 0} stops</span>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-900 truncate">
-                      {plan.truck?.name || 'Unassigned'}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {plan.driver?.name || 'No driver'}
-                    </p>
+
+            <div className="flex-1 space-y-2.5 bg-gray-50/20 p-2.5">
+              {day.plans.map((plan) => (
+                <Link
+                  key={plan.id}
+                  href={`/loads/${plan.id}`}
+                  className="block rounded-lg border border-gray-200 bg-white p-2.5 shadow-2xs transition-all hover:border-primary-300 hover:shadow-xs"
+                >
+                  <div className="mb-1.5 flex items-center justify-between gap-1">
+                    <StatusBadge domain="loadPlan" status={plan.status} />
+                    <span className="text-[11px] font-medium text-gray-500 tabular-nums">
+                      {plan._count?.items || 0}{' '}
+                      {plan._count?.items === 1 ? 'stop' : 'stops'}
+                    </span>
                   </div>
+                  <p className="truncate text-xs font-bold text-gray-900">
+                    {plan.truck?.name || 'Unassigned'}
+                  </p>
+                  <p className="truncate text-[11px] text-gray-500">
+                    {plan.driver?.name || 'Driver unassigned'}
+                  </p>
                 </Link>
               ))}
+
               {day.plans.length === 0 && (
-                <div className="h-full min-h-[100px] flex items-center justify-center text-xs text-gray-400">
-                  No plans
+                <div className="flex h-32 flex-col items-center justify-center text-center text-xs text-gray-400">
+                  <Calendar className="mb-1 h-4 w-4 text-gray-300" />
+                  <span>No plans</span>
                 </div>
               )}
             </div>

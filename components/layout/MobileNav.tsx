@@ -9,23 +9,25 @@ import {
   Package,
   Truck,
   ClipboardList,
-  Settings,
-  BookOpen,
+  Calendar,
 } from 'lucide-react';
 
 const navItems = [
-  { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Deliveries', href: '/deliveries', icon: Package },
-  { label: 'Trucks', href: '/trucks', icon: Truck },
+  { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Plans', href: '/loads', icon: ClipboardList },
-  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Deliveries', href: '/deliveries', icon: Package },
+  { label: 'Fleet', href: '/trucks', icon: Truck },
+  { label: 'Schedule', href: '/schedule', icon: Calendar },
 ] as const;
 
 export function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white md:hidden">
+    <nav
+      aria-label="Mobile bottom navigation"
+      className="fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur-md md:hidden"
+    >
       <div className="flex items-stretch">
         {navItems.map((item) => {
           const isActive =
@@ -39,15 +41,21 @@ export function MobileNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors',
+                'relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors',
                 isActive
-                  ? 'text-primary-600'
-                  : 'text-gray-400 active:text-gray-600'
+                  ? 'text-primary-600 font-semibold'
+                  : 'text-gray-500 active:text-gray-800'
               )}
             >
+              {isActive && (
+                <span
+                  className="absolute top-0 h-0.5 w-8 rounded-b bg-primary-600"
+                  aria-hidden
+                />
+              )}
               <item.icon
                 className={cn(
-                  'h-5 w-5',
+                  'h-4 w-4',
                   isActive ? 'text-primary-600' : 'text-gray-400'
                 )}
               />
@@ -57,7 +65,6 @@ export function MobileNav() {
         })}
       </div>
 
-      {/* Safe-area spacer for notched devices */}
       <div className="h-[env(safe-area-inset-bottom)]" />
     </nav>
   );

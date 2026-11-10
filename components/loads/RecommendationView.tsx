@@ -1,11 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Sparkles,
@@ -17,15 +13,19 @@ import {
   AlertTriangle,
   CheckCircle2,
   Info,
-  ArrowLeft,
+  ArrowRight,
   BarChart3,
   Shield,
   Zap,
   TrendingUp,
 } from 'lucide-react';
-import Link from 'next/link';
-
-// ─── Types (mirror API response) ────────────────────────────────────────────
+import { toast } from 'sonner';
+import { Card } from '@/components/ui/Card';
+import { Button, ButtonLink } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
+import { CapacityBar } from '@/components/ui/CapacityBar';
+import { cn } from '@/lib/utils';
 
 interface FactorScore {
   factor: string;
@@ -85,51 +85,71 @@ interface RecommendationResponse {
   }[];
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
 const confidenceConfig = {
-  HIGH: { color: 'text-emerald-600', bg: 'bg-emerald-50', ring: 'ring-emerald-500/20', icon: CheckCircle2, label: 'High Confidence' },
-  MEDIUM: { color: 'text-amber-600', bg: 'bg-amber-50', ring: 'ring-amber-500/20', icon: Info, label: 'Medium Confidence' },
-  LOW: { color: 'text-orange-600', bg: 'bg-orange-50', ring: 'ring-orange-500/20', icon: AlertTriangle, label: 'Low Confidence' },
-  NONE: { color: 'text-red-600', bg: 'bg-red-50', ring: 'ring-red-500/20', icon: AlertTriangle, label: 'No Recommendation' },
+  HIGH: {
+    color: 'text-emerald-700',
+    bg: 'bg-emerald-50/70',
+    border: 'border-emerald-200',
+    icon: CheckCircle2,
+    label: 'High Confidence Fit',
+  },
+  MEDIUM: {
+    color: 'text-amber-700',
+    bg: 'bg-amber-50/70',
+    border: 'border-amber-200',
+    icon: Info,
+    label: 'Moderate Confidence Fit',
+  },
+  LOW: {
+    color: 'text-orange-700',
+    bg: 'bg-orange-50/70',
+    border: 'border-orange-200',
+    icon: AlertTriangle,
+    label: 'Low Confidence Fit',
+  },
+  NONE: {
+    color: 'text-rose-700',
+    bg: 'bg-rose-50/70',
+    border: 'border-rose-200',
+    icon: AlertTriangle,
+    label: 'No Feasible Fit',
+  },
 };
 
 function getScoreColor(score: number) {
   if (score >= 80) return 'text-emerald-600';
   if (score >= 60) return 'text-amber-600';
   if (score >= 40) return 'text-orange-600';
-  return 'text-red-600';
+  return 'text-rose-600';
 }
 
 function getScoreBarColor(score: number) {
   if (score >= 80) return 'bg-emerald-500';
   if (score >= 60) return 'bg-amber-500';
   if (score >= 40) return 'bg-orange-500';
-  return 'bg-red-500';
+  return 'bg-rose-500';
 }
 
 function getFactorLabel(factor: string) {
   const labels: Record<string, string> = {
-    capacityFit: 'Capacity Fit',
-    remainingCapacity: 'Remaining Capacity',
-    truckAvailability: 'Availability',
-    truckWorkload: 'Workload',
-    driverAvailability: 'Availability',
-    driverWorkload: 'Workload',
+    capacityFit: 'Payload Capacity Fit',
+    remainingCapacity: 'Remaining Capacity Headroom',
+    truckAvailability: 'Vehicle Availability',
+    truckWorkload: 'Recent Vehicle Workload',
+    driverAvailability: 'Driver Availability',
+    driverWorkload: 'Recent Driver Workload',
   };
   return labels[factor] || factor;
 }
 
-// ─── Sub-Components ─────────────────────────────────────────────────────────
-
-function ScoreRing({ score, size = 80 }: { score: number; size?: number }) {
+function ScoreRing({ score, size = 60 }: { score: number; size?: number }) {
   const radius = (size - 8) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="transform -rotate-90">
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90 transform">
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -150,11 +170,13 @@ function ScoreRing({ score, size = 80 }: { score: number; size?: number }) {
           strokeDashoffset={offset}
           strokeLinecap="round"
           className={getScoreColor(score)}
-          style={{ transition: 'stroke-dashoffset 0.8s ease-in-out' }}
+          style={{ transition: 'stroke-dashoffset 0.5s ease-out' }}
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className={cn('text-lg font-bold', getScoreColor(score))}>{score}</span>
+        <span className={cn('text-sm font-bold tabular-nums', getScoreColor(score))}>
+          {score}
+        </span>
       </div>
     </div>
   );
@@ -163,79 +185,123 @@ function ScoreRing({ score, size = 80 }: { score: number; size?: number }) {
 function FactorBreakdown({ factors }: { factors: FactorScore[] }) {
   return (
     <div className="space-y-2.5">
-      {factors.map((f) => (
-        <div key={f.factor}>
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium text-gray-600">{getFactorLabel(f.factor)}</span>
-            <span className={cn('font-semibold', getScoreColor(Math.round(f.score * 100)))}>
-              {Math.round(f.score * 100)}%
-            </span>
+      {factors.map((f) => {
+        const pct = Math.round(f.score * 100);
+        return (
+          <div key={f.factor}>
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="font-medium text-gray-700">
+                {getFactorLabel(f.factor)}
+              </span>
+              <span className={cn('font-semibold tabular-nums', getScoreColor(pct))}>
+                {pct}%
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all duration-500',
+                  getScoreBarColor(pct)
+                )}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <p className="mt-0.5 text-[11px] text-gray-500">{f.explanation}</p>
           </div>
-          <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-            <div
-              className={cn('h-full rounded-full transition-all duration-700', getScoreBarColor(Math.round(f.score * 100)))}
-              style={{ width: `${Math.round(f.score * 100)}%` }}
-            />
-          </div>
-          <p className="text-[11px] text-gray-400 mt-0.5">{f.explanation}</p>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function TruckCard({
+function TruckCandidateCard({
   truck,
   rank,
   isBest,
+  isSelected,
+  totalDemandWeight,
+  onSelect,
 }: {
   truck: TruckRecommendation;
   rank: number;
   isBest: boolean;
+  isSelected: boolean;
+  totalDemandWeight: number;
+  onSelect: () => void;
 }) {
   const [expanded, setExpanded] = useState(isBest);
 
   return (
     <div
       className={cn(
-        'rounded-xl border p-4 transition-all duration-200',
-        isBest
-          ? 'border-emerald-200 bg-gradient-to-br from-emerald-50/70 to-white shadow-sm ring-1 ring-emerald-500/10'
-          : 'border-gray-200 bg-white hover:border-gray-300',
+        'rounded-xl border p-4 transition-all',
+        isSelected
+          ? 'border-primary-500 bg-primary-50/30 ring-2 ring-primary-500/15 shadow-xs'
+          : 'border-gray-200 bg-white hover:border-gray-300'
       )}
     >
-      <div className="flex items-start gap-3">
-        <ScoreRing score={truck.totalScore} size={56} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            {isBest && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                <Zap className="h-3 w-3" /> Best Match
-              </span>
-            )}
-            {!isBest && (
-              <span className="text-xs text-gray-400 font-medium">#{rank}</span>
-            )}
+      <div className="flex items-start gap-3.5">
+        <ScoreRing score={truck.totalScore} size={54} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              {isBest ? (
+                <Badge tone="success" size="sm">
+                  <Zap className="h-3 w-3" /> Top Match
+                </Badge>
+              ) : (
+                <Badge tone="neutral" size="sm">
+                  Rank #{rank}
+                </Badge>
+              )}
+              {isSelected && (
+                <Badge tone="primary" size="sm">
+                  Selected
+                </Badge>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant={isSelected ? 'primary' : 'secondary'}
+              size="xs"
+              onClick={onSelect}
+            >
+              {isSelected ? 'Selected' : 'Use Truck'}
+            </Button>
           </div>
-          <h4 className="font-semibold text-gray-900 mt-0.5">{truck.truckName}</h4>
-          <p className="text-xs text-gray-500">{truck.truckPlateNumber}</p>
-          <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
-            <span>Capacity: {truck.truckCapacity.toLocaleString()} kg</span>
-            <span>Available: {truck.remainingCapacity.toLocaleString()} kg</span>
+
+          <h4 className="mt-1.5 text-sm font-bold text-gray-900">
+            {truck.truckName}
+          </h4>
+          <p className="font-mono text-xs text-gray-500">
+            {truck.truckPlateNumber} • {truck.truckCapacity.toLocaleString()} kg max
+          </p>
+
+          <div className="mt-2.5">
+            <CapacityBar
+              current={Math.round(truck.committedWeight + totalDemandWeight)}
+              max={truck.truckCapacity}
+              size="sm"
+            />
           </div>
         </div>
       </div>
 
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mt-3 transition-colors"
+        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-800 cursor-pointer"
       >
-        {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        {expanded ? 'Hide details' : 'Show scoring details'}
+        {expanded ? (
+          <ChevronUp className="h-3.5 w-3.5" />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5" />
+        )}
+        {expanded ? 'Hide factor breakdown' : 'View factor breakdown'}
       </button>
 
       {expanded && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
+        <div className="mt-3 border-t border-gray-100 pt-3">
           <FactorBreakdown factors={truck.factors} />
         </div>
       )}
@@ -243,57 +309,85 @@ function TruckCard({
   );
 }
 
-function DriverCard({
+function DriverCandidateCard({
   driver,
   rank,
   isBest,
+  isSelected,
+  onSelect,
 }: {
   driver: DriverRecommendation;
   rank: number;
   isBest: boolean;
+  isSelected: boolean;
+  onSelect: () => void;
 }) {
   const [expanded, setExpanded] = useState(isBest);
 
   return (
     <div
       className={cn(
-        'rounded-xl border p-4 transition-all duration-200',
-        isBest
-          ? 'border-indigo-200 bg-gradient-to-br from-indigo-50/70 to-white shadow-sm ring-1 ring-indigo-500/10'
-          : 'border-gray-200 bg-white hover:border-gray-300',
+        'rounded-xl border p-4 transition-all',
+        isSelected
+          ? 'border-primary-500 bg-primary-50/30 ring-2 ring-primary-500/15 shadow-xs'
+          : 'border-gray-200 bg-white hover:border-gray-300'
       )}
     >
-      <div className="flex items-start gap-3">
-        <ScoreRing score={driver.totalScore} size={56} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            {isBest && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-700">
-                <Zap className="h-3 w-3" /> Best Match
-              </span>
-            )}
-            {!isBest && (
-              <span className="text-xs text-gray-400 font-medium">#{rank}</span>
-            )}
+      <div className="flex items-start gap-3.5">
+        <ScoreRing score={driver.totalScore} size={54} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              {isBest ? (
+                <Badge tone="success" size="sm">
+                  <Zap className="h-3 w-3" /> Top Match
+                </Badge>
+              ) : (
+                <Badge tone="neutral" size="sm">
+                  Rank #{rank}
+                </Badge>
+              )}
+              {isSelected && (
+                <Badge tone="primary" size="sm">
+                  Selected
+                </Badge>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant={isSelected ? 'primary' : 'secondary'}
+              size="xs"
+              onClick={onSelect}
+            >
+              {isSelected ? 'Selected' : 'Use Driver'}
+            </Button>
           </div>
-          <h4 className="font-semibold text-gray-900 mt-0.5">{driver.driverName}</h4>
-          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-            {driver.driverLicense && <span>License: {driver.driverLicense}</span>}
-            {driver.driverPhone && <span>{driver.driverPhone}</span>}
-          </div>
+
+          <h4 className="mt-1.5 text-sm font-bold text-gray-900">
+            {driver.driverName}
+          </h4>
+          <p className="text-xs text-gray-500">
+            {driver.driverLicense ? `CDL: ${driver.driverLicense}` : 'No license #'}
+            {driver.driverPhone ? ` • ${driver.driverPhone}` : ''}
+          </p>
         </div>
       </div>
 
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mt-3 transition-colors"
+        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-800 cursor-pointer"
       >
-        {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        {expanded ? 'Hide details' : 'Show scoring details'}
+        {expanded ? (
+          <ChevronUp className="h-3.5 w-3.5" />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5" />
+        )}
+        {expanded ? 'Hide factor breakdown' : 'View factor breakdown'}
       </button>
 
       {expanded && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
+        <div className="mt-3 border-t border-gray-100 pt-3">
           <FactorBreakdown factors={driver.factors} />
         </div>
       )}
@@ -301,13 +395,13 @@ function DriverCard({
   );
 }
 
-// ─── Main Component ─────────────────────────────────────────────────────────
-
 export function RecommendationView() {
   const router = useRouter();
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RecommendationResponse | null>(null);
+  const [selectedTruckId, setSelectedTruckId] = useState<string | null>(null);
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [assignedPlanId, setAssignedPlanId] = useState<string | null>(null);
@@ -333,7 +427,9 @@ export function RecommendationView() {
       }
 
       setResult(data);
-      toast.success('Recommendation generated successfully.');
+      setSelectedTruckId(data.recommendation?.truck?.truckId || null);
+      setSelectedDriverId(data.recommendation?.driver?.driverId || null);
+      toast.success('Fleet recommendation generated');
     } catch {
       setError('Network error. Please try again.');
       toast.error('Network error. Please try again.');
@@ -343,7 +439,7 @@ export function RecommendationView() {
   }
 
   async function handleAssign() {
-    if (!result || !result.recommendation.truck) return;
+    if (!result || !selectedTruckId) return;
     setAssigning(true);
 
     try {
@@ -351,9 +447,9 @@ export function RecommendationView() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          truckId: result.recommendation.truck.truckId,
-          driverId: result.recommendation.driver?.driverId || null,
-          deliveryIds: result.deliveries.map(d => d.id),
+          truckId: selectedTruckId,
+          driverId: selectedDriverId || null,
+          deliveryIds: result.deliveries.map((d) => d.id),
           date,
         }),
       });
@@ -365,7 +461,7 @@ export function RecommendationView() {
       }
 
       setAssignedPlanId(data.loadPlan.id);
-      toast.success('Load Plan created successfully!');
+      toast.success('Draft Load Plan created from recommendation');
       router.refresh();
     } catch {
       toast.error('Network error. Please try again.');
@@ -376,260 +472,267 @@ export function RecommendationView() {
 
   const rec = result?.recommendation;
   const conf = rec ? confidenceConfig[rec.confidence] : null;
-  const canAssign = rec && rec.truck && rec.confidence !== 'NONE' && !assignedPlanId;
+  const chosenTruck =
+    rec?.allTrucks.find((t) => t.truckId === selectedTruckId) || rec?.truck;
+  const chosenDriver =
+    rec?.allDrivers.find((d) => d.driverId === selectedDriverId) || rec?.driver;
+  const canAssign =
+    Boolean(rec && chosenTruck && result.deliveries.length > 0 && !assignedPlanId);
 
   return (
     <div className="space-y-6">
-      {/* ── Input Section ── */}
-      <Card className="p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-          <div className="flex-1 w-full sm:w-auto">
-            <label htmlFor="rec-date" className="block text-sm font-medium text-gray-700 mb-1.5">
-              Target Date
-            </label>
+      {/* Target Date Configuration Card */}
+      <Card padding="md">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-sm flex-1">
             <Input
               id="rec-date"
               type="date"
+              label="Target Dispatch Date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="max-w-xs"
+              hint="Evaluates PENDING deliveries scheduled on this date (plus unscheduled orders)."
             />
-            <p className="text-xs text-gray-400 mt-1">
-              Pending deliveries scheduled for this date (or unscheduled) will be evaluated.
-            </p>
           </div>
           <Button
+            type="button"
+            variant="primary"
             onClick={handleGenerate}
-            disabled={loading || !date}
-            className="flex items-center gap-2"
+            loading={loading}
+            disabled={!date}
           >
-            {loading ? (
-              <>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Generate Recommendation
-              </>
-            )}
+            <Sparkles className="h-4 w-4" />
+            Analyze Fleet & Score Candidates
           </Button>
         </div>
       </Card>
 
-      {/* ── Error ── */}
       {error && (
-        <Card className="p-4 border-red-200 bg-red-50">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        </Card>
+        <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-700">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+          <span>{error}</span>
+        </div>
       )}
 
-      {/* ── Results ── */}
       {result && rec && conf && (
         <>
-          {/* Summary Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Card className="p-4 text-center">
-              <Package className="h-5 w-5 text-gray-400 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-900">{result.stats.deliveryCount}</p>
-              <p className="text-xs text-gray-500">Deliveries</p>
+          {/* Summary KPI Bar */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Card className="p-4">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Eligible Deliveries</span>
+                <Package className="h-4 w-4 text-gray-400" />
+              </div>
+              <p className="mt-2 text-2xl font-bold text-gray-900 tabular-nums">
+                {result.stats.deliveryCount}
+              </p>
+              <p className="mt-0.5 text-xs text-gray-500">Pending orders</p>
             </Card>
-            <Card className="p-4 text-center">
-              <BarChart3 className="h-5 w-5 text-gray-400 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-900">{result.totalWeight.toLocaleString()}</p>
-              <p className="text-xs text-gray-500">Total Weight (kg)</p>
+
+            <Card className="p-4">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Aggregate Payload</span>
+                <BarChart3 className="h-4 w-4 text-gray-400" />
+              </div>
+              <p className="mt-2 text-2xl font-bold text-gray-900 tabular-nums">
+                {result.totalWeight.toLocaleString()} kg
+              </p>
+              <p className="mt-0.5 text-xs text-gray-500">Total demand weight</p>
             </Card>
-            <Card className="p-4 text-center">
-              <TrendingUp className="h-5 w-5 text-gray-400 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-900">{rec.utilizationPct}%</p>
-              <p className="text-xs text-gray-500">Utilization</p>
+
+            <Card className="p-4">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Projected Utilization</span>
+                <TrendingUp className="h-4 w-4 text-gray-400" />
+              </div>
+              <p className="mt-2 text-2xl font-bold text-gray-900 tabular-nums">
+                {rec.utilizationPct}%
+              </p>
+              <p className="mt-0.5 text-xs text-gray-500">Top vehicle fit</p>
             </Card>
-            <Card className={cn('p-4 text-center', conf.bg, 'border', conf.ring)}>
-              <conf.icon className={cn('h-5 w-5 mx-auto mb-1', conf.color)} />
-              <p className={cn('text-2xl font-bold', conf.color)}>{rec.confidenceScore}</p>
-              <p className={cn('text-xs', conf.color)}>{conf.label}</p>
+
+            <Card className={cn('p-4', conf.bg, conf.border)}>
+              <div className={cn('flex items-center justify-between text-xs font-medium', conf.color)}>
+                <span>Confidence Score</span>
+                <conf.icon className="h-4 w-4" />
+              </div>
+              <p className={cn('mt-2 text-2xl font-bold tabular-nums', conf.color)}>
+                {rec.confidenceScore} / 100
+              </p>
+              <p className={cn('mt-0.5 text-xs font-semibold', conf.color)}>
+                {conf.label}
+              </p>
             </Card>
           </div>
 
-          {/* Explanation */}
+          {/* Reasoning & One-Click Assignment Banner */}
           <Card className="p-5">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                <Shield className="h-4 w-4 text-indigo-600" />
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary-100 bg-primary-50 text-primary-600">
+                  <Shield className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Scoring Analysis & Recommendation Rationale
+                  </h3>
+                  <ul className="mt-1.5 space-y-1">
+                    {rec.explanations.map((exp, i) => (
+                      <li
+                        key={i}
+                        className="flex items-start gap-2 text-xs text-gray-600"
+                      >
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-primary-500" />
+                        <span>{exp}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Recommendation Summary</h3>
-                <ul className="space-y-1">
-                  {rec.explanations.map((exp, i) => (
-                    <li key={i} className="text-sm text-gray-600 flex items-start gap-2">
-                      <span className="text-gray-300 mt-0.5">•</span>
-                      {exp}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+
+              {chosenTruck && (
+                <div className="shrink-0">
+                  {assignedPlanId ? (
+                    <ButtonLink
+                      href={`/loads/${assignedPlanId}`}
+                      variant="success"
+                      size="md"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Open Created Load Plan
+                      <ArrowRight className="h-4 w-4" />
+                    </ButtonLink>
+                  ) : (
+                    <div className="flex flex-col items-end gap-1.5">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="md"
+                        onClick={handleAssign}
+                        loading={assigning}
+                        disabled={!canAssign}
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Create Draft Plan ({chosenTruck.truckName}
+                        {chosenDriver ? ` + ${chosenDriver.driverName}` : ''})
+                      </Button>
+                      <span className="text-[11px] text-gray-500">
+                        Allocates {result.deliveries.length}{' '}
+                        {result.deliveries.length === 1
+                          ? 'delivery'
+                          : 'deliveries'}{' '}
+                        onto a new DRAFT load plan
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
 
-          {/* ── Assignment Action ── */}
-          {rec.truck && (
-            <Card className={cn(
-              'p-5 border-2 transition-all duration-200',
-              assignedPlanId
-                ? 'border-emerald-200 bg-emerald-50/50'
-                : 'border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white',
-            )}>
-              {assignedPlanId ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-emerald-800">Load Plan Created</p>
-                      <p className="text-sm text-emerald-600">
-                        {rec.truck.truckName} assigned with {result.deliveries.length} deliver{result.deliveries.length !== 1 ? 'ies' : 'y'}
-                      </p>
-                    </div>
-                  </div>
-                  <Link
-                    href={`/loads/${assignedPlanId}`}
-                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
-                  >
-                    View Load Plan
-                  </Link>
+          {/* Ranked Truck & Driver Candidates */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900">
+                  <Truck className="h-4 w-4 text-primary-600" />
+                  Ranked Truck Candidates ({rec.allTrucks.length})
+                </h3>
+                <span className="text-xs text-gray-500">
+                  Click &ldquo;Use Truck&rdquo; to override selection
+                </span>
+              </div>
+              {rec.allTrucks.length > 0 ? (
+                <div className="space-y-3">
+                  {rec.allTrucks.map((truck, i) => (
+                    <TruckCandidateCard
+                      key={truck.truckId}
+                      truck={truck}
+                      rank={i + 1}
+                      isBest={i === 0 && truck.totalScore > 0}
+                      isSelected={selectedTruckId === truck.truckId}
+                      totalDemandWeight={result.totalWeight}
+                      onSelect={() => setSelectedTruckId(truck.truckId)}
+                    />
+                  ))}
                 </div>
               ) : (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-indigo-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">Accept Recommendation</p>
-                      <p className="text-sm text-gray-500">
-                        Create a Load Plan using {rec.truck.truckName}
-                        {rec.driver ? ` with ${rec.driver.driverName}` : ''}
-                        {' '}for {result.deliveries.length} deliver{result.deliveries.length !== 1 ? 'ies' : 'y'}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    onClick={handleAssign}
-                    disabled={!canAssign || assigning}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-                  >
-                    {assigning ? (
-                      <>
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-4 w-4" />
-                        Create Load Plan
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <Card className="p-8 text-center text-xs text-gray-500">
+                  No eligible trucks found for this date.
+                </Card>
               )}
-            </Card>
-          )}
+            </div>
 
-          {/* Truck Recommendations */}
-          <div>
-            <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900 mb-3">
-              <Truck className="h-5 w-5 text-gray-400" />
-              Truck Recommendations
-              <span className="text-xs text-gray-400 font-normal">
-                ({rec.allTrucks.length} candidate{rec.allTrucks.length !== 1 ? 's' : ''})
-              </span>
-            </h3>
-            {rec.allTrucks.length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {rec.allTrucks.map((truck, i) => (
-                  <TruckCard
-                    key={truck.truckId}
-                    truck={truck}
-                    rank={i + 1}
-                    isBest={i === 0 && truck.totalScore > 0}
-                  />
-                ))}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900">
+                  <User className="h-4 w-4 text-primary-600" />
+                  Ranked Driver Candidates ({rec.allDrivers.length})
+                </h3>
+                <span className="text-xs text-gray-500">
+                  Click &ldquo;Use Driver&rdquo; to override selection
+                </span>
               </div>
-            ) : (
-              <Card className="p-6 text-center">
-                <AlertTriangle className="h-6 w-6 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No eligible trucks found.</p>
-              </Card>
-            )}
+              {rec.allDrivers.length > 0 ? (
+                <div className="space-y-3">
+                  {rec.allDrivers.map((driver, i) => (
+                    <DriverCandidateCard
+                      key={driver.driverId}
+                      driver={driver}
+                      rank={i + 1}
+                      isBest={i === 0 && driver.totalScore > 0}
+                      isSelected={selectedDriverId === driver.driverId}
+                      onSelect={() => setSelectedDriverId(driver.driverId)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Card className="p-8 text-center text-xs text-gray-500">
+                  No eligible drivers found for this date.
+                </Card>
+              )}
+            </div>
           </div>
 
-          {/* Driver Recommendations */}
-          <div>
-            <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900 mb-3">
-              <User className="h-5 w-5 text-gray-400" />
-              Driver Recommendations
-              <span className="text-xs text-gray-400 font-normal">
-                ({rec.allDrivers.length} candidate{rec.allDrivers.length !== 1 ? 's' : ''})
-              </span>
-            </h3>
-            {rec.allDrivers.length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {rec.allDrivers.map((driver, i) => (
-                  <DriverCard
-                    key={driver.driverId}
-                    driver={driver}
-                    rank={i + 1}
-                    isBest={i === 0 && driver.totalScore > 0}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="p-6 text-center">
-                <AlertTriangle className="h-6 w-6 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No eligible drivers found.</p>
-              </Card>
-            )}
-          </div>
-
-          {/* Deliveries Evaluated */}
-          <Card className="p-5">
-            <h3 className="font-semibold text-gray-900 mb-3">Deliveries Evaluated ({result.deliveries.length})</h3>
+          {/* Deliveries Evaluated Table */}
+          <Card>
+            <div className="border-b border-gray-200 px-5 py-3.5">
+              <h3 className="text-sm font-bold text-gray-900">
+                Deliveries Evaluated ({result.deliveries.length})
+              </h3>
+            </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <th className="pb-2 pr-4">Customer</th>
-                    <th className="pb-2 pr-4">Address</th>
-                    <th className="pb-2 pr-4 text-right">Weight (kg)</th>
+                  <tr className="border-b border-gray-200 bg-gray-50/80 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-2.5">Customer</th>
+                    <th className="px-4 py-2.5">Destination</th>
+                    <th className="px-4 py-2.5 text-right">Weight (kg)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-gray-100 text-xs">
                   {result.deliveries.map((d) => (
-                    <tr key={d.id}>
-                      <td className="py-2 pr-4 font-medium text-gray-900">{d.customerName}</td>
-                      <td className="py-2 pr-4 text-gray-500 truncate max-w-[200px]">{d.deliveryAddress}</td>
-                      <td className="py-2 pr-4 text-right text-gray-700">{Number(d.weight).toLocaleString()}</td>
+                    <tr key={d.id} className="hover:bg-gray-50/80">
+                      <td className="px-4 py-2.5 font-semibold text-gray-900">
+                        <Link
+                          href={`/deliveries/${d.id}`}
+                          className="hover:text-primary-600"
+                        >
+                          {d.customerName}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-600">
+                        {d.deliveryAddress}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-semibold text-gray-900 tabular-nums">
+                        {Number(d.weight).toLocaleString()} kg
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </Card>
-
-          {/* Navigation */}
-          <div className="flex items-center gap-3">
-            <Link
-              href="/loads"
-              className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" /> Back to Load Plans
-            </Link>
-          </div>
         </>
       )}
     </div>
