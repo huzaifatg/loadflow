@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 13.1 — Recommendation Engine** ✅ COMPLETE
+**Sprint 15 — Product Experience & Complete UI Overhaul (v0.10.0)** ✅ COMPLETE
 ---
 
 ## 3. Overall Progress
@@ -28,7 +28,10 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 11 — Review Import Workflow |
 | ✅ Complete | Sprint 12 — Security Hardening & Multi-Tenant Isolation |
 | ✅ Complete | Sprint 13.1 — Recommendation Engine |
-| ⬜ Next | Sprint 13.2 — TBD |
+| ✅ Complete | Sprint 13.2 — Vehicle-Fit Intelligence |
+| ✅ Complete | Sprint 13.3 — Recommendation-to-Load-Plan Assignment |
+| ✅ Complete | Sprint 14 — Load Plan Lifecycle Integrity (v0.9.0) |
+| ✅ Complete | Sprint 15 — Product Experience & Complete UI Overhaul (v0.10.0) |
 
 ---
 

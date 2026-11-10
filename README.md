@@ -112,7 +112,7 @@ LoadFlow/
 
 ## Current Version
 
-**v0.7.1** — See [PROJECT_STATE.md](PROJECT_STATE.md) for detailed sprint history.
+**v0.10.0** — Sprint 15 Product Experience & Complete UI Overhaul. See [PROJECT_STATE.md](PROJECT_STATE.md) and [docs/SPRINT_15_IMPLEMENTATION_REPORT.md](docs/SPRINT_15_IMPLEMENTATION_REPORT.md) for detailed sprint history.
 
 ## License
 

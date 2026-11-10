@@ -1,8 +1,8 @@
 # Project Health
 
-**Last Updated:** 2026-10-24  
-**Version:** v0.9.0  
-**Branch:** `main` (stable production v0.9.0), `develop` (integration)
+**Last Updated:** 2026-11-10  
+**Version:** v0.10.0  
+**Branch:** `main` (stable production v0.10.0), `develop` (integration)
 
 ---
 
@@ -18,11 +18,12 @@
 | CSV Import | ✅ Production | 6-stage pipeline with rollback support |
 | Recommendations | ✅ Production | Deterministic scoring engine with vehicle-fit intelligence & 1-click assign |
 | Route Optimization | ✅ Production | FFD bin-packing algorithm |
-| Dashboard | ✅ Production | KPI stats, quick actions |
+| Dashboard | ✅ Production (Sprint 15) | Real status distributions, KPI MetricCards, Onboarding checklist, Operational alerts |
+| Design System & Shell | ✅ Production (Sprint 15) | Centralized Tailwind v4 tokens, `lib/ui/status.ts`, 19 UI primitives, `⌘K` Command Palette & `/api/search` |
 | Settings | ✅ Production | Company profile and preferences |
 | TypeScript | ✅ Baseline clean | 0 errors in application code; 9 pre-existing test mock typing errors isolated |
-| Build | ✅ Passing | 42 routes compiled cleanly |
-| Tests | ✅ 319/319 | 58 load plan, 88 recommendation, 173 import (0 failures) |
+| Build | ✅ Passing | 37 routes compiled cleanly |
+| Tests | ✅ 331/331 | 12 design system/status, 58 load plan, 88 recommendation, 173 import (0 failures) |
 
 ---
 
@@ -48,6 +49,7 @@
 | Vehicle-Fit Intelligence | Sprint 13.2 | v0.7.2 |
 | Recommendation-to-Plan Assignment | Sprint 13.3 | v0.8.0 |
 | Load Plan Lifecycle Integrity | Sprint 14 | v0.9.0 |
+| Product Experience & Complete UI Overhaul | Sprint 15 | v0.10.0 |
 
 ---
 
