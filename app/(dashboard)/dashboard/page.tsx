@@ -14,9 +14,10 @@ import {
   Plus,
   FileUp,
   Navigation,
+  CalendarClock,
 } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { getAuthContext } from '@/lib/auth';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { MetricCard } from '@/components/ui/MetricCard';
@@ -26,6 +27,8 @@ import { StatusBadge, Badge } from '@/components/ui/Badge';
 import { CapacityBar } from '@/components/ui/CapacityBar';
 import { ButtonLink } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { getOperationalExceptions } from '@/lib/services/operational-exceptions';
+import { ExceptionCenterPanel } from '@/components/operations/ExceptionCenterPanel';
 
 export default async function DashboardPage() {
   const auth = await getAuthContext();
@@ -47,70 +50,95 @@ export default async function DashboardPage() {
     );
   }
 
+  const todayStart = startOfDay(new Date());
+  const todayEnd = endOfDay(new Date());
+
   const [
-    deliveryGroups,
-    loadPlanGroups,
-    truckGroups,
-    driverGroups,
-    activeLoadPlans,
-    pendingDeliveries,
-    plansMissingDriverCount,
-  ] = await prisma.$transaction([
-    prisma.delivery.groupBy({
-      by: ['status'],
-      where: { companyId, isArchived: false },
-      orderBy: { status: 'asc' },
-      _count: { _all: true },
-    }),
-    prisma.loadPlan.groupBy({
-      by: ['status'],
-      where: { companyId },
-      orderBy: { status: 'asc' },
-      _count: { _all: true },
-    }),
-    prisma.truck.groupBy({
-      by: ['status'],
-      where: { companyId, isArchived: false },
-      orderBy: { status: 'asc' },
-      _count: { _all: true },
-    }),
-    prisma.driver.groupBy({
-      by: ['status'],
-      where: { companyId, isArchived: false },
-      orderBy: { status: 'asc' },
-      _count: { _all: true },
-    }),
-    prisma.loadPlan.findMany({
-      where: {
-        companyId,
-        status: { in: ['DRAFT', 'READY', 'DISPATCHED'] },
-      },
-      include: {
-        truck: true,
-        driver: true,
-        items: {
-          include: {
-            delivery: {
-              select: { id: true, weight: true },
+    [
+      deliveryGroups,
+      loadPlanGroups,
+      truckGroups,
+      driverGroups,
+      activeLoadPlans,
+      pendingDeliveries,
+      plansMissingDriverCount,
+      todaysPlansCount,
+      overdueDeliveriesCount,
+    ],
+    exceptions,
+  ] = await Promise.all([
+    prisma.$transaction([
+      prisma.delivery.groupBy({
+        by: ['status'],
+        where: { companyId, isArchived: false },
+        orderBy: { status: 'asc' },
+        _count: { _all: true },
+      }),
+      prisma.loadPlan.groupBy({
+        by: ['status'],
+        where: { companyId },
+        orderBy: { status: 'asc' },
+        _count: { _all: true },
+      }),
+      prisma.truck.groupBy({
+        by: ['status'],
+        where: { companyId, isArchived: false },
+        orderBy: { status: 'asc' },
+        _count: { _all: true },
+      }),
+      prisma.driver.groupBy({
+        by: ['status'],
+        where: { companyId, isArchived: false },
+        orderBy: { status: 'asc' },
+        _count: { _all: true },
+      }),
+      prisma.loadPlan.findMany({
+        where: {
+          companyId,
+          status: { in: ['DRAFT', 'READY', 'DISPATCHED'] },
+        },
+        include: {
+          truck: true,
+          driver: true,
+          items: {
+            include: {
+              delivery: {
+                select: { id: true, weight: true },
+              },
             },
           },
         },
-      },
-      orderBy: [{ status: 'desc' }, { date: 'asc' }],
-      take: 6,
-    }),
-    prisma.delivery.findMany({
-      where: { companyId, status: 'PENDING', isArchived: false },
-      orderBy: [{ scheduledDate: 'asc' }, { createdAt: 'desc' }],
-      take: 6,
-    }),
-    prisma.loadPlan.count({
-      where: {
-        companyId,
-        status: { in: ['DRAFT', 'READY'] },
-        driverId: null,
-      },
-    }),
+        orderBy: [{ status: 'desc' }, { date: 'asc' }],
+        take: 6,
+      }),
+      prisma.delivery.findMany({
+        where: { companyId, status: 'PENDING', isArchived: false },
+        orderBy: [{ scheduledDate: 'asc' }, { createdAt: 'desc' }],
+        take: 6,
+      }),
+      prisma.loadPlan.count({
+        where: {
+          companyId,
+          status: { in: ['DRAFT', 'READY'] },
+          driverId: null,
+        },
+      }),
+      prisma.loadPlan.count({
+        where: {
+          companyId,
+          date: { gte: todayStart, lte: todayEnd },
+        },
+      }),
+      prisma.delivery.count({
+        where: {
+          companyId,
+          isArchived: false,
+          status: 'PENDING',
+          scheduledDate: { lt: todayStart },
+        },
+      }),
+    ]),
+    getOperationalExceptions(prisma, companyId),
   ]);
 
   const countBy = (
@@ -267,49 +295,72 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {/* Operational Attention Strip (only shown when real actionable conditions exist) */}
-      {(delPending > 0 || plansMissingDriverCount > 0 || truckMaintenance > 0) && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-xs text-amber-900">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="inline-flex items-center gap-1.5 font-semibold">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              Operational Attention:
-            </span>
-            {delPending > 0 && (
+      {/* Today's Dispatch & Urgency Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs text-gray-700 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="inline-flex items-center gap-1.5 font-semibold text-gray-900">
+            <CalendarClock className="h-4 w-4 text-primary-600" />
+            Today ({format(new Date(), 'MMM d, yyyy')}):
+          </span>
+          <Link
+            href="/schedule"
+            className="font-medium text-gray-700 hover:text-primary-600"
+          >
+            <strong className="font-semibold text-gray-900">{todaysPlansCount}</strong>{' '}
+            {todaysPlansCount === 1 ? 'load plan' : 'load plans'} scheduled today
+          </Link>
+          <span className="text-gray-300">•</span>
+          <Link
+            href="/loads?status=READY"
+            className="font-medium text-gray-700 hover:text-primary-600"
+          >
+            <strong className="font-semibold text-blue-700">{planReady}</strong>{' '}
+            ready for dispatch
+          </Link>
+          {overdueDeliveriesCount > 0 && (
+            <>
+              <span className="text-gray-300">•</span>
               <Link
-                href="/deliveries?status=PENDING"
-                className="underline decoration-amber-400 underline-offset-2 hover:text-amber-950 font-medium"
+                href="/deliveries?status=PENDING&schedule=overdue"
+                className="inline-flex items-center gap-1 font-semibold text-red-700 hover:text-red-800"
               >
-                {delPending} pending {delPending === 1 ? 'delivery' : 'deliveries'} awaiting load allocation
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {overdueDeliveriesCount} overdue unassigned {overdueDeliveriesCount === 1 ? 'delivery' : 'deliveries'}
               </Link>
-            )}
-            {plansMissingDriverCount > 0 && (
+            </>
+          )}
+          {plansMissingDriverCount > 0 && (
+            <>
+              <span className="text-gray-300">•</span>
               <Link
-                href="/loads"
-                className="underline decoration-amber-400 underline-offset-2 hover:text-amber-950 font-medium"
+                href="/loads?status=DRAFT"
+                className="font-medium text-amber-700 hover:text-amber-800"
               >
-                {plansMissingDriverCount} active {plansMissingDriverCount === 1 ? 'plan' : 'plans'} missing an assigned driver
+                {plansMissingDriverCount} active {plansMissingDriverCount === 1 ? 'plan' : 'plans'} missing driver
               </Link>
-            )}
-            {truckMaintenance > 0 && (
-              <Link
-                href="/trucks?status=MAINTENANCE"
-                className="underline decoration-amber-400 underline-offset-2 hover:text-amber-950 font-medium"
-              >
-                {truckMaintenance} {truckMaintenance === 1 ? 'truck' : 'trucks'} in maintenance
-              </Link>
-            )}
-          </div>
-          {delPending > 0 && (
-            <Link
-              href="/loads/recommend"
-              className="inline-flex items-center gap-1 font-semibold text-amber-900 hover:text-amber-950"
-            >
-              Run Recommendations <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            </>
           )}
         </div>
-      )}
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/schedule"
+            className="inline-flex items-center gap-1 font-semibold text-gray-700 hover:text-primary-600"
+          >
+            Dispatch Schedule <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+          <Link
+            href="/loads/optimize"
+            className="inline-flex items-center gap-1 font-semibold text-primary-600 hover:text-primary-700"
+          >
+            Multi-Load Optimizer <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </div>
+
+      {/* Sprint 16: Live Operational Exception Center */}
+      <div id="exception-center">
+        <ExceptionCenterPanel exceptions={exceptions} />
+      </div>
 
       {/* 6 Real KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
