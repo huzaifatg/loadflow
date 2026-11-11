@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 15 — Product Experience & Complete UI Overhaul (v0.10.0)** ✅ COMPLETE
+**Sprint 16 — Operational Efficiency, Workflow Intelligence & Production UX (v0.11.0)** ✅ COMPLETE
 ---
 
 ## 3. Overall Progress
@@ -32,6 +32,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 13.3 — Recommendation-to-Load-Plan Assignment |
 | ✅ Complete | Sprint 14 — Load Plan Lifecycle Integrity (v0.9.0) |
 | ✅ Complete | Sprint 15 — Product Experience & Complete UI Overhaul (v0.10.0) |
+| ✅ Complete | Sprint 16 — Operational Efficiency, Workflow Intelligence & Production UX (v0.11.0) |
 
 ---
 
@@ -351,3 +352,16 @@ Deterministic, rule-based scoring engine that recommends the best truck and driv
 - Add geographic proximity factor
 - Add historical performance factor
 - Configurable weights via company settings UI
+
+---
+
+### Sprint 16 — Operational Efficiency, Workflow Intelligence & Production UX (v0.11.0)
+
+#### Summary
+- **Operational Exception Center (`lib/services/operational-exceptions.ts`, `components/operations/ExceptionCenterPanel.tsx`):** Real-time detection of 12 operational bottleneck and risk conditions across Load Plans and Deliveries (`critical`, `warning`, `info`) with entity banners and corrective CTAs.
+- **Bulk Delivery Operations (`lib/services/bulk-deliveries.ts`, `app/api/deliveries/bulk/route.ts`, `components/deliveries/DeliveriesTable.tsx`):** Multi-row selection, aggregate weight (`kg`) calculation, and bulk **Reschedule**, **Cancel**, **Archive**, and **Export Selected CSV** enforcing status/lifecycle rules and tenant ownership.
+- **Saved Views & Filter Presets (`lib/services/saved-views.ts`, `app/api/saved-views/**`, `components/ui/SavedViewsBar.tsx`):** Built-in operational presets and user-persisted custom filter views (`SavedView`) across Deliveries, Load Plans, Trucks, and Drivers.
+- **Activity Timeline (`lib/services/activity.ts`, `components/ui/ActivityTimeline.tsx`):** Transactional append-only `ActivityEvent` audit logging across Load Plan and Delivery operations, rendered on Load Plan and Delivery detail pages.
+- **Notification Center (`app/api/notifications/route.ts`, `components/layout/NotificationCenter.tsx`):** Topbar notification bell and popover combining live operational exceptions (**Action Required**) and workspace activity (**Recent Activity**) with per-user unread cursor persistence (`NotificationState`).
+- **Dispatcher Shortcuts (`components/layout/CommandPalette.tsx`):** Expanded `⌘K` / `Ctrl+K` command palette with 5 instant dispatcher shortcuts.
+- **Dashboard Intelligence (`app/(dashboard)/dashboard/page.tsx`):** Integrated Today's Dispatch & Urgency summary strip and live `ExceptionCenterPanel`.

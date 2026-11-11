@@ -1,8 +1,8 @@
 # Project Health
 
-**Last Updated:** 2026-11-10  
-**Version:** v0.10.0  
-**Branch:** `main` (stable production v0.10.0), `develop` (integration)
+**Last Updated:** 2026-11-11  
+**Version:** v0.11.0  
+**Branch:** `main` (stable production v0.11.0), `develop` (integration)
 
 ---
 
@@ -18,12 +18,13 @@
 | CSV Import | ✅ Production | 6-stage pipeline with rollback support |
 | Recommendations | ✅ Production | Deterministic scoring engine with vehicle-fit intelligence & 1-click assign |
 | Route Optimization | ✅ Production | FFD bin-packing algorithm |
-| Dashboard | ✅ Production (Sprint 15) | Real status distributions, KPI MetricCards, Onboarding checklist, Operational alerts |
-| Design System & Shell | ✅ Production (Sprint 15) | Centralized Tailwind v4 tokens, `lib/ui/status.ts`, 19 UI primitives, `⌘K` Command Palette & `/api/search` |
+| Dashboard | ✅ Production (Sprint 15 & 16) | Real status distributions, KPI MetricCards, Today's Dispatch strip, Live Operational Exception Center |
+| Design System & Shell | ✅ Production (Sprint 15 & 16) | Centralized Tailwind v4 tokens, `lib/ui/status.ts`, UI primitives, `⌘K` Command Palette with Dispatcher Shortcuts, Notification Center |
+| Operational Workflows | ✅ Production (Sprint 16) | Bulk Deliveries (`reschedule`, `cancel`, `archive`, CSV export), Saved Views (`SavedView`), Activity Timeline (`ActivityEvent`) |
 | Settings | ✅ Production | Company profile and preferences |
-| TypeScript | ✅ Baseline clean | 0 errors in application code; 9 pre-existing test mock typing errors isolated |
-| Build | ✅ Passing | 37 routes compiled cleanly |
-| Tests | ✅ 331/331 | 12 design system/status, 58 load plan, 88 recommendation, 173 import (0 failures) |
+| TypeScript | ✅ Baseline clean | 0 errors in application/UI/API/Sprint 16 code; 9 pre-existing test mock typing errors isolated |
+| Build | ✅ Passing | 40 routes compiled cleanly |
+| Tests | ✅ 355/355 | 12 design system/status, 63 load plan & activity, 20 operational exceptions/bulk/saved-views, 88 recommendation, 172 import (0 failures) |
 
 ---
 
@@ -50,6 +51,7 @@
 | Recommendation-to-Plan Assignment | Sprint 13.3 | v0.8.0 |
 | Load Plan Lifecycle Integrity | Sprint 14 | v0.9.0 |
 | Product Experience & Complete UI Overhaul | Sprint 15 | v0.10.0 |
+| Operational Efficiency, Workflow Intelligence & Production UX | Sprint 16 | v0.11.0 |
 
 ---
 
@@ -125,9 +127,12 @@ This is the highest-value next feature because:
 | Import Pipeline | 15 | ✅ Passing |
 | Recommendation Engine | 51 | ✅ Passing |
 | Recommendation Assignment | 37 | ✅ Passing |
-| **Total** | **261** (approx, see note) | **✅ All Passing** |
+| Load Plan Lifecycle, Validation & Service | 58 | ✅ Passing |
+| Design System & Status | 12 | ✅ Passing |
+| Operational Exceptions, Bulk Deliveries, Saved Views & Activity (Sprint 16) | 25 | ✅ Passing |
+| **Total** | **355** | **✅ All Passing (0 failures)** |
 
-Note: Import pipeline test counts are approximate from last full run. Tests use Node.js built-in test runner (`node:test`).
+Note: Tests use Node.js built-in test runner (`node:test`).
 
 ---
 
@@ -135,9 +140,9 @@ Note: Import pipeline test counts are approximate from last full run. Tests use 
 
 | Metric | Value |
 |--------|-------|
-| Total routes | 35 |
+| Total routes | 40 |
 | Static routes | 4 (`/login`, `/signup`, `/icon.svg`, `/_not-found`) |
-| Dynamic routes | 31 (server-rendered on demand) |
-| Compile time | ~9.3s (Turbopack) |
-| TypeScript errors | 0 |
+| Dynamic routes | 36 (server-rendered on demand) |
+| Compile time | ~12.7s (Turbopack) |
+| TypeScript errors | 0 (application/UI/API/Sprint 16 code) |
 | Prisma schema | Valid |

@@ -112,7 +112,7 @@ LoadFlow/
 
 ## Current Version
 
-**v0.10.0** — Sprint 15 Product Experience & Complete UI Overhaul. See [PROJECT_STATE.md](PROJECT_STATE.md) and [docs/SPRINT_15_IMPLEMENTATION_REPORT.md](docs/SPRINT_15_IMPLEMENTATION_REPORT.md) for detailed sprint history.
+**v0.11.0** — Sprint 16 Operational Efficiency, Workflow Intelligence & Production UX (Operational Exception Center, Bulk Delivery Operations, Saved Views & Filter Presets, Transactional Activity Timeline, Notification Center, Dispatcher Shortcuts, and Dashboard Intelligence). See [PROJECT_STATE.md](PROJECT_STATE.md) and [docs/SPRINT_16_IMPLEMENTATION_REPORT.md](docs/SPRINT_16_IMPLEMENTATION_REPORT.md) for detailed sprint history.
 
 ## License
 
