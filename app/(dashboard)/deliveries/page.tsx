@@ -21,10 +21,13 @@ import {
   FilterSelect,
   ClearFiltersButton,
 } from '@/components/ui/FilterBar';
+import { SavedViewsBar } from '@/components/ui/SavedViewsBar';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { serializeDelivery } from '@/lib/delivery-items';
 import { getAuthContext } from '@/lib/auth';
+import { listSavedViews } from '@/lib/services/saved-views';
+import { addDays, startOfDay } from 'date-fns';
 
 const ITEMS_PER_PAGE = 20;
 const VALID_STATUSES = [
@@ -75,6 +78,7 @@ export default async function DeliveriesPage({
   }
 
   const skip = (currentPage - 1) * ITEMS_PER_PAGE;
+  const dueSoonCutoff = addDays(startOfDay(new Date()), 2);
   const whereClause: Prisma.DeliveryWhereInput = {
     companyId,
     isArchived: false,
@@ -85,7 +89,9 @@ export default async function DeliveriesPage({
       ? { scheduledDate: { not: null } }
       : scheduleFilter === 'unscheduled'
         ? { scheduledDate: null }
-        : {}),
+        : scheduleFilter === 'overdue'
+          ? { scheduledDate: { not: null, lt: dueSoonCutoff } }
+          : {}),
     ...(searchQuery
       ? {
           OR: [
@@ -97,39 +103,42 @@ export default async function DeliveriesPage({
       : {}),
   };
 
-  const [statusGroups, totalItems, fetchedDeliveries] =
-    await prisma.$transaction([
-      prisma.delivery.groupBy({
-        by: ['status'],
-        where: { companyId, isArchived: false },
-        orderBy: { status: 'asc' },
-        _count: { _all: true },
-      }),
-      prisma.delivery.count({ where: whereClause }),
-      prisma.delivery.findMany({
-        where: whereClause,
-        orderBy: [{ createdAt: 'desc' }],
-        skip,
-        take: ITEMS_PER_PAGE,
-        include: {
-          items: { orderBy: { sortOrder: 'asc' }, take: 3 },
-          _count: { select: { items: true, loadPlanItems: true } },
-          loadPlanItems: {
-            include: {
-              loadPlan: {
-                select: {
-                  id: true,
-                  status: true,
-                  date: true,
-                  truck: { select: { name: true, plateNumber: true } },
+  const [[statusGroups, totalItems, fetchedDeliveries], customViews] =
+    await Promise.all([
+      prisma.$transaction([
+        prisma.delivery.groupBy({
+          by: ['status'],
+          where: { companyId, isArchived: false },
+          orderBy: { status: 'asc' },
+          _count: { _all: true },
+        }),
+        prisma.delivery.count({ where: whereClause }),
+        prisma.delivery.findMany({
+          where: whereClause,
+          orderBy: [{ createdAt: 'desc' }],
+          skip,
+          take: ITEMS_PER_PAGE,
+          include: {
+            items: { orderBy: { sortOrder: 'asc' }, take: 3 },
+            _count: { select: { items: true, loadPlanItems: true } },
+            loadPlanItems: {
+              include: {
+                loadPlan: {
+                  select: {
+                    id: true,
+                    status: true,
+                    date: true,
+                    truck: { select: { name: true, plateNumber: true } },
+                  },
                 },
               },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
             },
-            orderBy: { createdAt: 'desc' },
-            take: 1,
           },
-        },
-      }),
+        }),
+      ]),
+      listSavedViews(prisma, companyId, auth.userId, 'deliveries'),
     ]);
 
   const deliveries = fetchedDeliveries.map((d) => serializeDelivery(d));
@@ -210,6 +219,9 @@ export default async function DeliveriesPage({
         />
       </div>
 
+      {/* Saved Views & Presets Bar */}
+      <SavedViewsBar workspace="deliveries" initialCustomViews={customViews} />
+
       {/* Filter & Search Toolbar */}
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3.5 shadow-xs xl:flex-row xl:items-center xl:justify-between">
         <FilterTabs
@@ -234,6 +246,7 @@ export default async function DeliveriesPage({
             defaultValue="ALL"
             options={[
               { value: 'ALL', label: 'All Schedules' },
+              { value: 'overdue', label: 'Overdue & Due Soon' },
               { value: 'scheduled', label: 'Has Scheduled Date' },
               { value: 'unscheduled', label: 'Unscheduled Only' },
             ]}

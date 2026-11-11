@@ -4,6 +4,8 @@ import { getAuthContext } from '@/lib/auth'
 import { validatePathId, unauthorizedResponse, invalidIdResponse } from '@/lib/security'
 import type { UpdateDeliveryInput } from '@/types'
 import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items'
+import { recordActivity, actorFromAuth, type ActivityInput } from '@/lib/services/activity'
+import { format } from 'date-fns'
 
 // ─── Valid delivery status values ────────────────────────────────────────────
 const VALID_DELIVERY_STATUSES = ['PENDING', 'ASSIGNED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'] as const
@@ -194,6 +196,52 @@ export async function PUT(
       updateData.archivedAt = body.isArchived ? new Date() : null
     }
 
+    const events: ActivityInput[] = []
+    if (body.status === 'CANCELLED' && existing.status !== 'CANCELLED') {
+      events.push({
+        entityType: 'DELIVERY',
+        entityId: id,
+        type: 'DELIVERY_CANCELLED',
+        message: `Delivery for ${existing.customerName} was cancelled.`,
+      })
+    } else if (body.isArchived === true && !existing.isArchived) {
+      events.push({
+        entityType: 'DELIVERY',
+        entityId: id,
+        type: 'DELIVERY_ARCHIVED',
+        message: `Delivery for ${existing.customerName} was archived.`,
+      })
+    } else if (body.isArchived === false && existing.isArchived) {
+      events.push({
+        entityType: 'DELIVERY',
+        entityId: id,
+        type: 'DELIVERY_RESTORED',
+        message: `Delivery for ${existing.customerName} was restored from archive.`,
+      })
+    } else if (body.scheduledDate !== undefined) {
+      const nextDate = updateData.scheduledDate as Date | null
+      const prevTime = existing.scheduledDate ? existing.scheduledDate.getTime() : null
+      const nextTime = nextDate ? nextDate.getTime() : null
+      if (prevTime !== nextTime) {
+        events.push({
+          entityType: 'DELIVERY',
+          entityId: id,
+          type: 'DELIVERY_RESCHEDULED',
+          message: nextDate
+            ? `Scheduled date updated to ${format(nextDate, 'MMM d, yyyy')}.`
+            : 'Scheduled date cleared (marked unscheduled).',
+        })
+      }
+    }
+    if (events.length === 0 && Object.keys(updateData).length > 0) {
+      events.push({
+        entityType: 'DELIVERY',
+        entityId: id,
+        type: 'DELIVERY_UPDATED',
+        message: `Delivery details updated for ${ (updateData.customerName as string) || existing.customerName }.`,
+      })
+    }
+
     // ── Handle items upsert (TRANSACTIONAL) ──
     // FIX C-7: Wrapping delete + create in a transaction to prevent data loss
     if (body.items !== undefined) {
@@ -231,17 +279,20 @@ export async function PUT(
 
         // Update the delivery itself
         // Defense-in-depth: include companyId in the update WHERE clause
-        return tx.delivery.update({
+        const updated = await tx.delivery.update({
           where: { id, companyId: auth.companyId },
           data: updateData,
           include: {
             items: { orderBy: { sortOrder: 'asc' } },
           },
         })
+        await recordActivity(tx, auth.companyId, actorFromAuth(auth), events)
+        return updated
       })
 
       const { revalidatePath } = await import('next/cache');
       revalidatePath('/deliveries');
+      revalidatePath(`/deliveries/${id}`);
       revalidatePath('/schedule');
 
       return NextResponse.json({ data: delivery, error: null })
@@ -249,16 +300,21 @@ export async function PUT(
 
     // No items change — simple update
     // Defense-in-depth: include companyId in the update WHERE clause
-    const delivery = await prisma.delivery.update({
-      where: { id, companyId: auth.companyId },
-      data: updateData,
-      include: {
-        items: { orderBy: { sortOrder: 'asc' } },
-      },
+    const delivery = await prisma.$transaction(async (tx) => {
+      const updated = await tx.delivery.update({
+        where: { id, companyId: auth.companyId },
+        data: updateData,
+        include: {
+          items: { orderBy: { sortOrder: 'asc' } },
+        },
+      })
+      await recordActivity(tx, auth.companyId, actorFromAuth(auth), events)
+      return updated
     })
 
     const { revalidatePath } = await import('next/cache');
     revalidatePath('/deliveries');
+    revalidatePath(`/deliveries/${id}`);
     revalidatePath('/schedule');
 
     return NextResponse.json({ data: delivery, error: null })

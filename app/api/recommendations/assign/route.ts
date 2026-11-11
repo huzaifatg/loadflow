@@ -8,6 +8,8 @@ import {
   validateDriverConflict,
   getDeliveryDateWarnings,
 } from '@/lib/services/load-plan-validation';
+import { recordActivity, actorFromAuth, summarizeNames, planRef } from '@/lib/services/activity';
+import { format } from 'date-fns';
 
 // ─── POST /api/recommendations/assign ───────────────────────────────────────
 // Create a Load Plan from a dispatcher-approved recommendation.
@@ -219,6 +221,31 @@ export async function POST(request: NextRequest) {
         where: { id: { in: deliveryIds }, status: { not: 'CANCELLED' } },
         data: { status: 'ASSIGNED' },
       });
+
+      const ref = planRef(plan.id);
+      await recordActivity(tx, companyId, actorFromAuth(auth), [
+        {
+          entityType: 'LOAD_PLAN',
+          entityId: plan.id,
+          type: 'LOAD_PLAN_CREATED',
+          message: `Draft plan ${ref} created via Recommendation Engine for ${format(targetDate, 'MMM d, yyyy')} with truck ${truck.name}.`,
+          metadata: { truckId, driverId: driverId || null },
+        },
+        {
+          entityType: 'LOAD_PLAN',
+          entityId: plan.id,
+          type: 'LOAD_PLAN_DELIVERIES_ADDED',
+          message: `Allocated ${deliveries.length} ${deliveries.length === 1 ? 'delivery' : 'deliveries'}: ${summarizeNames(deliveries.map(d => d.customerName))}.`,
+          metadata: { deliveryIds },
+        },
+        ...deliveries.map(d => ({
+          entityType: 'DELIVERY' as const,
+          entityId: d.id,
+          type: 'DELIVERY_ALLOCATED' as const,
+          message: `Allocated to load plan ${ref} via Recommendation Engine.`,
+          metadata: { loadPlanId: plan.id },
+        })),
+      ]);
 
       // Return complete plan with relations
       return tx.loadPlan.findUnique({

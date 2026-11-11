@@ -61,6 +61,7 @@ function createMockDb() {
   ];
 
   let planItems: any[] = [];
+  let activities: any[] = [];
 
   function cloneState() {
     return {
@@ -69,6 +70,7 @@ function createMockDb() {
       deliveries: deliveries.map(d => ({ ...d, scheduledDate: d.scheduledDate ? new Date(d.scheduledDate) : null })),
       plans: plans.map(p => ({ ...p, date: new Date(p.date) })),
       planItems: JSON.parse(JSON.stringify(planItems)),
+      activities: [...activities],
     };
   }
 
@@ -78,6 +80,7 @@ function createMockDb() {
     deliveries = s.deliveries;
     plans = s.plans;
     planItems = s.planItems;
+    activities = s.activities;
   }
 
   const db: LoadPlanDb = {
@@ -136,6 +139,7 @@ function createMockDb() {
               if (where.id?.in && !where.id.in.includes(d.id)) return false;
               if (where.id && typeof where.id === 'string' && d.id !== where.id) return false;
               if (where.isArchived !== undefined && d.isArchived !== where.isArchived) return false;
+              if (typeof where.status === 'string' && d.status !== where.status) return false;
               return true;
             });
             return matches.map(d => {
@@ -240,6 +244,12 @@ function createMockDb() {
             return { count: data.length };
           },
         },
+        activityEvent: {
+          createMany: async ({ data }: any) => {
+            activities.push(...data);
+            return { count: data.length };
+          },
+        },
       };
 
       try {
@@ -253,7 +263,7 @@ function createMockDb() {
 
   return {
     db,
-    getState: () => ({ trucks, drivers, deliveries, plans, planItems }),
+    getState: () => ({ trucks, drivers, deliveries, plans, planItems, activities }),
     seedItems: (items: any[]) => { planItems.push(...items); },
   };
 }
@@ -548,5 +558,78 @@ describe('Load Plan Service — deleteLoadPlan', () => {
     const res = await deleteLoadPlan(mock.db, COMPANY_A, PLAN_B1);
     assert.equal(res.ok, false);
     if (!res.ok) assert.equal(res.status, 404);
+  });
+});
+
+
+describe('Load Plan Service — activity history (Sprint 16)', () => {
+  const ACTOR = { userId: '11111111-1111-4111-8111-111111111111', label: 'dispatcher@example.com' };
+
+  it('records a creation event with actor inside the transaction', async () => {
+    const mock = createMockDb();
+    const res = await createLoadPlan(mock.db, COMPANY_A, { truckId: TRUCK_A1, date: DATE_STR }, ACTOR);
+    assert.equal(res.ok, true);
+    const events = mock.getState().activities;
+    assert.equal(events.length, 1);
+    assert.equal(events[0].type, 'LOAD_PLAN_CREATED');
+    assert.equal(events[0].companyId, COMPANY_A);
+    assert.equal(events[0].actorId, ACTOR.userId);
+    assert.equal(events[0].actorLabel, ACTOR.label);
+  });
+
+  it('records allocation events for the plan and each delivery', async () => {
+    const mock = createMockDb();
+    const res = await updateLoadPlan(mock.db, COMPANY_A, PLAN_A1, { items: [DEL_A1, DEL_A2] }, ACTOR);
+    assert.equal(res.ok, true);
+    const events = mock.getState().activities;
+    const planEvents = events.filter((e: any) => e.entityType === 'LOAD_PLAN');
+    const deliveryEvents = events.filter((e: any) => e.entityType === 'DELIVERY');
+    assert.equal(planEvents.length, 1);
+    assert.equal(planEvents[0].type, 'LOAD_PLAN_DELIVERIES_ADDED');
+    assert.match(planEvents[0].message, /Cust A1/);
+    assert.deepEqual(deliveryEvents.map((e: any) => e.entityId).sort(), [DEL_A1, DEL_A2].sort());
+    assert.ok(deliveryEvents.every((e: any) => e.type === 'DELIVERY_ALLOCATED'));
+  });
+
+  it('does not persist any event when the operation is rejected and rolled back', async () => {
+    const mock = createMockDb();
+    const res = await updateLoadPlan(mock.db, COMPANY_A, PLAN_A1, { items: [DEL_A1, DEL_A_DELIVERED] }, ACTOR);
+    assert.equal(res.ok, false);
+    assert.equal(mock.getState().activities.length, 0);
+  });
+
+  it('records driver assignment, ready, dispatch and completion events', async () => {
+    const mock = createMockDb();
+    await updateLoadPlan(mock.db, COMPANY_A, PLAN_A1, { items: [DEL_A1] }, ACTOR);
+    await updateLoadPlan(mock.db, COMPANY_A, PLAN_A1, { driverId: DRIVER_A1 }, ACTOR);
+    await updateLoadPlan(mock.db, COMPANY_A, PLAN_A1, { status: 'READY' }, ACTOR);
+    const dispatched = await updateLoadPlan(mock.db, COMPANY_A, PLAN_A1, { status: 'DISPATCHED' }, ACTOR);
+    assert.equal(dispatched.ok, true);
+    const completed = await updateLoadPlan(mock.db, COMPANY_A, PLAN_A1, { status: 'COMPLETED' }, ACTOR);
+    assert.equal(completed.ok, true);
+
+    const types = mock.getState().activities.map((e: any) => e.type);
+    for (const t of [
+      'LOAD_PLAN_DRIVER_ASSIGNED',
+      'LOAD_PLAN_MARKED_READY',
+      'LOAD_PLAN_DISPATCHED',
+      'DELIVERY_IN_TRANSIT',
+      'LOAD_PLAN_COMPLETED',
+      'DELIVERY_DELIVERED',
+    ]) {
+      assert.ok(types.includes(t), `expected ${t}`);
+    }
+  });
+
+  it('records deletion and per-delivery release events, skipping cancelled items', async () => {
+    const mock = createMockDb();
+    await updateLoadPlan(mock.db, COMPANY_A, PLAN_A1, { items: [DEL_A1] }, ACTOR);
+    mock.seedItems([{ loadPlanId: PLAN_A1, deliveryId: DEL_A_CANCELLED, sortOrder: 9 }]);
+    const res = await deleteLoadPlan(mock.db, COMPANY_A, PLAN_A1, ACTOR);
+    assert.equal(res.ok, true);
+    const events = mock.getState().activities;
+    const released = events.filter((e: any) => e.type === 'DELIVERY_RELEASED');
+    assert.ok(events.some((e: any) => e.type === 'LOAD_PLAN_DELETED'));
+    assert.deepEqual(released.map((e: any) => e.entityId), [DEL_A1]);
   });
 });

@@ -18,6 +18,9 @@ import {
   Loader2,
   X,
   SlidersHorizontal,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
 } from 'lucide-react';
 import { StatusBadge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
@@ -120,6 +123,46 @@ const STATIC_COMMANDS: PaletteItem[] = [
     sublabel: 'Bulk import deliveries, trucks, or drivers from CSV',
     href: '/import',
     icon: <FileUp className="h-4 w-4 text-gray-500" />,
+  },
+  {
+    id: 'wf-exceptions',
+    group: 'Dispatcher Shortcuts',
+    label: 'Open Operational Exception Center',
+    sublabel: 'Review overdue orders, missing drivers, and capacity blockers',
+    href: '/dashboard#exception-center',
+    icon: <AlertTriangle className="h-4 w-4 text-amber-600" />,
+  },
+  {
+    id: 'wf-pending-del',
+    group: 'Dispatcher Shortcuts',
+    label: 'Open Pending Deliveries Queue',
+    sublabel: 'View unassigned customer orders awaiting load plan allocation',
+    href: '/deliveries?status=PENDING',
+    icon: <Clock className="h-4 w-4 text-amber-600" />,
+  },
+  {
+    id: 'wf-overdue-del',
+    group: 'Dispatcher Shortcuts',
+    label: 'Open Overdue & Due Soon Deliveries',
+    sublabel: 'Filter pending orders scheduled for today, tomorrow, or past due',
+    href: '/deliveries?status=PENDING&schedule=overdue',
+    icon: <AlertTriangle className="h-4 w-4 text-rose-600" />,
+  },
+  {
+    id: 'wf-ready-plans',
+    group: 'Dispatcher Shortcuts',
+    label: 'Open Ready for Dispatch Plans',
+    sublabel: 'View locked load plans verified and ready to put on the road',
+    href: '/loads?status=READY',
+    icon: <CheckCircle2 className="h-4 w-4 text-sky-600" />,
+  },
+  {
+    id: 'wf-avail-trucks',
+    group: 'Dispatcher Shortcuts',
+    label: 'Open Available Fleet Trucks',
+    sublabel: 'Filter vehicle roster to trucks ready for immediate assignment',
+    href: '/trucks?status=AVAILABLE',
+    icon: <Truck className="h-4 w-4 text-emerald-600" />,
   },
   {
     id: 'nav-dashboard',

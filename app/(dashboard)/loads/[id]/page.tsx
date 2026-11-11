@@ -34,6 +34,14 @@ import {
 } from '@/lib/ui/status';
 import { cn } from '@/lib/utils';
 import { getAuthContext } from '@/lib/auth';
+import { listActivityForEntity, type ActivityRecord } from '@/lib/services/activity';
+import {
+  getOperationalExceptions,
+  exceptionsForEntity,
+  type OperationalException,
+} from '@/lib/services/operational-exceptions';
+import { ActivityTimeline } from '@/components/ui/ActivityTimeline';
+import { EntityExceptionBanner } from '@/components/operations/ExceptionCenterPanel';
 
 export default async function LoadPlanBuilderPage({
   params,
@@ -61,6 +69,8 @@ export default async function LoadPlanBuilderPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let unassignedDeliveries: any[] = [];
   let availableDrivers: { id: string; name: string }[] = [];
+  let activityEvents: ActivityRecord[] = [];
+  let planExceptions: OperationalException[] = [];
 
   if (company) {
     try {
@@ -84,30 +94,38 @@ export default async function LoadPlanBuilderPage({
       });
 
       if (loadPlan) {
-        [unassignedDeliveries, availableDrivers] = await prisma.$transaction([
-          prisma.delivery.findMany({
-            where: {
-              companyId: company.id,
-              status: 'PENDING',
-              isArchived: false,
-              loadPlanItems: { none: {} },
-            },
-            include: {
-              items: { orderBy: { sortOrder: 'asc' } },
-              _count: { select: { items: true } },
-            },
-            orderBy: [{ scheduledDate: 'asc' }, { createdAt: 'desc' }],
-          }),
-          prisma.driver.findMany({
-            where: {
-              companyId: company.id,
-              status: 'AVAILABLE',
-              isArchived: false,
-            },
-            select: { id: true, name: true },
-            orderBy: { name: 'asc' },
-          }),
+        const [[unassigned, drivers], events, allExceptions] = await Promise.all([
+          prisma.$transaction([
+            prisma.delivery.findMany({
+              where: {
+                companyId: company.id,
+                status: 'PENDING',
+                isArchived: false,
+                loadPlanItems: { none: {} },
+              },
+              include: {
+                items: { orderBy: { sortOrder: 'asc' } },
+                _count: { select: { items: true } },
+              },
+              orderBy: [{ scheduledDate: 'asc' }, { createdAt: 'desc' }],
+            }),
+            prisma.driver.findMany({
+              where: {
+                companyId: company.id,
+                status: 'AVAILABLE',
+                isArchived: false,
+              },
+              select: { id: true, name: true },
+              orderBy: { name: 'asc' },
+            }),
+          ]),
+          listActivityForEntity(prisma, company.id, 'LOAD_PLAN', id),
+          getOperationalExceptions(prisma, company.id),
         ]);
+        unassignedDeliveries = unassigned;
+        availableDrivers = drivers;
+        activityEvents = events;
+        planExceptions = exceptionsForEntity(allExceptions, id);
       }
     } catch (e) {
       console.error('Load plan fetch error', e);
@@ -192,6 +210,8 @@ export default async function LoadPlanBuilderPage({
           isOverCapacity={isOverweight}
         />
       </PageHeader>
+
+      <EntityExceptionBanner exceptions={planExceptions} />
 
       {/* ── Visual Lifecycle Stepper ─────────────────────────────────────────── */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
@@ -440,6 +460,12 @@ export default async function LoadPlanBuilderPage({
         initialAssigned={initialAssigned}
         truckCapacity={truckCapacity}
         isFinalized={loadPlan.status !== 'DRAFT'}
+      />
+
+      <ActivityTimeline
+        events={activityEvents}
+        title="Load Plan Lifecycle & Audit Log"
+        description="Chronological record of plan creation, delivery allocations, driver assignments, and dispatch transitions"
       />
     </div>
   );

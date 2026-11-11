@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthContext } from '@/lib/auth';
 import { unauthorizedResponse } from '@/lib/security';
 import { createLoadPlan } from '@/lib/services/load-plan-service';
+import { actorFromAuth } from '@/lib/services/activity';
 
 export async function GET() {
   try {
@@ -57,12 +58,17 @@ export async function POST(request: NextRequest) {
 
     // Truck/driver ownership, status, UUIDs, date and conflicts are validated
     // server-side in createLoadPlan(). Driver is optional for a DRAFT.
-    const result = await createLoadPlan(prisma, company.id, {
-      truckId: body.truckId,
-      driverId: body.driverId,
-      date: body.date,
-      notes: body.notes,
-    });
+    const result = await createLoadPlan(
+      prisma,
+      company.id,
+      {
+        truckId: body.truckId,
+        driverId: body.driverId,
+        date: body.date,
+        notes: body.notes,
+      },
+      actorFromAuth(auth),
+    );
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });

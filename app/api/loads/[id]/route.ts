@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthContext } from '@/lib/auth';
 import { validatePathId, unauthorizedResponse, invalidIdResponse } from '@/lib/security';
 import { updateLoadPlan, deleteLoadPlan, PLAN_DETAIL_INCLUDE } from '@/lib/services/load-plan-service';
+import { actorFromAuth } from '@/lib/services/activity';
 
 export async function GET(
   request: NextRequest,
@@ -59,13 +60,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
     }
 
-    const result = await updateLoadPlan(prisma, company.id, id, {
-      truckId: body.truckId,
-      driverId: body.driverId,
-      status: body.status,
-      notes: body.notes,
-      items: body.items,
-    });
+    const result = await updateLoadPlan(
+      prisma,
+      company.id,
+      id,
+      {
+        truckId: body.truckId,
+        driverId: body.driverId,
+        status: body.status,
+        notes: body.notes,
+        items: body.items,
+      },
+      actorFromAuth(auth),
+    );
 
     if (!result.ok) {
       return NextResponse.json(
@@ -104,7 +111,7 @@ export async function DELETE(
     const id = validatePathId((await params).id);
     if (!id) return invalidIdResponse();
 
-    const result = await deleteLoadPlan(prisma, company.id, id);
+    const result = await deleteLoadPlan(prisma, company.id, id, actorFromAuth(auth));
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

@@ -4,6 +4,7 @@ import { getAuthContext } from '@/lib/auth'
 import { unauthorizedResponse } from '@/lib/security'
 import type { CreateDeliveryInput } from '@/types'
 import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items'
+import { recordActivity, actorFromAuth } from '@/lib/services/activity'
 
 // ─── GET /api/deliveries ─────────────────────────────────────────────────────
 // List deliveries for company. Supports ?status= and ?date= filters.
@@ -151,35 +152,48 @@ export async function POST(request: NextRequest) {
       deliveryWeight = recomputeDeliveryWeight(itemsData)
     }
 
-    const delivery = await prisma.delivery.create({
-      data: {
-        companyId,
-        customerName: body.customerName.trim(),
-        pickupAddress: body.pickupAddress.trim(),
-        deliveryAddress: body.deliveryAddress.trim(),
-        weight: deliveryWeight,
-        status: body.status ?? 'PENDING',
-        scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : null,
-        notes: body.notes?.trim() || null,
-        ...(itemsData.length > 0 && {
-          items: {
-            create: itemsData.map(item => ({
-              productName: item.productName,
-              sku: item.sku,
-              quantity: item.quantity,
-              quantityUnit: item.quantityUnit,
-              unitType: item.unitType as 'STANDARD_WEIGHT' | 'VARIABLE_WEIGHT' | 'PIECE_BASED',
-              unitWeight: item.unitWeight,
-              totalWeight: item.totalWeight,
-              notes: item.notes,
-              sortOrder: item.sortOrder,
-            })),
-          },
-        }),
-      },
-      include: {
-        items: { orderBy: { sortOrder: 'asc' } },
-      },
+    const delivery = await prisma.$transaction(async (tx) => {
+      const created = await tx.delivery.create({
+        data: {
+          companyId,
+          customerName: body.customerName.trim(),
+          pickupAddress: body.pickupAddress.trim(),
+          deliveryAddress: body.deliveryAddress.trim(),
+          weight: deliveryWeight,
+          status: body.status ?? 'PENDING',
+          scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : null,
+          notes: body.notes?.trim() || null,
+          ...(itemsData.length > 0 && {
+            items: {
+              create: itemsData.map(item => ({
+                productName: item.productName,
+                sku: item.sku,
+                quantity: item.quantity,
+                quantityUnit: item.quantityUnit,
+                unitType: item.unitType as 'STANDARD_WEIGHT' | 'VARIABLE_WEIGHT' | 'PIECE_BASED',
+                unitWeight: item.unitWeight,
+                totalWeight: item.totalWeight,
+                notes: item.notes,
+                sortOrder: item.sortOrder,
+              })),
+            },
+          }),
+        },
+        include: {
+          items: { orderBy: { sortOrder: 'asc' } },
+        },
+      })
+
+      await recordActivity(tx, companyId, actorFromAuth(auth), [
+        {
+          entityType: 'DELIVERY',
+          entityId: created.id,
+          type: 'DELIVERY_CREATED',
+          message: `Delivery created for ${created.customerName} (${Number(created.weight).toLocaleString()} kg → ${created.deliveryAddress}).`,
+        },
+      ])
+
+      return created
     })
 
     const { revalidatePath } = await import('next/cache');
