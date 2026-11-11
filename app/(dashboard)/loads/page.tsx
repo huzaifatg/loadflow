@@ -33,6 +33,8 @@ import { CapacityBar } from '@/components/ui/CapacityBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PaginationClient } from '@/components/ui/PaginationClient';
 import { LoadPlanCard } from '@/components/loads/LoadPlanCard';
+import { SavedViewsBar } from '@/components/ui/SavedViewsBar';
+import { listSavedViews } from '@/lib/services/saved-views';
 import { cn } from '@/lib/utils';
 
 const VALID_STATUSES = ['DRAFT', 'READY', 'DISPATCHED', 'COMPLETED'] as const;
@@ -102,30 +104,33 @@ export default async function LoadsPage({
         ? { updatedAt: 'desc' }
         : { date: 'desc' };
 
-  const [statusGroups, filteredCount, loads] = await prisma.$transaction([
-    prisma.loadPlan.groupBy({
-      by: ['status'],
-      where: { companyId },
-      orderBy: { status: 'asc' },
-      _count: { _all: true },
-    }),
-    prisma.loadPlan.count({ where: whereClause }),
-    prisma.loadPlan.findMany({
-      where: whereClause,
-      include: {
-        truck: true,
-        driver: true,
-        _count: { select: { items: true } },
-        items: {
-          select: {
-            delivery: { select: { weight: true } },
+  const [[statusGroups, filteredCount, loads], customViews] = await Promise.all([
+    prisma.$transaction([
+      prisma.loadPlan.groupBy({
+        by: ['status'],
+        where: { companyId },
+        orderBy: { status: 'asc' },
+        _count: { _all: true },
+      }),
+      prisma.loadPlan.count({ where: whereClause }),
+      prisma.loadPlan.findMany({
+        where: whereClause,
+        include: {
+          truck: true,
+          driver: true,
+          _count: { select: { items: true } },
+          items: {
+            select: {
+              delivery: { select: { weight: true } },
+            },
           },
         },
-      },
-      orderBy,
-      skip: (currentPage - 1) * pageSize,
-      take: pageSize,
-    }),
+        orderBy,
+        skip: (currentPage - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]),
+    listSavedViews(prisma, companyId, auth.userId, 'loads'),
   ]);
 
   const countStatus = (s: string) => {
@@ -205,6 +210,9 @@ export default async function LoadsPage({
           href="/loads?status=COMPLETED"
         />
       </div>
+
+      {/* Saved Views & Presets Bar */}
+      <SavedViewsBar workspace="loads" initialCustomViews={customViews} />
 
       {/* Filter & Search Toolbar */}
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3.5 shadow-xs lg:flex-row lg:items-center lg:justify-between">

@@ -9,6 +9,14 @@ import { createClient } from '@/lib/supabase/server';
 import { DeliveryDetailClient } from '@/components/deliveries/DeliveryDetailClient';
 import { serializeDelivery } from '@/lib/delivery-items';
 import { getAuthContext } from '@/lib/auth';
+import { listActivityForEntity, type ActivityRecord } from '@/lib/services/activity';
+import {
+  getOperationalExceptions,
+  exceptionsForEntity,
+  type OperationalException,
+} from '@/lib/services/operational-exceptions';
+import { ActivityTimeline } from '@/components/ui/ActivityTimeline';
+import { EntityExceptionBanner } from '@/components/operations/ExceptionCenterPanel';
 
 export default async function DeliveryDetailPage({
   params,
@@ -25,30 +33,39 @@ export default async function DeliveryDetailPage({
   const id = (await params).id;
 
   let delivery = null;
+  let activityEvents: ActivityRecord[] = [];
+  let entityExceptions: OperationalException[] = [];
   try {
     const auth = await getAuthContext();
     const company = auth?.company;
     if (company) {
-      delivery = await prisma.delivery.findUnique({
-        where: { id, companyId: company.id },
-        include: {
-          items: { orderBy: { sortOrder: 'asc' } },
-          loadPlanItems: {
-            include: {
-              loadPlan: {
-                select: {
-                  id: true,
-                  status: true,
-                  date: true,
-                  truck: { select: { id: true, name: true, plateNumber: true } },
-                  driver: { select: { id: true, name: true } },
+      const [foundDelivery, events, allExceptions] = await Promise.all([
+        prisma.delivery.findUnique({
+          where: { id, companyId: company.id },
+          include: {
+            items: { orderBy: { sortOrder: 'asc' } },
+            loadPlanItems: {
+              include: {
+                loadPlan: {
+                  select: {
+                    id: true,
+                    status: true,
+                    date: true,
+                    truck: { select: { id: true, name: true, plateNumber: true } },
+                    driver: { select: { id: true, name: true } },
+                  },
                 },
               },
+              orderBy: { createdAt: 'desc' },
             },
-            orderBy: { createdAt: 'desc' },
           },
-        },
-      });
+        }),
+        listActivityForEntity(prisma, company.id, 'DELIVERY', id),
+        getOperationalExceptions(prisma, company.id),
+      ]);
+      delivery = foundDelivery;
+      activityEvents = events;
+      entityExceptions = exceptionsForEntity(allExceptions, id);
     }
   } catch (err) {
     console.error('Prisma Connection Error in DeliveryDetail:', err);
@@ -82,5 +99,15 @@ export default async function DeliveryDetailPage({
     );
   }
 
-  return <DeliveryDetailClient delivery={serializeDelivery(delivery)} />;
+  return (
+    <div className="space-y-6">
+      <EntityExceptionBanner exceptions={entityExceptions} />
+      <DeliveryDetailClient delivery={serializeDelivery(delivery)} />
+      <ActivityTimeline
+        events={activityEvents}
+        title="Delivery Operational Timeline"
+        description="Chronological audit trail of order creation, schedule changes, and load plan allocations"
+      />
+    </div>
+  );
 }

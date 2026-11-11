@@ -21,6 +21,7 @@ import {
   Building2,
 } from 'lucide-react';
 import type { ShellBreadcrumb } from './DashboardLayoutShell';
+import { NotificationCenter } from './NotificationCenter';
 
 export interface TopbarProps {
   title: string;
@@ -223,6 +224,9 @@ export function Topbar({
             <span className="max-w-[140px] truncate">{companyName}</span>
           </div>
         )}
+
+        {/* Operational Notification Center */}
+        <NotificationCenter />
 
         {/* User profile dropdown */}
         <div ref={profileRef} className="relative">

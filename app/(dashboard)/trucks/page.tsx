@@ -16,12 +16,14 @@ import { TruckCard } from '@/components/trucks/TruckCard';
 import { PaginationClient } from '@/components/ui/PaginationClient';
 import { SearchClient } from '@/components/ui/SearchClient';
 import { FilterTabs, ClearFiltersButton } from '@/components/ui/FilterBar';
+import { SavedViewsBar } from '@/components/ui/SavedViewsBar';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { StatusBadge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthContext } from '@/lib/auth';
+import { listSavedViews } from '@/lib/services/saved-views';
 import { cn } from '@/lib/utils';
 
 const ITEMS_PER_PAGE = 12;
@@ -84,23 +86,26 @@ export default async function TrucksPage({
       : {}),
   };
 
-  const [statusGroups, totalItems, trucks] = await prisma.$transaction([
-    prisma.truck.groupBy({
-      by: ['status'],
-      where: { companyId, isArchived: false },
-      orderBy: { status: 'asc' },
-      _count: { _all: true },
-    }),
-    prisma.truck.count({ where: whereClause }),
-    prisma.truck.findMany({
-      where: whereClause,
-      include: {
-        _count: { select: { loadPlans: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: ITEMS_PER_PAGE,
-    }),
+  const [[statusGroups, totalItems, trucks], customViews] = await Promise.all([
+    prisma.$transaction([
+      prisma.truck.groupBy({
+        by: ['status'],
+        where: { companyId, isArchived: false },
+        orderBy: { status: 'asc' },
+        _count: { _all: true },
+      }),
+      prisma.truck.count({ where: whereClause }),
+      prisma.truck.findMany({
+        where: whereClause,
+        include: {
+          _count: { select: { loadPlans: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: ITEMS_PER_PAGE,
+      }),
+    ]),
+    listSavedViews(prisma, companyId, auth.userId, 'trucks'),
   ]);
 
   const countStatus = (s: string) => {
@@ -169,6 +174,9 @@ export default async function TrucksPage({
           href="/trucks?status=MAINTENANCE"
         />
       </div>
+
+      {/* Saved Views & Presets Bar */}
+      <SavedViewsBar workspace="trucks" initialCustomViews={customViews} />
 
       {/* Filter & Search Toolbar */}
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3.5 shadow-xs sm:flex-row sm:items-center sm:justify-between">

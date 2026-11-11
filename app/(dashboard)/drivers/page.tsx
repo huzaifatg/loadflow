@@ -7,10 +7,12 @@ import { DriversTable } from '@/components/drivers/DriversTable';
 import { PaginationClient } from '@/components/ui/PaginationClient';
 import { SearchClient } from '@/components/ui/SearchClient';
 import { FilterTabs, ClearFiltersButton } from '@/components/ui/FilterBar';
+import { SavedViewsBar } from '@/components/ui/SavedViewsBar';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthContext } from '@/lib/auth';
+import { listSavedViews } from '@/lib/services/saved-views';
 
 const ITEMS_PER_PAGE = 20;
 const VALID_STATUSES = ['AVAILABLE', 'ON_TRIP', 'OFF_DUTY'] as const;
@@ -66,23 +68,26 @@ export default async function DriversPage({
       : {}),
   };
 
-  const [statusGroups, totalItems, drivers] = await prisma.$transaction([
-    prisma.driver.groupBy({
-      by: ['status'],
-      where: { companyId, isArchived: false },
-      orderBy: { status: 'asc' },
-      _count: { _all: true },
-    }),
-    prisma.driver.count({ where: whereClause }),
-    prisma.driver.findMany({
-      where: whereClause,
-      include: {
-        _count: { select: { loadPlans: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: ITEMS_PER_PAGE,
-    }),
+  const [[statusGroups, totalItems, drivers], customViews] = await Promise.all([
+    prisma.$transaction([
+      prisma.driver.groupBy({
+        by: ['status'],
+        where: { companyId, isArchived: false },
+        orderBy: { status: 'asc' },
+        _count: { _all: true },
+      }),
+      prisma.driver.count({ where: whereClause }),
+      prisma.driver.findMany({
+        where: whereClause,
+        include: {
+          _count: { select: { loadPlans: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: ITEMS_PER_PAGE,
+      }),
+    ]),
+    listSavedViews(prisma, companyId, auth.userId, 'drivers'),
   ]);
 
   const countStatus = (s: string) => {
@@ -142,6 +147,9 @@ export default async function DriversPage({
           href="/drivers?status=OFF_DUTY"
         />
       </div>
+
+      {/* Saved Views & Presets Bar */}
+      <SavedViewsBar workspace="drivers" initialCustomViews={customViews} />
 
       {/* Filter & Search Toolbar */}
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3.5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
