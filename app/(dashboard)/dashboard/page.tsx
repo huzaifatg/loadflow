@@ -144,15 +144,13 @@ export default async function DashboardPage() {
       }),
     ]),
     getOperationalExceptions(prisma, companyId),
-    prisma.shipmentTrackingLink
-      .count({
-        where: {
-          companyId,
-          status: 'ACTIVE',
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-        },
-      })
-      .catch(() => 0),
+    prisma.shipmentTrackingLink.count({
+      where: {
+        companyId,
+        status: 'ACTIVE',
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+    }),
     getDispatchConflicts(prisma, companyId),
   ]);
 

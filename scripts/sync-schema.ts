@@ -341,6 +341,17 @@ async function main() {
   console.log(
     `Verified listActivityForEntity() call succeeded cleanly (returned ${events.length} events).`
   )
+
+  const activeTrackingCount = await prisma.shipmentTrackingLink.count({
+    where: {
+      companyId: testCompanyId,
+      status: 'ACTIVE',
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
+  })
+  console.log(
+    `Verified prisma.shipmentTrackingLink.count() succeeded cleanly (returned ${activeTrackingCount} active links).`
+  )
 }
 
 main()

@@ -164,7 +164,7 @@ export function Sidebar({
                 LoadFlow
               </span>
               <span className="block truncate text-[11px] font-medium text-gray-400">
-                Logistics OS v0.9
+                Logistics OS v0.12
               </span>
             </div>
           </Link>
