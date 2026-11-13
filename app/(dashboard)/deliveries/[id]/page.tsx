@@ -17,6 +17,11 @@ import {
 } from '@/lib/services/operational-exceptions';
 import { ActivityTimeline } from '@/components/ui/ActivityTimeline';
 import { EntityExceptionBanner } from '@/components/operations/ExceptionCenterPanel';
+import {
+  getDeliveryTrackingState,
+  type AuthenticatedTrackingView,
+} from '@/lib/services/tracking';
+import { CustomerTrackingPanel } from '@/components/deliveries/CustomerTrackingPanel';
 
 export default async function DeliveryDetailPage({
   params,
@@ -35,11 +40,12 @@ export default async function DeliveryDetailPage({
   let delivery = null;
   let activityEvents: ActivityRecord[] = [];
   let entityExceptions: OperationalException[] = [];
+  let trackingState: AuthenticatedTrackingView = { link: null, events: [] };
   try {
     const auth = await getAuthContext();
     const company = auth?.company;
     if (company) {
-      const [foundDelivery, events, allExceptions] = await Promise.all([
+      const [foundDelivery, events, allExceptions, foundTracking] = await Promise.all([
         prisma.delivery.findUnique({
           where: { id, companyId: company.id },
           include: {
@@ -62,10 +68,12 @@ export default async function DeliveryDetailPage({
         }),
         listActivityForEntity(prisma, company.id, 'DELIVERY', id),
         getOperationalExceptions(prisma, company.id),
+        getDeliveryTrackingState(prisma, company.id, id),
       ]);
       delivery = foundDelivery;
       activityEvents = events;
       entityExceptions = exceptionsForEntity(allExceptions, id);
+      trackingState = foundTracking;
     }
   } catch (err) {
     console.error('Prisma Connection Error in DeliveryDetail:', err);
@@ -103,6 +111,15 @@ export default async function DeliveryDetailPage({
     <div className="space-y-6">
       <EntityExceptionBanner exceptions={entityExceptions} />
       <DeliveryDetailClient delivery={serializeDelivery(delivery)} />
+      <CustomerTrackingPanel
+        deliveryId={delivery.id}
+        customerName={delivery.customerName}
+        deliveryStatus={delivery.status}
+        scheduledDate={
+          delivery.scheduledDate ? delivery.scheduledDate.toISOString() : null
+        }
+        initialTracking={trackingState}
+      />
       <ActivityTimeline
         events={activityEvents}
         title="Delivery Operational Timeline"

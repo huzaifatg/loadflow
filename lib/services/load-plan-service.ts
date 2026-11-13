@@ -29,6 +29,7 @@ import {
   dispatchableDeliveries,
 } from './load-plan-lifecycle'
 import { recordActivity, summarizeNames, planRef, type ActivityActor, type ActivityInput } from './activity'
+import { recordLifecycleTrackingEvent } from './tracking'
 import { format } from 'date-fns'
 
 type Tx = Prisma.TransactionClient
@@ -448,6 +449,13 @@ async function applyEdit(
             message: `Allocated to load plan ${ref}.`,
             metadata: { loadPlanId: plan.id },
           })
+          await recordLifecycleTrackingEvent(tx, {
+            companyId,
+            deliveryId: id,
+            eventType: 'DELIVERY_ASSIGNED',
+            title: 'Assigned to Dispatch Plan',
+            description: `Shipment scheduled on dispatch plan for ${format(plan.date, 'MMM d, yyyy')}.`,
+          })
         }
       }
       if (toRelease.length > 0) {
@@ -558,6 +566,13 @@ async function applyTransition(
         message: `In transit on dispatched plan ${ref}.`,
         metadata: { loadPlanId: plan.id },
       })
+      await recordLifecycleTrackingEvent(tx, {
+        companyId,
+        deliveryId: d.id,
+        eventType: 'IN_TRANSIT',
+        title: 'Shipment Dispatched — In Transit',
+        description: 'Carrier vehicle has departed and your shipment is en route.',
+      })
     }
     return
   }
@@ -601,6 +616,13 @@ async function applyTransition(
         type: 'DELIVERY_DELIVERED',
         message: `Delivered via plan ${ref}.`,
         metadata: { loadPlanId: plan.id },
+      })
+      await recordLifecycleTrackingEvent(tx, {
+        companyId,
+        deliveryId: id,
+        eventType: 'DELIVERED',
+        title: 'Delivered',
+        description: 'Shipment successfully delivered to destination.',
       })
     }
     return

@@ -42,13 +42,14 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
-  // Redirect unauthenticated users to login (except auth pages and API routes)
+  // Redirect unauthenticated users to login (except auth pages, public tracking pages, and API routes)
   if (
     !user &&
     request.nextUrl.pathname !== '/' &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/signup') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
+    !request.nextUrl.pathname.startsWith('/track') &&
     !request.nextUrl.pathname.startsWith('/api')
   ) {
     const url = request.nextUrl.clone()

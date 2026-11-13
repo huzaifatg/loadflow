@@ -15,6 +15,9 @@ import {
   Calendar,
   FileText,
   Clock,
+  Share2,
+  ShieldOff,
+  MapPin,
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from './Card';
 import { cn } from '@/lib/utils';
@@ -112,6 +115,37 @@ function getEventStyle(type: string): EventStyle {
         icon: <Trash2 className="h-3.5 w-3.5 text-rose-600" />,
         ring: 'bg-rose-50 border-rose-200',
         label: 'Deleted',
+      };
+    case 'TRACKING_LINK_GENERATED':
+    case 'TRACKING_LINK_REGENERATED':
+    case 'TRACKING_EXPIRATION_UPDATED':
+      return {
+        icon: <Share2 className="h-3.5 w-3.5 text-primary-600" />,
+        ring: 'bg-primary-50 border-primary-200',
+        label:
+          type === 'TRACKING_LINK_GENERATED'
+            ? 'Tracking Link Generated'
+            : type === 'TRACKING_LINK_REGENERATED'
+              ? 'Tracking Link Rotated'
+              : 'Tracking Expiration Updated',
+      };
+    case 'TRACKING_LINK_REVOKED':
+      return {
+        icon: <ShieldOff className="h-3.5 w-3.5 text-rose-600" />,
+        ring: 'bg-rose-50 border-rose-200',
+        label: 'Tracking Link Revoked',
+      };
+    case 'DELIVERY_ETA_UPDATED':
+      return {
+        icon: <Calendar className="h-3.5 w-3.5 text-primary-600" />,
+        ring: 'bg-primary-50 border-primary-200',
+        label: 'ETA Updated',
+      };
+    case 'TRACKING_MILESTONE_ADDED':
+      return {
+        icon: <MapPin className="h-3.5 w-3.5 text-emerald-600" />,
+        ring: 'bg-emerald-50 border-emerald-200',
+        label: 'Customer Tracking Milestone',
       };
     default:
       return {

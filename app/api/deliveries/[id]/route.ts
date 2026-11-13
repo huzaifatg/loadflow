@@ -5,6 +5,7 @@ import { validatePathId, unauthorizedResponse, invalidIdResponse } from '@/lib/s
 import type { UpdateDeliveryInput } from '@/types'
 import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items'
 import { recordActivity, actorFromAuth, type ActivityInput } from '@/lib/services/activity'
+import { recordLifecycleTrackingEvent } from '@/lib/services/tracking'
 import { format } from 'date-fns'
 
 // ─── Valid delivery status values ────────────────────────────────────────────
@@ -309,6 +310,16 @@ export async function PUT(
         },
       })
       await recordActivity(tx, auth.companyId, actorFromAuth(auth), events)
+      if (body.status === 'CANCELLED' && existing.status !== 'CANCELLED') {
+        await recordLifecycleTrackingEvent(tx, {
+          companyId: auth.companyId,
+          deliveryId: id,
+          eventType: 'DELIVERY_CANCELLED',
+          title: 'Shipment Cancelled',
+          description: 'This delivery order has been cancelled.',
+          createdByUserId: auth.userId,
+        })
+      }
       return updated
     })
 
