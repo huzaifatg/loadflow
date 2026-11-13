@@ -84,6 +84,9 @@ export async function PATCH(
     const { revalidatePath } = await import('next/cache');
     revalidatePath(`/loads/${id}`);
     revalidatePath('/loads');
+    revalidatePath('/dispatch');
+    revalidatePath('/dispatch/calendar');
+    revalidatePath('/dashboard');
     revalidatePath('/schedule');
     revalidatePath('/deliveries'); // Refresh deliveries list since they may now be assigned
 
@@ -118,6 +121,9 @@ export async function DELETE(
 
     const { revalidatePath } = await import('next/cache');
     revalidatePath('/loads');
+    revalidatePath('/dispatch');
+    revalidatePath('/dispatch/calendar');
+    revalidatePath('/dashboard');
     revalidatePath('/schedule');
     revalidatePath('/deliveries');
 

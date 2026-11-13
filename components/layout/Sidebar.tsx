@@ -23,6 +23,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Building2,
+  Kanban,
 } from 'lucide-react';
 
 interface NavItem {
@@ -42,7 +43,8 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Overview',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
-      { label: 'Schedule', href: '/schedule', icon: Calendar },
+      { label: 'Dispatch Board', href: '/dispatch', icon: Kanban, exact: true },
+      { label: 'Dispatch Calendar', href: '/dispatch/calendar', icon: Calendar },
     ],
   },
   {
@@ -162,7 +164,7 @@ export function Sidebar({
                 LoadFlow
               </span>
               <span className="block truncate text-[11px] font-medium text-gray-400">
-                Logistics OS v0.9
+                Logistics OS v0.12
               </span>
             </div>
           </Link>

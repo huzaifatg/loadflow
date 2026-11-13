@@ -40,6 +40,10 @@ import {
   exceptionsForEntity,
   type OperationalException,
 } from '@/lib/services/operational-exceptions';
+import {
+  getDispatchConflicts,
+  type PlanDispatchReadinessDTO,
+} from '@/lib/services/dispatch-conflicts';
 import { ActivityTimeline } from '@/components/ui/ActivityTimeline';
 import { EntityExceptionBanner } from '@/components/operations/ExceptionCenterPanel';
 
@@ -71,6 +75,7 @@ export default async function LoadPlanBuilderPage({
   let availableDrivers: { id: string; name: string }[] = [];
   let activityEvents: ActivityRecord[] = [];
   let planExceptions: OperationalException[] = [];
+  let planReadiness: PlanDispatchReadinessDTO | null = null;
 
   if (company) {
     try {
@@ -94,7 +99,7 @@ export default async function LoadPlanBuilderPage({
       });
 
       if (loadPlan) {
-        const [[unassigned, drivers], events, allExceptions] = await Promise.all([
+        const [[unassigned, drivers], events, allExceptions, conflictInfo] = await Promise.all([
           prisma.$transaction([
             prisma.delivery.findMany({
               where: {
@@ -121,11 +126,13 @@ export default async function LoadPlanBuilderPage({
           ]),
           listActivityForEntity(prisma, company.id, 'LOAD_PLAN', id),
           getOperationalExceptions(prisma, company.id),
+          getDispatchConflicts(prisma, company.id, { planId: id }),
         ]);
         unassignedDeliveries = unassigned;
         availableDrivers = drivers;
         activityEvents = events;
         planExceptions = exceptionsForEntity(allExceptions, id);
+        planReadiness = conflictInfo.readinessByPlan[id] ?? null;
       }
     } catch (e) {
       console.error('Load plan fetch error', e);
@@ -200,8 +207,24 @@ export default async function LoadPlanBuilderPage({
         ]}
         title={`Load Plan #${loadPlan.id.slice(-6).toUpperCase()}`}
         description={`${loadPlan.truck.name} (${loadPlan.truck.plateNumber}) • Planned for ${format(new Date(loadPlan.date), 'MMMM d, yyyy')}`}
-        meta={<StatusBadge domain="loadPlan" status={loadPlan.status} />}
+        meta={
+          <div className="flex items-center gap-1.5">
+            <StatusBadge domain="loadPlan" status={loadPlan.status} />
+            {planReadiness && (
+              <Badge tone={planReadiness.readinessTone} size="sm" dot>
+                {planReadiness.readinessLabel}
+              </Badge>
+            )}
+          </div>
+        }
       >
+        <ButtonLink
+          href={`/dispatch?date=${format(new Date(loadPlan.date), 'yyyy-MM-dd')}`}
+          variant="secondary"
+          size="sm"
+        >
+          Dispatch Board
+        </ButtonLink>
         <LoadPlanActions
           loadPlanId={id}
           currentStatus={loadPlan.status}
@@ -212,6 +235,28 @@ export default async function LoadPlanBuilderPage({
       </PageHeader>
 
       <EntityExceptionBanner exceptions={planExceptions} />
+
+      {/* Sprint 18: Scheduling Conflicts & Readiness Reasons */}
+      {planReadiness && planReadiness.conflicts.some((c) => c.code === 'TRUCK_CONFLICT' || c.code === 'DRIVER_CONFLICT' || c.code === 'DELIVERY_DATE_MISMATCH') && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-3.5 text-xs text-rose-900 space-y-1.5">
+          <p className="font-bold flex items-center gap-1.5">
+            <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+            Scheduling & Resource Intelligence Alerts
+          </p>
+          {planReadiness.conflicts
+            .filter(
+              (c) =>
+                c.code === 'TRUCK_CONFLICT' ||
+                c.code === 'DRIVER_CONFLICT' ||
+                c.code === 'DELIVERY_DATE_MISMATCH'
+            )
+            .map((c) => (
+              <p key={c.id} className="text-rose-800">
+                • <strong>{c.title}:</strong> {c.message}
+              </p>
+            ))}
+        </div>
+      )}
 
       {/* ── Visual Lifecycle Stepper ─────────────────────────────────────────── */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">

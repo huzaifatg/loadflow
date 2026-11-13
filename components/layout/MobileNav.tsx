@@ -9,15 +9,15 @@ import {
   Package,
   Truck,
   ClipboardList,
-  Calendar,
+  Kanban,
 } from 'lucide-react';
 
 const navItems = [
   { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Dispatch', href: '/dispatch', icon: Kanban },
   { label: 'Plans', href: '/loads', icon: ClipboardList },
   { label: 'Deliveries', href: '/deliveries', icon: Package },
   { label: 'Fleet', href: '/trucks', icon: Truck },
-  { label: 'Schedule', href: '/schedule', icon: Calendar },
 ] as const;
 
 export function MobileNav() {

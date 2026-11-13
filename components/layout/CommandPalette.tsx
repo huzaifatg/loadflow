@@ -173,6 +173,22 @@ const STATIC_COMMANDS: PaletteItem[] = [
     icon: <LayoutDashboard className="h-4 w-4 text-gray-500" />,
   },
   {
+    id: 'nav-dispatch',
+    group: 'Navigation',
+    label: 'Dispatch Board',
+    sublabel: 'Central dispatch workspace, resource availability, and conflict detection',
+    href: '/dispatch',
+    icon: <ClipboardList className="h-4 w-4 text-primary-600" />,
+  },
+  {
+    id: 'nav-dispatch-calendar',
+    group: 'Navigation',
+    label: 'Dispatch Calendar',
+    sublabel: '7-day and daily dispatch scheduling calendar with readiness status',
+    href: '/dispatch/calendar',
+    icon: <Calendar className="h-4 w-4 text-primary-600" />,
+  },
+  {
     id: 'nav-loads',
     group: 'Navigation',
     label: 'Load Plans Workspace',
