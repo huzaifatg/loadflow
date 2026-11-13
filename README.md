@@ -112,7 +112,7 @@ LoadFlow/
 
 ## Current Version
 
-**v0.11.0** — Sprint 16 Operational Efficiency, Workflow Intelligence & Production UX (Operational Exception Center, Bulk Delivery Operations, Saved Views & Filter Presets, Transactional Activity Timeline, Notification Center, Dispatcher Shortcuts, and Dashboard Intelligence). See [PROJECT_STATE.md](PROJECT_STATE.md) and [docs/SPRINT_16_IMPLEMENTATION_REPORT.md](docs/SPRINT_16_IMPLEMENTATION_REPORT.md) for detailed sprint history.
+**v0.12.0** — Sprint 17 Customer Visibility & Shipment Tracking (Secure shareable tracking links, public customer tracking portal, privacy-protected public tracking API, customer-visible shipment milestones, ETA management, and tracking auditability). See [PROJECT_STATE.md](PROJECT_STATE.md) and [docs/SPRINT_17_IMPLEMENTATION_REPORT.md](docs/SPRINT_17_IMPLEMENTATION_REPORT.md) for detailed sprint history.
 
 ## License
 

@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 16 — Operational Efficiency, Workflow Intelligence & Production UX (v0.11.0)** ✅ COMPLETE
+**Sprint 17 — Customer Visibility & Shipment Tracking (v0.12.0)** ✅ COMPLETE
 ---
 
 ## 3. Overall Progress
@@ -33,6 +33,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 14 — Load Plan Lifecycle Integrity (v0.9.0) |
 | ✅ Complete | Sprint 15 — Product Experience & Complete UI Overhaul (v0.10.0) |
 | ✅ Complete | Sprint 16 — Operational Efficiency, Workflow Intelligence & Production UX (v0.11.0) |
+| ✅ Complete | Sprint 17 — Customer Visibility & Shipment Tracking (v0.12.0) |
 
 ---
 
@@ -365,3 +366,12 @@ Deterministic, rule-based scoring engine that recommends the best truck and driv
 - **Notification Center (`app/api/notifications/route.ts`, `components/layout/NotificationCenter.tsx`):** Topbar notification bell and popover combining live operational exceptions (**Action Required**) and workspace activity (**Recent Activity**) with per-user unread cursor persistence (`NotificationState`).
 - **Dispatcher Shortcuts (`components/layout/CommandPalette.tsx`):** Expanded `⌘K` / `Ctrl+K` command palette with 5 instant dispatcher shortcuts.
 - **Dashboard Intelligence (`app/(dashboard)/dashboard/page.tsx`):** Integrated Today's Dispatch & Urgency summary strip and live `ExceptionCenterPanel`.
+
+---
+
+### Sprint 17 — Customer Visibility & Shipment Tracking (v0.12.0)
+
+#### Summary
+- **Secure Shareable Tracking Links (`lib/services/tracking.ts`, `app/api/deliveries/[id]/tracking/route.ts`):** 192-bit cryptographically random URL-safe tokens stored as SHA-256 hashes (`ShipmentTrackingLink.tokenHash`), verified via `crypto.timingSafeEqual`, and encrypted at rest using AES-256-GCM (`tokenCiphertext`).
+- **Public Customer Tracking Portal (`app/track/[token]/page.tsx`, `app/api/public/tracking/[token]/route.ts`):** Unauthenticated customer-facing tracking portal and privacy-protected public DTO endpoint (`/track/{token}`).
+- **Shipment Milestones & ETA (`DeliveryTrackingEvent`, `components/deliveries/CustomerTrackingPanel.tsx`):** Automatic lifecycle milestones plus manual customer-visible dispatcher updates, ETA configuration, and link expiration/revocation controls.
