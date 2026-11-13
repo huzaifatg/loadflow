@@ -458,4 +458,26 @@ describe('Sprint 17 — Customer Shipment Tracking Service', () => {
       assert.equal(res.data.locationLabel, 'Dallas, TX')
     })
   })
+
+  describe('Runtime Prisma Client Delegate Integrity', () => {
+    it('exposes shipmentTrackingLink, deliveryTrackingEvent, activityEvent, savedView, and notificationState on runtime prisma singleton', async () => {
+      const { prisma, hasCurrentDelegates, getPrismaRuntimeDiagnostics } = await import(
+        '@/lib/prisma'
+      )
+      assert.equal(hasCurrentDelegates(prisma), true)
+      assert.equal(typeof prisma.shipmentTrackingLink?.count, 'function')
+      assert.equal(typeof prisma.deliveryTrackingEvent?.findMany, 'function')
+      assert.equal(typeof prisma.activityEvent?.findMany, 'function')
+      assert.equal(typeof prisma.savedView?.findMany, 'function')
+      assert.equal(typeof prisma.notificationState?.findUnique, 'function')
+
+      const diag = getPrismaRuntimeDiagnostics()
+      assert.equal(diag.matchesCurrentSchema, true)
+      assert.equal(diag.delegates.shipmentTrackingLink, true)
+      assert.equal(diag.delegates.deliveryTrackingEvent, true)
+      assert.equal(diag.delegates.activityEvent, true)
+      assert.equal(diag.delegates.savedView, true)
+      assert.equal(diag.delegates.notificationState, true)
+    })
+  })
 })
