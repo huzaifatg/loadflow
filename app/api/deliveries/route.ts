@@ -5,6 +5,7 @@ import { unauthorizedResponse } from '@/lib/security'
 import type { CreateDeliveryInput } from '@/types'
 import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items'
 import { recordActivity, actorFromAuth } from '@/lib/services/activity'
+import { recordLifecycleTrackingEvent } from '@/lib/services/tracking'
 
 // ─── GET /api/deliveries ─────────────────────────────────────────────────────
 // List deliveries for company. Supports ?status= and ?date= filters.
@@ -192,6 +193,16 @@ export async function POST(request: NextRequest) {
           message: `Delivery created for ${created.customerName} (${Number(created.weight).toLocaleString()} kg → ${created.deliveryAddress}).`,
         },
       ])
+
+      await recordLifecycleTrackingEvent(tx, {
+        companyId,
+        deliveryId: created.id,
+        eventType: 'DELIVERY_CREATED',
+        title: 'Shipment Order Created',
+        description: 'Shipment details registered with carrier.',
+        locationLabel: created.pickupAddress,
+        createdByUserId: auth.userId,
+      })
 
       return created
     })

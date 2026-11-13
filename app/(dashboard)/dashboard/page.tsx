@@ -66,6 +66,7 @@ export default async function DashboardPage() {
       overdueDeliveriesCount,
     ],
     exceptions,
+    activeTrackingLinksCount,
   ] = await Promise.all([
     prisma.$transaction([
       prisma.delivery.groupBy({
@@ -139,6 +140,15 @@ export default async function DashboardPage() {
       }),
     ]),
     getOperationalExceptions(prisma, companyId),
+    prisma.shipmentTrackingLink
+      .count({
+        where: {
+          companyId,
+          status: 'ACTIVE',
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+      })
+      .catch(() => 0),
   ]);
 
   const countBy = (
@@ -340,6 +350,14 @@ export default async function DashboardPage() {
               </Link>
             </>
           )}
+          <span className="text-gray-300">•</span>
+          <Link
+            href="/deliveries"
+            className="font-medium text-gray-700 hover:text-primary-600"
+          >
+            <strong className="font-semibold text-emerald-700">{activeTrackingLinksCount}</strong>{' '}
+            active customer tracking {activeTrackingLinksCount === 1 ? 'link' : 'links'}
+          </Link>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link
