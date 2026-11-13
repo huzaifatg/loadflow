@@ -146,15 +146,11 @@ export async function listActivityForEntity(
   take = 30,
 ): Promise<ActivityRecord[]> {
   if (!db.activityEvent?.findMany) return []
-  try {
-    return await db.activityEvent.findMany({
-      where: { companyId, entityType, entityId },
-      orderBy: { createdAt: 'desc' },
-      take,
-    })
-  } catch {
-    return []
-  }
+  return await db.activityEvent.findMany({
+    where: { companyId, entityType, entityId },
+    orderBy: { createdAt: 'desc' },
+    take,
+  })
 }
 
 /**
@@ -167,17 +163,13 @@ export async function listRecentCompanyActivity(
   options?: { types?: readonly string[]; take?: number },
 ): Promise<ActivityRecord[]> {
   if (!db.activityEvent?.findMany) return []
-  try {
-    return await db.activityEvent.findMany({
-      where: {
-        companyId,
-        ...(options?.types ? { type: { in: [...options.types] } } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-      take: options?.take ?? 25,
-    })
-  } catch {
-    return []
-  }
+  return await db.activityEvent.findMany({
+    where: {
+      companyId,
+      ...(options?.types ? { type: { in: [...options.types] } } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+    take: options?.take ?? 25,
+  })
 }
 
