@@ -18,14 +18,15 @@
 | CSV Import | ✅ Production | 6-stage pipeline with rollback support |
 | Recommendations | ✅ Production | Deterministic scoring engine with vehicle-fit intelligence & 1-click assign |
 | Route Optimization | ✅ Production | FFD bin-packing algorithm |
-| Dashboard | ✅ Production (Sprint 15–17) | Real status distributions, KPI MetricCards, Today's Dispatch strip, Live Operational Exception Center, Active Tracking Links count |
-| Design System & Shell | ✅ Production (Sprint 15 & 16) | Centralized Tailwind v4 tokens, `lib/ui/status.ts`, UI primitives, `⌘K` Command Palette with Dispatcher Shortcuts, Notification Center |
+| Dashboard | ✅ Production (Sprint 15–18) | Real status distributions, KPI MetricCards, Today's Dispatch & Scheduling Intelligence strip, Live Operational Exception Center, Active Tracking Links count, Resource Conflict count |
+| Design System & Shell | ✅ Production (Sprint 15–18) | Centralized Tailwind v4 tokens, `lib/ui/status.ts`, UI primitives, `⌘K` Command Palette with Dispatcher & Dispatch Board Shortcuts, Notification Center |
 | Operational Workflows | ✅ Production (Sprint 16) | Bulk Deliveries (`reschedule`, `cancel`, `archive`, CSV export), Saved Views (`SavedView`), Activity Timeline (`ActivityEvent`) |
 | Customer Shipment Tracking | ✅ Production (Sprint 17) | Cryptographic tracking links (`ShipmentTrackingLink`), Public Tracking Portal (`/track/[token]`), Milestones (`DeliveryTrackingEvent`), ETA & Expiry controls |
+| Dispatch Board & Scheduling Intelligence | ✅ Production (Sprint 18) | Daily Dispatch Board (`/dispatch`), 7-Day Dispatch Calendar (`/dispatch/calendar`), Resource Availability (`dispatch-availability.ts`), Scheduling Conflicts & Readiness (`dispatch-conflicts.ts`), Quick Allocation & Resource Assignment |
 | Settings | ✅ Production | Company profile and preferences |
-| TypeScript | ✅ Baseline clean | 0 errors in application/UI/API/Sprint 16–17 code; 9 pre-existing test mock typing errors isolated |
-| Build | ✅ Passing | 43 routes compiled cleanly |
-| Tests | ✅ 366/366 | 11 tracking, 12 design system/status, 63 load plan & activity, 20 operational exceptions/bulk/saved-views, 88 recommendation, 172 import (0 failures) |
+| TypeScript | ✅ Baseline clean | 0 errors in application/UI/API/Sprint 16–18 code |
+| Build | ✅ Passing | 46 routes compiled cleanly (`prisma generate && next build`) |
+| Tests | ✅ 380/380 | 14 dispatch intelligence, 11 tracking, 12 design system/status, 63 load plan & activity, 20 operational exceptions/bulk/saved-views, 88 recommendation, 172 import (0 failures) |
 
 ---
 
@@ -54,6 +55,7 @@
 | Product Experience & Complete UI Overhaul | Sprint 15 | v0.10.0 |
 | Operational Efficiency, Workflow Intelligence & Production UX | Sprint 16 | v0.11.0 |
 | Customer Visibility & Shipment Tracking | Sprint 17 | v0.12.0 |
+| Dispatch Board & Scheduling Intelligence | Sprint 18 | v0.12.0 |
 
 ---
 
@@ -133,7 +135,8 @@ This is the highest-value next feature because:
 | Design System & Status | 12 | ✅ Passing |
 | Operational Exceptions, Bulk Deliveries, Saved Views & Activity (Sprint 16) | 25 | ✅ Passing |
 | Customer Shipment Tracking (Sprint 17) | 11 | ✅ Passing |
-| **Total** | **366** | **✅ All Passing (0 failures)** |
+| Dispatch Board & Scheduling Intelligence (Sprint 18) | 14 | ✅ Passing |
+| **Total** | **380** | **✅ All Passing (0 failures)** |
 
 Note: Tests use Node.js built-in test runner (`node:test`).
 
@@ -143,9 +146,9 @@ Note: Tests use Node.js built-in test runner (`node:test`).
 
 | Metric | Value |
 |--------|-------|
-| Total routes | 43 |
+| Total routes | 46 |
 | Static routes | 4 (`/login`, `/signup`, `/icon.svg`, `/_not-found`) |
-| Dynamic routes | 39 (server-rendered on demand) |
-| Compile time | ~4.9s (Turbopack) |
-| TypeScript errors | 0 (application/UI/API/Sprint 16–17 code) |
+| Dynamic routes | 42 (server-rendered on demand) |
+| Compile time | ~5.4s (Turbopack) |
+| TypeScript errors | 0 (application/UI/API/Sprint 16–18 code) |
 | Prisma schema | Valid |

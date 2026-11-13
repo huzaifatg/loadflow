@@ -8,7 +8,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 
 ## 2. Current Sprint
 
-**Sprint 17 — Customer Visibility & Shipment Tracking (v0.12.0)** ✅ COMPLETE
+**Sprint 18 — Dispatch Board & Scheduling Intelligence (v0.12.0)** ✅ COMPLETE
 ---
 
 ## 3. Overall Progress
@@ -34,6 +34,7 @@ LoadFlow is an enterprise logistics SaaS platform for managing deliveries, drive
 | ✅ Complete | Sprint 15 — Product Experience & Complete UI Overhaul (v0.10.0) |
 | ✅ Complete | Sprint 16 — Operational Efficiency, Workflow Intelligence & Production UX (v0.11.0) |
 | ✅ Complete | Sprint 17 — Customer Visibility & Shipment Tracking (v0.12.0) |
+| ✅ Complete | Sprint 18 — Dispatch Board & Scheduling Intelligence (v0.12.0) |
 
 ---
 
@@ -375,3 +376,13 @@ Deterministic, rule-based scoring engine that recommends the best truck and driv
 - **Secure Shareable Tracking Links (`lib/services/tracking.ts`, `app/api/deliveries/[id]/tracking/route.ts`):** 192-bit cryptographically random URL-safe tokens stored as SHA-256 hashes (`ShipmentTrackingLink.tokenHash`), verified via `crypto.timingSafeEqual`, and encrypted at rest using AES-256-GCM (`tokenCiphertext`).
 - **Public Customer Tracking Portal (`app/track/[token]/page.tsx`, `app/api/public/tracking/[token]/route.ts`):** Unauthenticated customer-facing tracking portal and privacy-protected public DTO endpoint (`/track/{token}`).
 - **Shipment Milestones & ETA (`DeliveryTrackingEvent`, `components/deliveries/CustomerTrackingPanel.tsx`):** Automatic lifecycle milestones plus manual customer-visible dispatcher updates, ETA configuration, and link expiration/revocation controls.
+
+---
+
+### Sprint 18 — Dispatch Board & Scheduling Intelligence (v0.12.0)
+
+#### Summary
+- **Unified Dispatch Board (`app/(dashboard)/dispatch/page.tsx`, `components/dispatch/DispatchBoardClient.tsx`, `lib/services/dispatch-board.ts`):** Interactive daily dispatch command center featuring Date Switcher (`Prev` / `Today` / `Next` / date picker), 7 operational summary KPIs, Saved Views & Presets (`all`, `today`, `overdue-unassigned`, `needs-driver`, `ready-to-dispatch`, `conflicts`), Unassigned Delivery Queue with urgency flags (`OVERDUE`, `DUE_TODAY`, `SCHEDULED`, `UNSCHEDULED`), Load Plan lanes (`DRAFT`, `READY`, `DISPATCHED`, `COMPLETED`), and collapsible Resource Availability Drawer.
+- **Resource Availability & Conflict Intelligence (`lib/services/dispatch-availability.ts`, `lib/services/dispatch-conflicts.ts`):** Real-time truck & driver availability evaluation, overlapping resource commitment detection (`TRUCK_OVERLAP`, `DRIVER_OVERLAP`), capacity violation detection (`CAPACITY_EXCEEDED`), delivery date mismatch warnings (`DELIVERY_DATE_MISMATCH`), and per-plan readiness diagnosis (`READY_TO_DISPATCH`, `READY_TO_LOCK`, `BLOCKED`, `DISPATCHED`, `COMPLETED`).
+- **7-Day Dispatch Calendar (`app/(dashboard)/dispatch/calendar/page.tsx`):** Weekly operational workload matrix with daily delivery, load plan, active truck/driver, readiness, and conflict counts plus selected-day drill-down and direct links into the Dispatch Board.
+- **Quick Allocation & Resource Assignment (`components/dispatch/QuickAllocateDeliveryDialog.tsx`, `components/dispatch/QuickAssignResourcesDialog.tsx`):** In-board delivery allocation and truck/driver assignment dialogs routing through transactional `updateLoadPlan()` with full lifecycle and activity audit enforcement.
