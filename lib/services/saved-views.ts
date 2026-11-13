@@ -5,7 +5,7 @@
 
 import { isValidUuid } from '@/lib/security/constants'
 
-export const SAVED_VIEW_WORKSPACES = ['deliveries', 'loads', 'trucks', 'drivers'] as const
+export const SAVED_VIEW_WORKSPACES = ['deliveries', 'loads', 'trucks', 'drivers', 'dispatch'] as const
 export type SavedViewWorkspace = (typeof SAVED_VIEW_WORKSPACES)[number]
 
 export interface PresetView {
@@ -48,9 +48,27 @@ export const DEFAULT_PRESET_VIEWS: Record<SavedViewWorkspace, PresetView[]> = {
     { id: 'preset-drv-trip', name: 'On Trip', query: 'status=ON_TRIP', isDefault: true },
     { id: 'preset-drv-off', name: 'Off Duty', query: 'status=OFF_DUTY', isDefault: true },
   ],
+  dispatch: [
+    { id: 'preset-dsp-ready', name: 'Ready to Dispatch', query: 'status=READY', isDefault: true },
+    { id: 'preset-dsp-missing-drv', name: 'Missing Driver', query: 'assignment=UNASSIGNED_DRIVER', isDefault: true },
+    { id: 'preset-dsp-conflicts', name: 'Blocking Conflicts', query: 'conflict=BLOCKING_ONLY', isDefault: true },
+    { id: 'preset-dsp-overdue', name: 'Overdue Queue', query: 'overdue=OVERDUE_ONLY', isDefault: true },
+  ],
 }
 
-const ALLOWED_QUERY_KEYS = new Set(['status', 'schedule', 'q', 'sort', 'view'])
+const ALLOWED_QUERY_KEYS = new Set([
+  'status',
+  'schedule',
+  'q',
+  'sort',
+  'view',
+  'assignment',
+  'conflict',
+  'overdue',
+  'truckId',
+  'driverId',
+  'scope',
+])
 
 export function isSavedViewWorkspace(v: unknown): v is SavedViewWorkspace {
   return typeof v === 'string' && (SAVED_VIEW_WORKSPACES as readonly string[]).includes(v)

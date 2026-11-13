@@ -15,6 +15,7 @@ export interface ShellBreadcrumb {
 
 const ROOT_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
+  dispatch: 'Dispatch Board',
   deliveries: 'Deliveries',
   trucks: 'Trucks',
   drivers: 'Drivers',
@@ -29,6 +30,7 @@ const SUB_LABELS: Record<string, string> = {
   new: 'New',
   recommend: 'Recommendations',
   optimize: 'Load Optimizer',
+  calendar: 'Dispatch Calendar',
 };
 
 function buildBreadcrumbs(pathname: string): {

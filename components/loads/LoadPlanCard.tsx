@@ -3,7 +3,15 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { StatusBadge, Badge } from '@/components/ui/Badge';
 import { CapacityBar } from '@/components/ui/CapacityBar';
-import { Truck, Calendar, ArrowRight, Package, UserCheck, AlertCircle } from 'lucide-react';
+import {
+  Truck,
+  Calendar,
+  ArrowRight,
+  Package,
+  UserCheck,
+  AlertCircle,
+  ShieldAlert,
+} from 'lucide-react';
 
 export interface LoadPlanCardProps {
   id: string;
@@ -15,6 +23,54 @@ export interface LoadPlanCardProps {
   totalDeliveries: number;
   totalWeight?: number;
   truckCapacity?: number;
+  hasConflict?: boolean;
+}
+
+function getCardReadinessBadge(props: {
+  status: string;
+  driverName?: string;
+  totalDeliveries: number;
+  totalWeight: number;
+  truckCapacity: number;
+  hasConflict?: boolean;
+}): {
+  label: string;
+  tone: 'success' | 'info' | 'warning' | 'danger' | 'primary' | 'neutral';
+} {
+  const {
+    status,
+    driverName,
+    totalDeliveries,
+    totalWeight,
+    truckCapacity,
+    hasConflict,
+  } = props;
+  if (status === 'COMPLETED') {
+    return { label: 'Completed', tone: 'success' };
+  }
+  if (status === 'DISPATCHED') {
+    return { label: 'In Transit', tone: 'primary' };
+  }
+  const isOverCapacity = truckCapacity > 0 && totalWeight > truckCapacity;
+  if (hasConflict || isOverCapacity) {
+    return {
+      label: isOverCapacity ? 'Over Capacity' : 'Resource Conflict',
+      tone: 'danger',
+    };
+  }
+  if (!driverName && totalDeliveries === 0) {
+    return { label: 'Needs Driver & Stops', tone: 'warning' };
+  }
+  if (!driverName) {
+    return { label: 'Awaiting Driver', tone: 'warning' };
+  }
+  if (totalDeliveries === 0) {
+    return { label: 'Empty Plan', tone: 'warning' };
+  }
+  if (status === 'READY') {
+    return { label: 'Ready to Dispatch', tone: 'success' };
+  }
+  return { label: 'Ready to Lock', tone: 'info' };
 }
 
 export function LoadPlanCard({
@@ -27,7 +83,17 @@ export function LoadPlanCard({
   totalDeliveries,
   totalWeight = 0,
   truckCapacity = 0,
+  hasConflict = false,
 }: LoadPlanCardProps) {
+  const readiness = getCardReadinessBadge({
+    status,
+    driverName,
+    totalDeliveries,
+    totalWeight,
+    truckCapacity,
+    hasConflict,
+  });
+
   return (
     <Link href={`/loads/${id}`} className="block group focus-visible:outline-none">
       <Card className="flex h-full flex-col justify-between p-4 transition-all hover:border-primary-300 hover:shadow-sm">
@@ -42,7 +108,12 @@ export function LoadPlanCard({
                 Plan #{id.slice(-6).toUpperCase()}
               </h3>
             </div>
-            <StatusBadge domain="loadPlan" status={status} />
+            <div className="flex flex-col items-end gap-1">
+              <StatusBadge domain="loadPlan" status={status} />
+              <Badge tone={readiness.tone} size="sm" dot>
+                {readiness.label}
+              </Badge>
+            </div>
           </div>
 
           <div className="mt-3.5 space-y-2 rounded-lg border border-gray-100 bg-gray-50/70 p-2.5 text-xs">
@@ -73,6 +144,13 @@ export function LoadPlanCard({
               )}
             </div>
           </div>
+
+          {hasConflict && (
+            <div className="mt-2.5 flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-medium text-rose-700">
+              <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose-600" />
+              <span>Scheduling or resource conflict detected</span>
+            </div>
+          )}
 
           <div className="mt-3.5">
             <CapacityBar

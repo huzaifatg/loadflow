@@ -23,6 +23,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Building2,
+  Kanban,
 } from 'lucide-react';
 
 interface NavItem {
@@ -42,7 +43,8 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Overview',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
-      { label: 'Schedule', href: '/schedule', icon: Calendar },
+      { label: 'Dispatch Board', href: '/dispatch', icon: Kanban, exact: true },
+      { label: 'Dispatch Calendar', href: '/dispatch/calendar', icon: Calendar },
     ],
   },
   {
