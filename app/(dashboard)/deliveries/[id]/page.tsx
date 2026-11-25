@@ -5,10 +5,9 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { ButtonLink } from '@/components/ui/Button';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
 import { DeliveryDetailClient } from '@/components/deliveries/DeliveryDetailClient';
 import { serializeDelivery } from '@/lib/delivery-items';
-import { getAuthContext } from '@/lib/auth';
+import { getAuthContext, getCurrentUser } from '@/lib/auth';
 import { listActivityForEntity, type ActivityRecord } from '@/lib/services/activity';
 import {
   getOperationalExceptions,
@@ -28,11 +27,7 @@ export default async function DeliveryDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   const id = (await params).id;

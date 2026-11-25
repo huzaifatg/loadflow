@@ -16,8 +16,7 @@ import {
   Navigation,
 } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
-import { getAuthContext } from '@/lib/auth';
+import { getAuthContext, getCurrentUser } from '@/lib/auth';
 import { toNumber } from '@/lib/delivery-items';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ButtonLink } from '@/components/ui/Button';
@@ -50,10 +49,7 @@ export default async function LoadsPage({
     page?: string;
   }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   const resolvedParams = await searchParams;
@@ -211,8 +207,12 @@ export default async function LoadsPage({
         />
       </div>
 
-      {/* Saved Views & Presets Bar */}
-      <SavedViewsBar workspace="loads" initialCustomViews={customViews} />
+      {/* Custom Saved Views */}
+      <SavedViewsBar
+        workspace="loads"
+        initialCustomViews={customViews}
+        showPresets={false}
+      />
 
       {/* Filter & Search Toolbar */}
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3.5 shadow-xs lg:flex-row lg:items-center lg:justify-between">

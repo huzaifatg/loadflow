@@ -4,6 +4,7 @@ import { unauthorizedResponse } from '@/lib/security'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { CreateTruckInput, TruckStatus } from '@/types'
+import { revalidateFleetViews } from '@/lib/cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,10 +62,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const { revalidatePath } = await import('next/cache');
-    revalidatePath('/trucks');
-    revalidatePath('/schedule');
-    revalidatePath('/loads');
+    revalidateFleetViews('trucks');
 
     return NextResponse.json(truck, { status: 201 })
   } catch (error) {

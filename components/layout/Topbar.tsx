@@ -18,7 +18,6 @@ import {
   Settings,
   BookOpen,
   LogOut,
-  Building2,
 } from 'lucide-react';
 import type { ShellBreadcrumb } from './DashboardLayoutShell';
 import { NotificationCenter } from './NotificationCenter';
@@ -26,7 +25,6 @@ import { NotificationCenter } from './NotificationCenter';
 export interface TopbarProps {
   title: string;
   breadcrumbs?: ShellBreadcrumb[];
-  companyName?: string;
   userName?: string;
   userEmail?: string;
   userInitial: string;
@@ -38,7 +36,6 @@ export interface TopbarProps {
 export function Topbar({
   title,
   breadcrumbs,
-  companyName,
   userName,
   userEmail,
   userInitial,
@@ -216,14 +213,6 @@ export function Topbar({
             </div>
           )}
         </div>
-
-        {/* Company pill on large screens */}
-        {companyName && (
-          <div className="hidden lg:inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600">
-            <Building2 className="h-3.5 w-3.5 text-primary-600" />
-            <span className="max-w-[140px] truncate">{companyName}</span>
-          </div>
-        )}
 
         {/* Operational Notification Center */}
         <NotificationCenter />

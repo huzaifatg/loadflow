@@ -4,6 +4,7 @@ import { getAuthContext } from '@/lib/auth';
 import { unauthorizedResponse } from '@/lib/security';
 import { createLoadPlan } from '@/lib/services/load-plan-service';
 import { actorFromAuth } from '@/lib/services/activity';
+import { revalidateLoadPlanViews } from '@/lib/cache';
 
 export async function GET() {
   try {
@@ -56,8 +57,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
     }
 
-    // Truck/driver ownership, status, UUIDs, date and conflicts are validated
-    // server-side in createLoadPlan(). Driver is optional for a DRAFT.
+    // Truck/driver ownership, status, UUIDs, date, conflicts, and optional item
+    // allocation are validated atomically server-side in createLoadPlan().
     const result = await createLoadPlan(
       prisma,
       company.id,
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
         driverId: body.driverId,
         date: body.date,
         notes: body.notes,
+        items: body.items,
       },
       actorFromAuth(auth),
     );
@@ -74,9 +76,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    const { revalidatePath } = await import('next/cache');
-    revalidatePath('/loads');
-    revalidatePath('/schedule');
+    revalidateLoadPlanViews();
+
+    if (result.warnings.length > 0) {
+      return NextResponse.json({ ...result.data, _warnings: result.warnings });
+    }
 
     return NextResponse.json(result.data);
   } catch (error) {

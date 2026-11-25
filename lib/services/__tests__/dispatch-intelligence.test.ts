@@ -13,6 +13,7 @@ import {
   detectSchedulingConflicts,
   evaluatePlanDispatchReadiness,
   getDispatchConflicts,
+  getOperationalIntelligence,
   type ConflictPlanSnapshot,
 } from '../dispatch-conflicts'
 import {
@@ -632,5 +633,36 @@ describe('Sprint 18 — Dispatch Board & Calendar Services', () => {
     assert.equal(res.summary.blocking, 0)
     assert.ok(res.readinessByPlan[PLAN_1])
     assert.equal(res.readinessByPlan[PLAN_1].canDispatch, true)
+  })
+
+  it('computes both operational exceptions and dispatch conflicts in a single loadPlan query via getOperationalIntelligence', async () => {
+    let loadPlanQueryCount = 0
+    let deliveryQueryCount = 0
+    const spyDb = {
+      loadPlan: {
+        findMany: async () => {
+          loadPlanQueryCount++
+          return fakeDb.loadPlan.findMany()
+        },
+      },
+      delivery: {
+        findMany: async () => {
+          deliveryQueryCount++
+          return fakeDb.delivery.findMany()
+        },
+      },
+    }
+
+    const intel = await getOperationalIntelligence(
+      spyDb as unknown as Parameters<typeof getOperationalIntelligence>[0],
+      COMPANY_A,
+      { date: '2026-11-13', now: OP_DATE },
+    )
+
+    assert.equal(loadPlanQueryCount, 1)
+    assert.equal(deliveryQueryCount, 1)
+    assert.equal(intel.summary.blocking, 0)
+    assert.ok(intel.readinessByPlan[PLAN_1]?.canDispatch)
+    assert.ok(intel.exceptions.some((e) => e.type === 'DELIVERY_OVERDUE'))
   })
 })

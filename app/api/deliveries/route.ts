@@ -6,6 +6,7 @@ import type { CreateDeliveryInput } from '@/types'
 import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items'
 import { recordActivity, actorFromAuth } from '@/lib/services/activity'
 import { recordLifecycleTrackingEvent } from '@/lib/services/tracking'
+import { revalidateDeliveryViews } from '@/lib/cache'
 
 // ─── GET /api/deliveries ─────────────────────────────────────────────────────
 // List deliveries for company. Supports ?status= and ?date= filters.
@@ -207,8 +208,7 @@ export async function POST(request: NextRequest) {
       return created
     })
 
-    const { revalidatePath } = await import('next/cache');
-    revalidatePath('/deliveries');
+    revalidateDeliveryViews();
 
     return NextResponse.json({ data: delivery, error: null }, { status: 201 })
   } catch (error) {

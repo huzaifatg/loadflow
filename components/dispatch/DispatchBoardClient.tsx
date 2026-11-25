@@ -14,7 +14,6 @@ import {
   ClipboardList,
   AlertTriangle,
   CheckCircle2,
-  Clock,
   Navigation,
   ShieldAlert,
   ArrowRight,
@@ -36,6 +35,8 @@ import { Button, ButtonLink } from '@/components/ui/Button';
 import { CapacityBar } from '@/components/ui/CapacityBar';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SavedViewsBar } from '@/components/ui/SavedViewsBar';
+import type { CustomSavedView } from '@/lib/services/saved-views';
 import { QuickAssignResourcesDialog } from './QuickAssignResourcesDialog';
 import { QuickAllocateDeliveryDialog } from './QuickAllocateDeliveryDialog';
 import type {
@@ -47,6 +48,7 @@ import { cn } from '@/lib/utils';
 
 export interface DispatchBoardClientProps {
   board: DispatchBoardResult;
+  savedViews?: CustomSavedView[];
   initialFilters: {
     q: string;
     status: string;
@@ -92,6 +94,7 @@ const PLAN_GROUPS: {
 
 export function DispatchBoardClient({
   board,
+  savedViews = [],
   initialFilters,
 }: DispatchBoardClientProps) {
   const router = useRouter();
@@ -188,6 +191,15 @@ export function DispatchBoardClient({
     initialFilters.status !== 'ALL'
       ? PLAN_GROUPS.filter((g) => g.key === initialFilters.status)
       : PLAN_GROUPS;
+
+  const visibleDeliveryExceptions = board.exceptions
+    .filter(
+      (ex) =>
+        ex.type === 'DELIVERY_OVERDUE' ||
+        ex.type === 'DELIVERY_DUE_SOON' ||
+        ex.type === 'PENDING_QUEUE'
+    )
+    .slice(0, 6);
 
   return (
     <div className="space-y-6">
@@ -299,22 +311,23 @@ export function DispatchBoardClient({
         </Button>
       </PageHeader>
 
-      {/* ── B. 6 Summary Indicators (Real Company-Scoped Data) ───────────────── */}
+      {/* ── B. 6 Distinct Summary Indicators (Real Company-Scoped Data) ─────── */}
       <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 xl:grid-cols-6">
-        <MetricCard
-          label="Pending Deliveries"
-          value={board.summary.pendingDeliveries}
-          sublabel={`${board.summary.dueTodayDeliveries} due on operating date`}
-          icon={<Package className="h-4 w-4" />}
-          tone={board.summary.pendingDeliveries > 0 ? 'warning' : 'neutral'}
-          href="/deliveries?status=PENDING"
-        />
         <MetricCard
           label="Unassigned Queue"
           value={board.summary.unassignedDeliveries}
-          sublabel="Awaiting load plan allocation"
-          icon={<Clock className="h-4 w-4" />}
+          sublabel={`${board.summary.dueTodayDeliveries} due on operating date`}
+          icon={<Package className="h-4 w-4" />}
           tone={board.summary.unassignedDeliveries > 0 ? 'warning' : 'success'}
+          href="/deliveries?status=PENDING"
+        />
+        <MetricCard
+          label="Fleet Availability"
+          value={`${board.summary.availableTrucks}/${board.summary.totalTrucks}`}
+          sublabel={`${board.summary.availableDrivers}/${board.summary.totalDrivers} drivers available`}
+          icon={<Truck className="h-4 w-4" />}
+          tone={board.summary.availableTrucks > 0 ? 'success' : 'warning'}
+          href="/trucks"
         />
         <MetricCard
           label="Ready Load Plans"
@@ -326,7 +339,7 @@ export function DispatchBoardClient({
         <MetricCard
           label="Dispatched Plans"
           value={board.summary.dispatchedLoadPlans}
-          sublabel={`${board.summary.availableTrucks}/${board.summary.totalTrucks} trucks available`}
+          sublabel={`${board.summary.plansOnOperatingDate} ${board.summary.plansOnOperatingDate === 1 ? 'plan' : 'plans'} on ${board.isToday ? 'today' : board.operatingDate}`}
           icon={<Navigation className="h-4 w-4" />}
           tone="primary"
         />
@@ -353,6 +366,8 @@ export function DispatchBoardClient({
           tone={board.summary.resourceConflictsCount > 0 ? 'danger' : 'success'}
         />
       </div>
+
+      <SavedViewsBar workspace="dispatch" initialCustomViews={savedViews} />
 
       {/* ── I. Filtering & Search Toolbar ────────────────────────────────────── */}
       <div className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-xs space-y-3">
@@ -1062,13 +1077,13 @@ export function DispatchBoardClient({
         {/* Operational Attention & Scheduling Conflicts Panel (5 cols) */}
         <Card className="xl:col-span-5 flex flex-col overflow-hidden">
           <CardHeader
-            title={`Operational Attention & Conflicts (${board.conflicts.length + (board.summary.overdueDeliveries > 0 ? 1 : 0)})`}
+            title={`Operational Attention & Conflicts (${board.conflicts.length + visibleDeliveryExceptions.length})`}
             description="Actionable scheduling conflicts, capacity blockers, and overdue alerts"
             bordered
           />
 
           <div className="max-h-[420px] overflow-y-auto divide-y divide-gray-100">
-            {board.conflicts.length === 0 && board.exceptions.length === 0 ? (
+            {board.conflicts.length === 0 && visibleDeliveryExceptions.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-8 text-center">
                 <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
                 <p className="text-sm font-semibold text-gray-900">
@@ -1139,15 +1154,7 @@ export function DispatchBoardClient({
                 ))}
 
                 {/* Overdue Unassigned Delivery Exceptions */}
-                {board.exceptions
-                  .filter(
-                    (ex) =>
-                      ex.type === 'DELIVERY_OVERDUE' ||
-                      ex.type === 'DELIVERY_DUE_SOON' ||
-                      ex.type === 'PENDING_QUEUE'
-                  )
-                  .slice(0, 6)
-                  .map((ex) => (
+                {visibleDeliveryExceptions.map((ex) => (
                     <div key={ex.key} className="p-3.5 space-y-1 bg-white">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-gray-900">

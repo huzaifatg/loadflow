@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { importCsv } from '@/lib/import/pipeline';
 import type { PipelineConfig } from '@/lib/import/pipeline';
 import { DELIVERY_ENTITY } from '@/lib/import/mapping/profiles';
+import { revalidateDeliveryViews } from '@/lib/cache';
 
 // ─── POST /api/import/commit ────────────────────────────────────────────────
 // Accepts an importJobId and commits a previously previewed import.
@@ -145,6 +146,8 @@ export async function POST(request: NextRequest) {
           },
         },
       });
+    } else {
+      revalidateDeliveryViews();
     }
 
     // ── Build response ───────────────────────────────────────────────────

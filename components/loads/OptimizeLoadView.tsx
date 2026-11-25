@@ -110,7 +110,9 @@ export function OptimizeLoadView() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             truckId: plan.truckId,
-            date: date,
+            date,
+            items: plan.deliveries.map((d) => d.id),
+            notes: 'Created via Multi-Truck Load Optimizer',
           }),
         });
 
@@ -118,24 +120,6 @@ export function OptimizeLoadView() {
           const errData = await createRes.json().catch(() => null);
           toast.error(
             `Failed to create plan for ${plan.truckName}: ${errData?.error || 'Unknown error'}`
-          );
-          continue;
-        }
-
-        const newPlan = await createRes.json();
-
-        const assignRes = await fetch(`/api/loads/${newPlan.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            items: plan.deliveries.map((d) => d.id),
-          }),
-        });
-
-        if (!assignRes.ok) {
-          const errData = await assignRes.json().catch(() => null);
-          toast.error(
-            `Failed to assign deliveries to ${plan.truckName}: ${errData?.error || 'Unknown error'}`
           );
           continue;
         }

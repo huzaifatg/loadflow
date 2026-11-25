@@ -2,17 +2,14 @@ import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Truck as TruckIcon } from 'lucide-react';
 import { TruckDetailClient } from '@/components/trucks/TruckDetailClient';
-import { getAuthContext } from '@/lib/auth';
+import { getAuthContext, getCurrentUser } from '@/lib/auth';
 
 
 export default async function TruckDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   const id = (await params).id;
@@ -21,8 +18,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
   let loadPlans: { id: string; date: Date; status: string; _count: { items: number } }[] = [];
   try {
     const auth = await getAuthContext();
-  const company = auth?.company;
-  const companyId = auth?.companyId;
+    const company = auth?.company;
     if (company) {
       truck = await prisma.truck.findUnique({
         where: { id, companyId: company.id },

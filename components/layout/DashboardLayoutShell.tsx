@@ -20,7 +20,6 @@ const ROOT_LABELS: Record<string, string> = {
   trucks: 'Trucks',
   drivers: 'Drivers',
   loads: 'Load Plans',
-  schedule: 'Schedule',
   settings: 'Settings',
   import: 'CSV Import',
   guide: 'Guide',
@@ -132,9 +131,6 @@ export function DashboardLayoutShell({
         isCollapsed={isCollapsed}
         onToggleCollapse={toggleCollapsed}
         onClose={closeSidebar}
-        userName={userName}
-        userEmail={userEmail}
-        userInitial={userInitial}
         companyName={companyName}
       />
 
@@ -147,7 +143,6 @@ export function DashboardLayoutShell({
         <Topbar
           title={title}
           breadcrumbs={breadcrumbs}
-          companyName={companyName}
           userName={userName}
           userEmail={userEmail}
           userInitial={userInitial}

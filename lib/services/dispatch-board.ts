@@ -195,7 +195,7 @@ export async function getDispatchBoardData(
   const scope: 'date' | 'all_active' =
     filters.scope === 'date' ? 'date' : 'all_active'
 
-  const [trucks, drivers, pendingDeliveriesRaw, plansRaw, deliveryStatusCounts] =
+  const [trucks, drivers, pendingDeliveriesRaw, plansRaw] =
     await Promise.all([
       db.truck.findMany({
         where: { companyId, isArchived: false },
@@ -254,15 +254,9 @@ export async function getDispatchBoardData(
         },
         orderBy: [{ date: 'asc' }, { createdAt: 'desc' }],
       }),
-      db.delivery.groupBy({
-        by: ['status'],
-        where: { companyId, isArchived: false },
-        _count: { _all: true },
-      }),
     ])
 
-  const pendingTotal =
-    deliveryStatusCounts.find((g) => g.status === 'PENDING')?._count._all ?? 0
+  const pendingTotal = pendingDeliveriesRaw.length
 
   // Build conflict snapshots for all fetched plans
   const conflictSnapshots: ConflictPlanSnapshot[] = plansRaw.map((p) => ({

@@ -2,6 +2,7 @@
 // All API routes and server components MUST use this helper instead of inline
 // prisma.company.findFirst(). 
 
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import type { Company } from '@prisma/client';
@@ -14,15 +15,25 @@ export interface AuthContext {
 }
 
 /**
+ * Per-request deduplicated Supabase user lookup so layouts and nested server
+ * pages don't issue redundant auth network roundtrips during a single render.
+ */
+export const getCurrentUser = cache(async () => {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  return user;
+});
+
+/**
  * Authenticate the current request and resolve the user's company using the CompanyMember model.
  * If the user does not belong to a company, one is automatically provisioned for them.
  */
-export async function getAuthContext(): Promise<AuthContext | null> {
+export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
-    if (authError || !user) return null;
+    if (!user) return null;
 
     const member = await prisma.companyMember.findFirst({
       where: { userId: user.id },
@@ -71,4 +82,4 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     console.error('[getAuthContext] Error:', err);
     return null;
   }
-}
+});

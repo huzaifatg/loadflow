@@ -21,8 +21,7 @@ import { MetricCard } from '@/components/ui/MetricCard';
 import { StatusBadge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
-import { getAuthContext } from '@/lib/auth';
+import { getAuthContext, getCurrentUser } from '@/lib/auth';
 import { listSavedViews } from '@/lib/services/saved-views';
 import { cn } from '@/lib/utils';
 
@@ -39,11 +38,7 @@ export default async function TrucksPage({
     view?: string;
   }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   const resolvedParams = await searchParams;
@@ -175,8 +170,12 @@ export default async function TrucksPage({
         />
       </div>
 
-      {/* Saved Views & Presets Bar */}
-      <SavedViewsBar workspace="trucks" initialCustomViews={customViews} />
+      {/* Custom Saved Views */}
+      <SavedViewsBar
+        workspace="trucks"
+        initialCustomViews={customViews}
+        showPresets={false}
+      />
 
       {/* Filter & Search Toolbar */}
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3.5 shadow-xs sm:flex-row sm:items-center sm:justify-between">

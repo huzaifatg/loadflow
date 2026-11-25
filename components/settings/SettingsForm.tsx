@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@/lib/supabase/client';
-import { User, Building2, Bell, Shield, LogOut, Save, Check } from 'lucide-react';
+import { User, Building2, Bell, Save, Check } from 'lucide-react';
 import type { Company } from '@prisma/client';
 import { toast } from 'sonner';
 
@@ -100,7 +99,7 @@ export function SettingsForm({ email, company }: SettingsFormProps) {
   const [emailNotifications, setEmailNotifications] = useState(company?.emailNotifications ?? true);
   const [dispatchAlerts, setDispatchAlerts] = useState(company?.dispatchAlerts ?? true);
   const [weeklyReport, setWeeklyReport] = useState(company?.weeklyReport ?? false);
-  const [units] = useState<'imperial' | 'metric'>((company?.units as 'imperial' | 'metric') || 'imperial');
+  const units = 'metric' as const;
 
   async function handleSave() {
     setSaving(true);
@@ -139,13 +138,6 @@ export function SettingsForm({ email, company }: SettingsFormProps) {
     } finally {
       setSaving(false);
     }
-  }
-
-  async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/');
-    router.refresh();
   }
 
   return (
@@ -248,7 +240,7 @@ export function SettingsForm({ email, company }: SettingsFormProps) {
       <SettingsSection
         icon={Bell}
         title="Notifications"
-        description="Configure how and when you receive alerts."
+        description="Live dispatch alerts appear in the topbar notification bell; configure your saved email digest preferences below."
       >
         <div className="divide-y divide-gray-100">
           <ToggleSwitch
@@ -269,33 +261,6 @@ export function SettingsForm({ email, company }: SettingsFormProps) {
             checked={weeklyReport}
             onChange={setWeeklyReport}
           />
-        </div>
-      </SettingsSection>
-
-      {/* Security & Account */}
-      <SettingsSection
-        icon={Shield}
-        title="Security & Account"
-        description="Manage your session and account access."
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50/50 p-4">
-            <div>
-              <p className="text-sm font-medium text-gray-900">Sign Out</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                End your current session on this device.
-              </p>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleSignOut}
-              className="!text-red-600 hover:!bg-red-50 hover:!border-red-200"
-            >
-              <LogOut className="h-4 w-4 mr-1.5" />
-              Sign Out
-            </Button>
-          </div>
         </div>
       </SettingsSection>
 

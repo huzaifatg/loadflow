@@ -1,6 +1,6 @@
 import React from 'react';
 import { ImportDetailClient } from '@/components/import/ImportDetailClient';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export default async function ImportDetailPage({
@@ -8,8 +8,7 @@ export default async function ImportDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   const { id } = await params;

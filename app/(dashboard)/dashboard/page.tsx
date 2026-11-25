@@ -11,7 +11,6 @@ import {
   ArrowRight,
   Sparkles,
   SlidersHorizontal,
-  Plus,
   FileUp,
   Navigation,
   CalendarClock,
@@ -29,8 +28,7 @@ import { StatusBadge, Badge } from '@/components/ui/Badge';
 import { CapacityBar } from '@/components/ui/CapacityBar';
 import { ButtonLink } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { getOperationalExceptions } from '@/lib/services/operational-exceptions';
-import { getDispatchConflicts } from '@/lib/services/dispatch-conflicts';
+import { getOperationalIntelligence } from '@/lib/services/dispatch-conflicts';
 import { ExceptionCenterPanel } from '@/components/operations/ExceptionCenterPanel';
 
 export default async function DashboardPage() {
@@ -68,9 +66,8 @@ export default async function DashboardPage() {
       todaysPlansCount,
       overdueDeliveriesCount,
     ],
-    exceptions,
+    intelligence,
     activeTrackingLinksCount,
-    dispatchConflictResult,
   ] = await Promise.all([
     prisma.$transaction([
       prisma.delivery.groupBy({
@@ -143,7 +140,7 @@ export default async function DashboardPage() {
         },
       }),
     ]),
-    getOperationalExceptions(prisma, companyId),
+    getOperationalIntelligence(prisma, companyId),
     prisma.shipmentTrackingLink.count({
       where: {
         companyId,
@@ -151,10 +148,10 @@ export default async function DashboardPage() {
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
     }),
-    getDispatchConflicts(prisma, companyId),
   ]);
 
-  const resourceConflictCount = dispatchConflictResult.summary.blocking;
+  const exceptions = intelligence.exceptions;
+  const resourceConflictCount = intelligence.summary.blocking;
 
   const countBy = (
     groups: { status: string; _count?: { _all?: number } | true }[],
@@ -212,14 +209,6 @@ export default async function DashboardPage() {
         <ButtonLink href="/dispatch" variant="secondary" size="md">
           <Kanban className="h-4 w-4 text-primary-600" />
           Dispatch Board
-        </ButtonLink>
-        <ButtonLink href="/loads/recommend" variant="secondary" size="md">
-          <Sparkles className="h-4 w-4 text-primary-600" />
-          Recommend Fleet
-        </ButtonLink>
-        <ButtonLink href="/deliveries/new" variant="secondary" size="md">
-          <Plus className="h-4 w-4" />
-          New Delivery
         </ButtonLink>
       </PageHeader>
 
@@ -328,22 +317,6 @@ export default async function DashboardPage() {
             <strong className="font-semibold text-gray-900">{todaysPlansCount}</strong>{' '}
             {todaysPlansCount === 1 ? 'load plan' : 'load plans'} scheduled today
           </Link>
-          <span className="text-gray-300">•</span>
-          <Link
-            href="/dispatch?status=READY"
-            className="font-medium text-gray-700 hover:text-primary-600"
-          >
-            <strong className="font-semibold text-blue-700">{planReady}</strong>{' '}
-            ready for dispatch
-          </Link>
-          <span className="text-gray-300">•</span>
-          <Link
-            href="/dispatch"
-            className="font-medium text-gray-700 hover:text-primary-600"
-          >
-            <strong className="font-semibold text-amber-700">{delPending}</strong>{' '}
-            unassigned {delPending === 1 ? 'delivery' : 'deliveries'}
-          </Link>
           {overdueDeliveriesCount > 0 && (
             <>
               <span className="text-gray-300">•</span>
@@ -388,26 +361,12 @@ export default async function DashboardPage() {
             active customer tracking {activeTrackingLinksCount === 1 ? 'link' : 'links'}
           </Link>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/dispatch"
-            className="inline-flex items-center gap-1 font-semibold text-primary-600 hover:text-primary-700"
-          >
-            Dispatch Board <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-          <Link
-            href="/dispatch/calendar"
-            className="inline-flex items-center gap-1 font-semibold text-gray-700 hover:text-primary-600"
-          >
-            Dispatch Calendar <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-          <Link
-            href="/loads/optimize"
-            className="inline-flex items-center gap-1 font-semibold text-gray-700 hover:text-primary-600"
-          >
-            Multi-Load Optimizer <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
+        <Link
+          href="/dispatch/calendar"
+          className="inline-flex items-center gap-1 font-semibold text-primary-600 hover:text-primary-700"
+        >
+          Dispatch Calendar <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
 
       {/* Sprint 16: Live Operational Exception Center */}

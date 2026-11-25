@@ -1,181 +1,253 @@
-'use client';
-
 import React from 'react';
+import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
-import { 
-  BookOpen, 
-  Package, 
-  Truck, 
-  Users, 
-  ClipboardList, 
-  CheckCircle2, 
+import { PageHeader } from '@/components/ui/PageHeader';
+import {
+  Package,
+  Truck,
+  Users,
+  ClipboardList,
+  CheckCircle2,
   ArrowRight,
   Scale,
-  Shield
+  Shield,
+  Kanban,
+  Navigation,
 } from 'lucide-react';
 
-function GuideSection({ 
-  icon: Icon, 
-  title, 
+function GuideSection({
+  icon: Icon,
+  title,
   children,
-  step
-}: { 
-  icon: React.ElementType, 
-  title: string, 
-  children: React.ReactNode,
-  step?: number
+  step,
+  href,
+  ctaLabel,
+}: {
+  icon: React.ElementType;
+  title: string;
+  children: React.ReactNode;
+  step?: number;
+  href?: string;
+  ctaLabel?: string;
 }) {
   return (
-    <Card className="overflow-hidden mb-6 hover:shadow-md transition-shadow">
-      <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-4 flex items-center gap-4">
-        {step && (
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700">
-            {step}
+    <Card className="overflow-hidden mb-5 hover:shadow-md transition-shadow">
+      <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {step && (
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700">
+              {step}
+            </div>
+          )}
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-gray-100 text-primary-600">
+            <Icon className="h-4.5 w-4.5" />
           </div>
-        )}
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-gray-100 text-primary-600">
-          <Icon className="h-5 w-5" />
+          <h2 className="text-base font-semibold text-gray-900">{title}</h2>
         </div>
-        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        {href && ctaLabel && (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 shrink-0"
+          >
+            {ctaLabel}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        )}
       </div>
-      <div className="p-6 text-gray-600 space-y-4">
-        {children}
-      </div>
+      <div className="p-6 text-sm text-gray-600 space-y-3">{children}</div>
     </Card>
   );
 }
 
 export default function GuidePage() {
   return (
-    <div className="mx-auto max-w-4xl pb-12">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
-            <BookOpen className="h-6 w-6" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            How LoadFlow Works
-          </h1>
-        </div>
-        <p className="text-lg text-gray-500 mt-2 max-w-2xl">
-          Welcome to LoadFlow. This guide will help you understand the core concepts and daily workflow to manage your logistics operations efficiently.
-        </p>
-      </div>
+    <div className="mx-auto max-w-4xl space-y-6 pb-12">
+      <PageHeader
+        eyebrow="Workspace Reference"
+        title="How LoadFlow Works"
+        description="End-to-end daily operational workflow from delivery ingestion to customer shipment tracking."
+        actionLabel="Open Dispatch Board"
+        actionHref="/dispatch"
+      />
 
-      {/* What is LoadFlow? */}
-      <Card className="mb-10 bg-gradient-to-br from-primary-600 to-primary-800 text-white overflow-hidden relative">
-        <div className="absolute right-0 top-0 -mt-8 -mr-8 w-48 h-48 bg-white opacity-5 rounded-full blur-2xl" />
-        <div className="absolute left-1/4 bottom-0 -mb-8 w-32 h-32 bg-white opacity-5 rounded-full blur-xl" />
-        <div className="relative p-8 sm:p-10">
-          <h2 className="text-2xl font-bold mb-4">What is LoadFlow?</h2>
-          <p className="text-primary-100 text-lg leading-relaxed max-w-3xl">
-            LoadFlow is a comprehensive logistics execution platform. It acts as the central brain of your operations, connecting four core components: <strong>Deliveries</strong> (what needs to be shipped), <strong>Trucks</strong> (the assets used to ship them), <strong>Drivers</strong> (the personnel executing the shipment), and <strong>Load Plans</strong> (the master blueprint tying them all together).
+      <Card className="bg-gradient-to-br from-primary-600 to-primary-800 text-white overflow-hidden relative">
+        <div className="relative p-7 sm:p-8">
+          <h2 className="text-xl font-bold mb-2">Core Operational Model</h2>
+          <p className="text-primary-100 text-sm leading-relaxed max-w-3xl">
+            LoadFlow connects <strong>Deliveries</strong> (customer orders),{' '}
+            <strong>Trucks</strong> and <strong>Drivers</strong> (fleet capacity), and{' '}
+            <strong>Load Plans</strong> through the lifecycle{' '}
+            <code className="rounded bg-white/15 px-1.5 py-0.5 text-xs font-semibold text-white">
+              DRAFT → READY ↔ DISPATCHED → COMPLETED
+            </code>
+            , backed by live conflict checks and customer tracking portals.
           </p>
         </div>
       </Card>
 
-      <div className="flex items-center gap-4 mb-6">
-        <div className="h-px bg-gray-200 flex-1" />
-        <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider">The Daily Workflow</span>
-        <div className="h-px bg-gray-200 flex-1" />
-      </div>
-
-      <div className="relative">
-
-        {/* Step 1: Deliveries */}
-        <GuideSection step={1} icon={Package} title="Enter Deliveries">
+      <div>
+        <GuideSection
+          step={1}
+          icon={Package}
+          title="Enter or Import Deliveries"
+          href="/deliveries"
+          ctaLabel="Deliveries"
+        >
           <p>
-            Everything starts with a delivery. A delivery represents an order going to a specific customer. 
+            Start by adding individual customer orders on{' '}
+            <Link href="/deliveries/new" className="font-semibold text-primary-600 hover:underline">
+              New Delivery
+            </Link>{' '}
+            or bulk importing spreadsheets via{' '}
+            <Link href="/import" className="font-semibold text-primary-600 hover:underline">
+              CSV Import
+            </Link>
+            .
           </p>
-          <ul className="list-disc pl-5 space-y-2 mt-2">
-            <li>Navigate to the <strong>Deliveries</strong> tab.</li>
-            <li>Add new deliveries including customer details and address.</li>
-            <li>Add specific items (e.g., pallets, boxes, crates) to the delivery. LoadFlow will automatically calculate the total weight.</li>
+          <ul className="list-disc pl-5 space-y-1.5">
+            <li>Itemize pallets, boxes, or weight units — LoadFlow computes total weight automatically.</li>
+            <li>Use bulk selection on the Deliveries table to reschedule, cancel, archive, or export CSV.</li>
           </ul>
         </GuideSection>
 
-        {/* Step 2: Assets & Personnel */}
-        <GuideSection step={2} icon={Truck} title="Manage Trucks & Drivers">
+        <GuideSection
+          step={2}
+          icon={Truck}
+          title="Maintain Fleet & Drivers"
+          href="/trucks"
+          ctaLabel="Fleet"
+        >
           <p>
-            Before you can ship a delivery, you need assets and personnel available in the system.
+            Register vehicles with accurate payload capacities on{' '}
+            <Link href="/trucks" className="font-semibold text-primary-600 hover:underline">
+              Trucks
+            </Link>{' '}
+            and maintain driver availability on{' '}
+            <Link href="/drivers" className="font-semibold text-primary-600 hover:underline">
+              Drivers
+            </Link>
+            .
           </p>
-          <div className="grid sm:grid-cols-2 gap-4 mt-4">
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-              <div className="flex items-center gap-2 font-medium text-gray-900 mb-2">
+          <div className="grid sm:grid-cols-2 gap-3 pt-1">
+            <div className="bg-gray-50 rounded-lg p-3.5 border border-gray-100">
+              <div className="flex items-center gap-2 font-semibold text-gray-900 mb-1">
                 <Truck className="h-4 w-4 text-primary-500" /> Trucks
               </div>
-              <p className="text-sm">Add your vehicles in the <strong>Trucks</strong> tab. Ensure their weight capacities are accurately logged so LoadFlow can warn you if a truck is overloaded.</p>
+              <p className="text-xs text-gray-600">
+                Vehicles in Maintenance are automatically excluded from recommendations and dispatch.
+              </p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-              <div className="flex items-center gap-2 font-medium text-gray-900 mb-2">
+            <div className="bg-gray-50 rounded-lg p-3.5 border border-gray-100">
+              <div className="flex items-center gap-2 font-semibold text-gray-900 mb-1">
                 <Users className="h-4 w-4 text-primary-500" /> Drivers
               </div>
-              <p className="text-sm">Maintain your roster in the <strong>Drivers</strong> tab. Update their status (Available, On Trip, Off Duty) to keep dispatch operations smooth.</p>
+              <p className="text-xs text-gray-600">
+                Drivers marked Off Duty are blocked from assignment until set back to Available.
+              </p>
             </div>
           </div>
         </GuideSection>
 
-        {/* Step 3: Load Planning */}
-        <GuideSection step={3} icon={ClipboardList} title="Create Load Plans">
+        <GuideSection
+          step={3}
+          icon={ClipboardList}
+          title="Build & Optimize Load Plans"
+          href="/loads"
+          ctaLabel="Load Plans"
+        >
           <p>
-            A Load Plan is the operational blueprint for a specific trip. This is where dispatchers spend most of their time.
+            Create plans manually on{' '}
+            <Link href="/loads/new" className="font-semibold text-primary-600 hover:underline">
+              New Load Plan
+            </Link>
+            , score the best single vehicle + driver with{' '}
+            <Link href="/loads/recommend" className="font-semibold text-primary-600 hover:underline">
+              Recommendations
+            </Link>
+            , or distribute multiple orders across available trucks with the{' '}
+            <Link href="/loads/optimize" className="font-semibold text-primary-600 hover:underline">
+              Multi-Truck Optimizer
+            </Link>
+            .
           </p>
-          <ul className="list-disc pl-5 space-y-2 mt-2">
-            <li>Go to the <strong>Load Plans</strong> tab and create a new plan for a specific date.</li>
-            <li>Assign an available <strong>Truck</strong> and an available <strong>Driver</strong>.</li>
-            <li>Select pending deliveries to add to the truck. Order them efficiently for the driver's route.</li>
-            <li><strong className="text-primary-600">Smart Capacity:</strong> LoadFlow will automatically tally the weight of all deliveries in the plan and warn you if it exceeds the assigned truck's maximum weight capacity.</li>
+        </GuideSection>
+
+        <GuideSection
+          step={4}
+          icon={Kanban}
+          title="Coordinate on Dispatch Board & Calendar"
+          href="/dispatch"
+          ctaLabel="Dispatch Board"
+        >
+          <p>
+            Use the{' '}
+            <Link href="/dispatch" className="font-semibold text-primary-600 hover:underline">
+              Dispatch Board
+            </Link>{' '}
+            for daily execution and the{' '}
+            <Link href="/dispatch/calendar" className="font-semibold text-primary-600 hover:underline">
+              7-Day Dispatch Calendar
+            </Link>{' '}
+            for weekly capacity planning.
+          </p>
+          <ul className="list-disc pl-5 space-y-1.5">
+            <li>Spot truck or driver overlaps, missing drivers, overdue orders, and capacity blockers live.</li>
+            <li>Allocate pending orders to Draft plans or swap trucks/drivers directly from the board.</li>
           </ul>
         </GuideSection>
 
-        {/* Step 4: Dispatch & Completion */}
-        <GuideSection step={4} icon={CheckCircle2} title="Dispatch & Complete">
-          <p>
-            Once a Load Plan is ready, the operational phase begins.
-          </p>
-          <div className="space-y-4 mt-4">
-            <div className="flex gap-3">
-              <div className="mt-1"><ArrowRight className="h-4 w-4 text-gray-400" /></div>
+        <GuideSection
+          step={5}
+          icon={CheckCircle2}
+          title="Lock Ready, Dispatch & Share Customer Tracking"
+          href="/deliveries"
+          ctaLabel="Deliveries"
+        >
+          <div className="space-y-3">
+            <div className="flex gap-2.5">
+              <ArrowRight className="h-4 w-4 text-primary-500 shrink-0 mt-0.5" />
               <div>
-                <strong className="text-gray-900 block">Dispatching</strong>
-                <span className="text-sm">Change the Load Plan status from "Draft" to "Dispatched". The deliveries inside will automatically update to "In Transit".</span>
+                <strong className="text-gray-900">1. Mark Ready (DRAFT → READY):</strong>{' '}
+                Locks the plan&apos;s vehicle, driver, and delivery manifest before departure. Revert to Draft anytime prior to dispatch to edit.
               </div>
             </div>
-            <div className="flex gap-3">
-              <div className="mt-1"><ArrowRight className="h-4 w-4 text-gray-400" /></div>
+            <div className="flex gap-2.5">
+              <ArrowRight className="h-4 w-4 text-primary-500 shrink-0 mt-0.5" />
               <div>
-                <strong className="text-gray-900 block">Completion</strong>
-                <span className="text-sm">When the driver returns, change the Load Plan status to "Completed". All associated deliveries will be marked "Delivered".</span>
+                <strong className="text-gray-900">2. Dispatch (READY → DISPATCHED):</strong>{' '}
+                Transitions assigned deliveries to In Transit and marks the truck In Use and driver On Trip.
+              </div>
+            </div>
+            <div className="flex gap-2.5">
+              <Navigation className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-gray-900">3. Complete & Track (DISPATCHED → COMPLETED):</strong>{' '}
+                Marks deliveries Delivered, releases fleet resources back to Available, and publishes milestones to any shareable customer tracking link on the delivery page.
               </div>
             </div>
           </div>
         </GuideSection>
       </div>
 
-      {/* FAQ Section */}
-      <div className="mt-12">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Card className="p-5 hover:border-primary-200 transition-colors">
-            <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-              <Scale className="h-4 w-4 text-primary-500" />
-              How are weights calculated?
-            </h3>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              When creating a delivery, you itemize the cargo (e.g., 10 boxes at 5kg each). LoadFlow calculates the total weight for that delivery. When adding deliveries to a Load Plan, LoadFlow sums these totals to ensure the truck's capacity isn't exceeded.
-            </p>
-          </Card>
-          <Card className="p-5 hover:border-primary-200 transition-colors">
-            <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary-500" />
-              Is my data secure?
-            </h3>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              Yes. LoadFlow utilizes a strict Multi-Tenant Architecture. Your company's data (deliveries, drivers, trucks) is completely mathematically isolated from any other organization on the platform.
-            </p>
-          </Card>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card className="p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-1.5 flex items-center gap-2">
+            <Scale className="h-4 w-4 text-primary-500" />
+            How are weights validated?
+          </h3>
+          <p className="text-xs text-gray-600 leading-relaxed">
+            Delivery weights (from cargo items or manual entry in kg) are summed on every load plan edit and enforced transactionally against the assigned truck&apos;s capacity.
+          </p>
+        </Card>
+        <Card className="p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-1.5 flex items-center gap-2">
+            <Shield className="h-4 w-4 text-primary-500" />
+            Is workspace data isolated?
+          </h3>
+          <p className="text-xs text-gray-600 leading-relaxed">
+            Yes. Every record query and mutation is strictly scoped by your authenticated company ID and protected by tenant isolation boundaries.
+          </p>
+        </Card>
       </div>
     </div>
   );
