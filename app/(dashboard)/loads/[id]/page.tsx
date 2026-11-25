@@ -21,7 +21,6 @@ import { StatusBadge, Badge } from '@/components/ui/Badge';
 import { ButtonLink } from '@/components/ui/Button';
 import { CapacityBar } from '@/components/ui/CapacityBar';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
 import {
   toNumber,
   getItemSummary,
@@ -33,15 +32,14 @@ import {
   getCapacityLevel,
 } from '@/lib/ui/status';
 import { cn } from '@/lib/utils';
-import { getAuthContext } from '@/lib/auth';
+import { getAuthContext, getCurrentUser } from '@/lib/auth';
 import { listActivityForEntity, type ActivityRecord } from '@/lib/services/activity';
 import {
-  getOperationalExceptions,
   exceptionsForEntity,
   type OperationalException,
 } from '@/lib/services/operational-exceptions';
 import {
-  getDispatchConflicts,
+  getOperationalIntelligence,
   type PlanDispatchReadinessDTO,
 } from '@/lib/services/dispatch-conflicts';
 import { ActivityTimeline } from '@/components/ui/ActivityTimeline';
@@ -52,11 +50,7 @@ export default async function LoadPlanBuilderPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   let company = null;
@@ -99,7 +93,7 @@ export default async function LoadPlanBuilderPage({
       });
 
       if (loadPlan) {
-        const [[unassigned, drivers], events, allExceptions, conflictInfo] = await Promise.all([
+        const [[unassigned, drivers], events, intelligence] = await Promise.all([
           prisma.$transaction([
             prisma.delivery.findMany({
               where: {
@@ -125,14 +119,13 @@ export default async function LoadPlanBuilderPage({
             }),
           ]),
           listActivityForEntity(prisma, company.id, 'LOAD_PLAN', id),
-          getOperationalExceptions(prisma, company.id),
-          getDispatchConflicts(prisma, company.id, { planId: id }),
+          getOperationalIntelligence(prisma, company.id, { planId: id }),
         ]);
         unassignedDeliveries = unassigned;
         availableDrivers = drivers;
         activityEvents = events;
-        planExceptions = exceptionsForEntity(allExceptions, id);
-        planReadiness = conflictInfo.readinessByPlan[id] ?? null;
+        planExceptions = exceptionsForEntity(intelligence.exceptions, id);
+        planReadiness = intelligence.readinessByPlan[id] ?? null;
       }
     } catch (e) {
       console.error('Load plan fetch error', e);

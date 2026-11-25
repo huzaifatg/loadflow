@@ -1,10 +1,8 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
-import { getAuthContext } from '@/lib/auth';
+import { getAuthContext, getCurrentUser } from '@/lib/auth';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { SavedViewsBar } from '@/components/ui/SavedViewsBar';
 import { listSavedViews } from '@/lib/services/saved-views';
 import {
   getDispatchBoardData,
@@ -27,10 +25,7 @@ export default async function DispatchBoardPage({
     q?: string;
   }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   const auth = await getAuthContext();
@@ -69,21 +64,19 @@ export default async function DispatchBoardPage({
   ]);
 
   return (
-    <div className="space-y-5">
-      <DispatchBoardClient
-        board={board}
-        initialFilters={{
-          q: resolved.q ?? '',
-          status: (resolved.status ?? 'ALL').toUpperCase(),
-          assignment: resolved.assignment ?? 'ALL',
-          truckId: resolved.truckId ?? 'ALL',
-          driverId: resolved.driverId ?? 'ALL',
-          conflict: resolved.conflict ?? 'ALL',
-          overdue: resolved.overdue ?? 'ALL',
-        }}
-      />
-      <SavedViewsBar workspace="dispatch" initialCustomViews={savedViews} />
-    </div>
+    <DispatchBoardClient
+      board={board}
+      savedViews={savedViews}
+      initialFilters={{
+        q: resolved.q ?? '',
+        status: (resolved.status ?? 'ALL').toUpperCase(),
+        assignment: resolved.assignment ?? 'ALL',
+        truckId: resolved.truckId ?? 'ALL',
+        driverId: resolved.driverId ?? 'ALL',
+        conflict: resolved.conflict ?? 'ALL',
+        overdue: resolved.overdue ?? 'ALL',
+      }}
+    />
   );
 }
 

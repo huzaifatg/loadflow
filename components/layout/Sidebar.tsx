@@ -2,8 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -13,10 +12,8 @@ import {
   ClipboardList,
   Calendar,
   Settings,
-  LogOut,
   X,
   BoxesIcon,
-  BookOpen,
   FileUp,
   Sparkles,
   SlidersHorizontal,
@@ -68,7 +65,6 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Workspace',
     items: [
       { label: 'Settings', href: '/settings', icon: Settings },
-      { label: 'Guide', href: '/guide', icon: BookOpen },
     ],
   },
 ];
@@ -78,9 +74,6 @@ export interface SidebarProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onClose: () => void;
-  userName: string;
-  userEmail: string;
-  userInitial: string;
   companyName?: string;
 }
 
@@ -89,20 +82,9 @@ export function Sidebar({
   isCollapsed = false,
   onToggleCollapse,
   onClose,
-  userName,
-  userEmail,
-  userInitial,
   companyName = 'LoadFlow Workspace',
 }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-
-  const handleSignOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/');
-    router.refresh();
-  };
 
   const isRouteActive = (item: NavItem) => {
     if (item.exact) {
@@ -274,7 +256,7 @@ export function Sidebar({
 
         {/* Expand button when collapsed */}
         {isCollapsed && onToggleCollapse && (
-          <div className="hidden md:flex justify-center pb-2">
+          <div className="hidden md:flex justify-center border-t border-sidebar-border py-2.5">
             <button
               type="button"
               onClick={onToggleCollapse}
@@ -286,38 +268,6 @@ export function Sidebar({
             </button>
           </div>
         )}
-
-        {/* User Footer */}
-        <div className="border-t border-sidebar-border p-3">
-          <div
-            className={cn(
-              'flex items-center gap-2.5',
-              isCollapsed && 'md:flex-col md:justify-center'
-            )}
-          >
-            <div
-              title={`${userName} (${userEmail})`}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-600/25 text-xs font-semibold text-primary-300 ring-1 ring-inset ring-primary-500/30"
-            >
-              {userInitial}
-            </div>
-            <div className={cn('min-w-0 flex-1', isCollapsed && 'md:hidden')}>
-              <p className="truncate text-xs font-semibold text-gray-200">
-                {userName}
-              </p>
-              <p className="truncate text-[11px] text-gray-400">{userEmail}</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-sidebar-hover hover:text-rose-300 cursor-pointer"
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
       </aside>
     </>
   );

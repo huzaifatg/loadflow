@@ -2,13 +2,12 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import type { Prisma } from '@prisma/client';
 import {
-  Package,
   Clock,
   Navigation,
   CheckCircle2,
   ClipboardList,
   FileUp,
-  Sparkles,
+  Kanban,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ButtonLink } from '@/components/ui/Button';
@@ -23,9 +22,8 @@ import {
 } from '@/components/ui/FilterBar';
 import { SavedViewsBar } from '@/components/ui/SavedViewsBar';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
 import { serializeDelivery } from '@/lib/delivery-items';
-import { getAuthContext } from '@/lib/auth';
+import { getAuthContext, getCurrentUser } from '@/lib/auth';
 import { listSavedViews } from '@/lib/services/saved-views';
 import { addDays, startOfDay } from 'date-fns';
 
@@ -48,11 +46,7 @@ export default async function DeliveriesPage({
     schedule?: string;
   }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   const resolvedParams = await searchParams;
@@ -176,9 +170,9 @@ export default async function DeliveriesPage({
           Import CSV
         </ButtonLink>
         {pendingCount > 0 && (
-          <ButtonLink href="/loads/recommend" variant="secondary" size="md">
-            <Sparkles className="h-4 w-4 text-primary-600" />
-            Recommend Fleet
+          <ButtonLink href="/dispatch" variant="secondary" size="md">
+            <Kanban className="h-4 w-4 text-primary-600" />
+            Dispatch Board
           </ButtonLink>
         )}
       </PageHeader>

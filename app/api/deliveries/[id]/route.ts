@@ -6,6 +6,7 @@ import type { UpdateDeliveryInput } from '@/types'
 import { computeItemWeight, recomputeDeliveryWeight } from '@/lib/delivery-items'
 import { recordActivity, actorFromAuth, type ActivityInput } from '@/lib/services/activity'
 import { recordLifecycleTrackingEvent } from '@/lib/services/tracking'
+import { revalidateDeliveryViews } from '@/lib/cache'
 import { format } from 'date-fns'
 
 // ─── Valid delivery status values ────────────────────────────────────────────
@@ -291,10 +292,7 @@ export async function PUT(
         return updated
       })
 
-      const { revalidatePath } = await import('next/cache');
-      revalidatePath('/deliveries');
-      revalidatePath(`/deliveries/${id}`);
-      revalidatePath('/schedule');
+      revalidateDeliveryViews(id);
 
       return NextResponse.json({ data: delivery, error: null })
     }
@@ -323,10 +321,7 @@ export async function PUT(
       return updated
     })
 
-    const { revalidatePath } = await import('next/cache');
-    revalidatePath('/deliveries');
-    revalidatePath(`/deliveries/${id}`);
-    revalidatePath('/schedule');
+    revalidateDeliveryViews(id);
 
     return NextResponse.json({ data: delivery, error: null })
   } catch (error) {
@@ -373,8 +368,7 @@ export async function DELETE(
       await tx.delivery.delete({ where: { id, companyId: auth.companyId } })
     })
 
-    const { revalidatePath } = await import('next/cache');
-    revalidatePath('/deliveries');
+    revalidateDeliveryViews();
 
     return NextResponse.json({ data: { id }, error: null })
   } catch (error) {

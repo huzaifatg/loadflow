@@ -1,12 +1,11 @@
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ImportHistoryClient } from '@/components/import/ImportHistoryClient';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export default async function ImportHistoryPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   return (

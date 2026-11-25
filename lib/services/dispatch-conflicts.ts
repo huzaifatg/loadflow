@@ -12,6 +12,10 @@ import {
   validateTransition,
 } from './load-plan-lifecycle'
 import { parseOperatingDate } from './dispatch-availability'
+import {
+  deriveExceptions,
+  type OperationalException,
+} from './operational-exceptions'
 
 export type ConflictSeverity = 'BLOCKING' | 'WARNING' | 'INFO'
 
@@ -721,11 +725,186 @@ export function evaluatePlanDispatchReadiness(
 }
 
 export type ConflictsDb = Pick<PrismaClient, 'loadPlan'>
+export type OperationalIntelligenceDb = Pick<PrismaClient, 'loadPlan' | 'delivery'>
 
 export interface GetDispatchConflictsOptions {
   date?: Date | string | null
   severity?: ConflictSeverity
   planId?: string
+}
+
+export interface GetOperationalIntelligenceOptions extends GetDispatchConflictsOptions {
+  /** Pre-fetched pending deliveries if caller already loaded them, avoiding a second query. */
+  pendingDeliveries?: { id: string; customerName: string; scheduledDate: Date | null }[]
+  now?: Date
+}
+
+function buildPlanQueryWhere(companyId: string, opDay: Date | null) {
+  return {
+    companyId,
+    ...(opDay
+      ? {
+          OR: [
+            { date: { gte: startOfDay(opDay), lte: endOfDay(opDay) } },
+            { status: { in: ['DRAFT', 'READY', 'DISPATCHED'] as ('DRAFT' | 'READY' | 'DISPATCHED')[] } },
+          ],
+        }
+      : { status: { in: ['DRAFT', 'READY', 'DISPATCHED'] as ('DRAFT' | 'READY' | 'DISPATCHED')[] } }),
+  }
+}
+
+function computeConflictsAndReadiness(
+  snapshots: ConflictPlanSnapshot[],
+  opDay: Date | null,
+  options: GetDispatchConflictsOptions,
+) {
+  let conflicts = detectSchedulingConflicts(snapshots)
+
+  if (opDay) {
+    conflicts = conflicts.filter(
+      (c) =>
+        isSameDay(new Date(c.planDate), opDay) ||
+        c.severity === 'BLOCKING',
+    )
+  }
+
+  if (options.planId) {
+    conflicts = conflicts.filter((c) => c.planId === options.planId)
+  }
+
+  if (options.severity) {
+    conflicts = conflicts.filter((c) => c.severity === options.severity)
+  }
+
+  const readinessByPlan: Record<string, PlanDispatchReadinessDTO> = {}
+  for (const snap of snapshots) {
+    if (opDay && !isSameDay(new Date(snap.date), opDay) && snap.status === 'COMPLETED') {
+      continue
+    }
+    readinessByPlan[snap.id] = evaluatePlanDispatchReadiness(snap, snapshots)
+  }
+
+  return {
+    operatingDate: opDay ? format(opDay, 'yyyy-MM-dd') : null,
+    summary: {
+      total: conflicts.length,
+      blocking: conflicts.filter((c) => c.severity === 'BLOCKING').length,
+      warning: conflicts.filter((c) => c.severity === 'WARNING').length,
+      info: conflicts.filter((c) => c.severity === 'INFO').length,
+    },
+    conflicts,
+    readinessByPlan,
+  }
+}
+
+/**
+ * Load company-scoped active/relevant plans ONCE and compute both
+ * Sprint 16 operational exceptions and Sprint 18 scheduling conflicts + readiness.
+ */
+export async function getOperationalIntelligence(
+  db: OperationalIntelligenceDb,
+  companyId: string,
+  options: GetOperationalIntelligenceOptions = {},
+): Promise<{
+  exceptions: OperationalException[]
+  operatingDate: string | null
+  summary: { total: number; blocking: number; warning: number; info: number }
+  conflicts: SchedulingConflictDTO[]
+  readinessByPlan: Record<string, PlanDispatchReadinessDTO>
+}> {
+  const hasDateFilter = Boolean(options.date)
+  const opDay = hasDateFilter ? parseOperatingDate(options.date) : null
+  const now = options.now ?? new Date()
+
+  const [plans, fetchedPending] = await Promise.all([
+    db.loadPlan.findMany({
+      where: buildPlanQueryWhere(companyId, opDay),
+      include: {
+        truck: {
+          select: {
+            id: true,
+            name: true,
+            plateNumber: true,
+            weightCapacity: true,
+            status: true,
+            isArchived: true,
+          },
+        },
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            isArchived: true,
+          },
+        },
+        items: {
+          include: {
+            delivery: {
+              select: {
+                id: true,
+                companyId: true,
+                customerName: true,
+                status: true,
+                weight: true,
+                scheduledDate: true,
+              },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+      orderBy: { date: 'asc' },
+    }),
+    options.pendingDeliveries !== undefined
+      ? Promise.resolve(options.pendingDeliveries)
+      : db.delivery.findMany({
+          where: { companyId, status: 'PENDING', isArchived: false },
+          select: { id: true, customerName: true, scheduledDate: true },
+        }),
+  ])
+
+  const snapshots: ConflictPlanSnapshot[] = plans.map((p) => ({
+    id: p.id,
+    status: p.status,
+    date: p.date,
+    truckId: p.truckId,
+    driverId: p.driverId,
+    truck: p.truck,
+    driver: p.driver,
+    deliveries: p.items
+      .map((i) => i.delivery)
+      .filter((d) => d.companyId === companyId)
+      .map((d) => ({
+        id: d.id,
+        customerName: d.customerName,
+        status: d.status,
+        weight: toNumber(d.weight),
+        scheduledDate: d.scheduledDate,
+      })),
+  }))
+
+  const exceptions = deriveExceptions(
+    {
+      plans: snapshots
+        .filter((s) => s.status !== 'COMPLETED')
+        .map((s) => ({
+          id: s.id,
+          status: s.status,
+          date: s.date,
+          truck: s.truck,
+          driver: s.driver,
+          deliveries: s.deliveries,
+        })),
+      pendingDeliveries: fetchedPending,
+    },
+    now,
+  )
+
+  return {
+    exceptions,
+    ...computeConflictsAndReadiness(snapshots, opDay, options),
+  }
 }
 
 /**
@@ -740,17 +919,7 @@ export async function getDispatchConflicts(
   const opDay = hasDateFilter ? parseOperatingDate(options.date) : null
 
   const plans = await db.loadPlan.findMany({
-    where: {
-      companyId,
-      ...(opDay
-        ? {
-            OR: [
-              { date: { gte: startOfDay(opDay), lte: endOfDay(opDay) } },
-              { status: { in: ['DRAFT', 'READY', 'DISPATCHED'] } },
-            ],
-          }
-        : { status: { in: ['DRAFT', 'READY', 'DISPATCHED'] } }),
-    },
+    where: buildPlanQueryWhere(companyId, opDay),
     include: {
       truck: {
         select: {
@@ -809,42 +978,6 @@ export async function getDispatchConflicts(
       })),
   }))
 
-  let conflicts = detectSchedulingConflicts(snapshots)
-
-  if (opDay) {
-    conflicts = conflicts.filter(
-      (c) =>
-        isSameDay(new Date(c.planDate), opDay) ||
-        c.severity === 'BLOCKING',
-    )
-  }
-
-  if (options.planId) {
-    conflicts = conflicts.filter((c) => c.planId === options.planId)
-  }
-
-  if (options.severity) {
-    conflicts = conflicts.filter((c) => c.severity === options.severity)
-  }
-
-  const readinessByPlan: Record<string, PlanDispatchReadinessDTO> = {}
-  for (const snap of snapshots) {
-    if (opDay && !isSameDay(new Date(snap.date), opDay) && snap.status === 'COMPLETED') {
-      continue
-    }
-    readinessByPlan[snap.id] = evaluatePlanDispatchReadiness(snap, snapshots)
-  }
-
-  return {
-    operatingDate: opDay ? format(opDay, 'yyyy-MM-dd') : null,
-    summary: {
-      total: conflicts.length,
-      blocking: conflicts.filter((c) => c.severity === 'BLOCKING').length,
-      warning: conflicts.filter((c) => c.severity === 'WARNING').length,
-      info: conflicts.filter((c) => c.severity === 'INFO').length,
-    },
-    conflicts,
-    readinessByPlan,
-  }
+  return computeConflictsAndReadiness(snapshots, opDay, options)
 }
 

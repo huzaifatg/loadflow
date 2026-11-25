@@ -3,6 +3,7 @@ import { getAuthContext } from '@/lib/auth'
 import { validatePathId, unauthorizedResponse, invalidIdResponse } from '@/lib/security'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { revalidateFleetViews } from '@/lib/cache'
 
 export async function GET(
   _request: NextRequest,
@@ -90,10 +91,7 @@ export async function PUT(
       },
     })
 
-    const { revalidatePath } = await import('next/cache');
-    revalidatePath('/drivers');
-    revalidatePath('/schedule');
-    revalidatePath('/loads');
+    revalidateFleetViews('drivers', id);
 
     return NextResponse.json(driver)
   } catch (error) {
@@ -125,10 +123,7 @@ export async function DELETE(
     // Defense-in-depth: include companyId in the delete WHERE clause
     await prisma.driver.delete({ where: { id, companyId: company.id } })
 
-    const { revalidatePath } = await import('next/cache');
-    revalidatePath('/drivers');
-    revalidatePath('/schedule');
-    revalidatePath('/loads');
+    revalidateFleetViews('drivers');
 
     return NextResponse.json({ success: true })
   } catch (error: unknown) {

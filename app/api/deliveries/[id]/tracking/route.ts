@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { getAuthContext } from '@/lib/auth'
 import { validatePathId, unauthorizedResponse, invalidIdResponse } from '@/lib/security'
@@ -84,7 +85,6 @@ export async function POST(
         )
       }
 
-      const { revalidatePath } = await import('next/cache')
       revalidatePath(`/deliveries/${id}`)
 
       return NextResponse.json({ data: result.data, error: null }, { status: 201 })
@@ -110,7 +110,6 @@ export async function POST(
       )
     }
 
-    const { revalidatePath } = await import('next/cache')
     revalidatePath(`/deliveries/${id}`)
     revalidatePath('/dashboard')
 
@@ -153,7 +152,6 @@ export async function DELETE(
       )
     }
 
-    const { revalidatePath } = await import('next/cache')
     revalidatePath(`/deliveries/${id}`)
     revalidatePath('/dashboard')
 

@@ -4,6 +4,7 @@ import { getAuthContext } from '@/lib/auth';
 import { unauthorizedResponse } from '@/lib/security';
 import { executeBulkDeliveries } from '@/lib/services/bulk-deliveries';
 import { actorFromAuth } from '@/lib/services/activity';
+import { revalidateDeliveryViews } from '@/lib/cache';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,11 +36,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    const { revalidatePath } = await import('next/cache');
-    revalidatePath('/deliveries');
-    revalidatePath('/loads');
-    revalidatePath('/schedule');
-    revalidatePath('/dashboard');
+    revalidateDeliveryViews();
 
     return NextResponse.json(result.data);
   } catch (error) {

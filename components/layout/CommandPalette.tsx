@@ -221,14 +221,6 @@ const STATIC_COMMANDS: PaletteItem[] = [
     icon: <Users className="h-4 w-4 text-gray-500" />,
   },
   {
-    id: 'nav-schedule',
-    group: 'Navigation',
-    label: 'Dispatch Schedule',
-    sublabel: 'Chronological view of planned and active load plans',
-    href: '/schedule',
-    icon: <Calendar className="h-4 w-4 text-gray-500" />,
-  },
-  {
     id: 'nav-settings',
     group: 'Navigation',
     label: 'Company Settings',

@@ -2,16 +2,13 @@ import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { User } from 'lucide-react';
 import { DriverDetailClient } from '@/components/drivers/DriverDetailClient';
-import { getAuthContext } from '@/lib/auth';
+import { getAuthContext, getCurrentUser } from '@/lib/auth';
 
 export default async function DriverDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   const id = (await params).id;
@@ -20,8 +17,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   let loadPlans: { id: string; date: Date; status: string; _count: { items: number } }[] = [];
   try {
     const auth = await getAuthContext();
-  const company = auth?.company;
-  const companyId = auth?.companyId;
+    const company = auth?.company;
     if (company) {
       driver = await prisma.driver.findUnique({
         where: { id, companyId: company.id },

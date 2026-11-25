@@ -5,16 +5,11 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { ButtonLink } from '@/components/ui/Button';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
 import { LoadPlanSetupForm } from '@/components/loads/LoadPlanSetupForm';
-import { getAuthContext } from '@/lib/auth';
+import { getAuthContext, getCurrentUser } from '@/lib/auth';
 
 export default async function NewLoadPlanPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   let trucks: {

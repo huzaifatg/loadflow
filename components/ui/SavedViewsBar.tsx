@@ -15,12 +15,15 @@ import {
 export interface SavedViewsBarProps {
   workspace: SavedViewWorkspace;
   initialCustomViews?: CustomSavedView[];
+  /** Built-in preset pills duplicate FilterTabs on entity pages that already have status tabs. */
+  showPresets?: boolean;
   className?: string;
 }
 
 export function SavedViewsBar({
   workspace,
   initialCustomViews = [],
+  showPresets = true,
   className,
 }: SavedViewsBarProps) {
   const router = useRouter();
@@ -33,8 +36,12 @@ export function SavedViewsBar({
   const [viewName, setViewName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const presets = DEFAULT_PRESET_VIEWS[workspace] ?? [];
+  const presets = showPresets ? (DEFAULT_PRESET_VIEWS[workspace] ?? []) : [];
   const currentNormalized = sanitizeViewQuery(searchParams.toString());
+
+  if (!showPresets && customViews.length === 0 && !currentNormalized) {
+    return null;
+  }
 
   const applyQuery = (query: string) => {
     router.replace(query ? `${pathname}?${query}` : pathname);
@@ -108,18 +115,20 @@ export function SavedViewsBar({
           Views
         </span>
 
-        <button
-          type="button"
-          onClick={() => applyQuery('')}
-          className={cn(
-            'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors cursor-pointer',
-            !currentNormalized
-              ? 'bg-gray-900 text-white shadow-2xs'
-              : 'bg-white text-gray-600 ring-1 ring-inset ring-gray-200 hover:bg-gray-100 hover:text-gray-900'
-          )}
-        >
-          All Records
-        </button>
+        {presets.length > 0 && (
+          <button
+            type="button"
+            onClick={() => applyQuery('')}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors cursor-pointer',
+              !currentNormalized
+                ? 'bg-gray-900 text-white shadow-2xs'
+                : 'bg-white text-gray-600 ring-1 ring-inset ring-gray-200 hover:bg-gray-100 hover:text-gray-900'
+            )}
+          >
+            All Records
+          </button>
+        )}
 
         {presets.map((preset) => {
           const normalizedPreset = sanitizeViewQuery(preset.query);
@@ -141,7 +150,7 @@ export function SavedViewsBar({
           );
         })}
 
-        {customViews.length > 0 && (
+        {presets.length > 0 && customViews.length > 0 && (
           <span className="mx-1 h-4 w-px bg-gray-200" aria-hidden />
         )}
 

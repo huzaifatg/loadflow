@@ -15,8 +15,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
-import { getAuthContext } from '@/lib/auth';
+import { getAuthContext, getCurrentUser } from '@/lib/auth';
 import { getDispatchCalendarData } from '@/lib/services/dispatch-board';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { MetricCard } from '@/components/ui/MetricCard';
@@ -42,10 +41,7 @@ export default async function DispatchCalendarPage({
     driverId?: string;
   }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   const auth = await getAuthContext();

@@ -10,8 +10,7 @@ import { FilterTabs, ClearFiltersButton } from '@/components/ui/FilterBar';
 import { SavedViewsBar } from '@/components/ui/SavedViewsBar';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
-import { getAuthContext } from '@/lib/auth';
+import { getAuthContext, getCurrentUser } from '@/lib/auth';
 import { listSavedViews } from '@/lib/services/saved-views';
 
 const ITEMS_PER_PAGE = 20;
@@ -22,11 +21,7 @@ export default async function DriversPage({
 }: {
   searchParams: Promise<{ page?: string; q?: string; status?: string }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
   const resolvedParams = await searchParams;
@@ -148,8 +143,12 @@ export default async function DriversPage({
         />
       </div>
 
-      {/* Saved Views & Presets Bar */}
-      <SavedViewsBar workspace="drivers" initialCustomViews={customViews} />
+      {/* Custom Saved Views */}
+      <SavedViewsBar
+        workspace="drivers"
+        initialCustomViews={customViews}
+        showPresets={false}
+      />
 
       {/* Filter & Search Toolbar */}
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3.5 shadow-xs sm:flex-row sm:items-center sm:justify-between">

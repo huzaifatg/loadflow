@@ -4,6 +4,7 @@ import { getAuthContext } from '@/lib/auth';
 import { validatePathId, unauthorizedResponse, invalidIdResponse } from '@/lib/security';
 import { updateLoadPlan, deleteLoadPlan, PLAN_DETAIL_INCLUDE } from '@/lib/services/load-plan-service';
 import { actorFromAuth } from '@/lib/services/activity';
+import { revalidateLoadPlanViews } from '@/lib/cache';
 
 export async function GET(
   request: NextRequest,
@@ -81,14 +82,7 @@ export async function PATCH(
       );
     }
 
-    const { revalidatePath } = await import('next/cache');
-    revalidatePath(`/loads/${id}`);
-    revalidatePath('/loads');
-    revalidatePath('/dispatch');
-    revalidatePath('/dispatch/calendar');
-    revalidatePath('/dashboard');
-    revalidatePath('/schedule');
-    revalidatePath('/deliveries'); // Refresh deliveries list since they may now be assigned
+    revalidateLoadPlanViews(id);
 
     // Include non-blocking date warnings in response if any exist
     if (result.warnings.length > 0) {
@@ -119,13 +113,7 @@ export async function DELETE(
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    const { revalidatePath } = await import('next/cache');
-    revalidatePath('/loads');
-    revalidatePath('/dispatch');
-    revalidatePath('/dispatch/calendar');
-    revalidatePath('/dashboard');
-    revalidatePath('/schedule');
-    revalidatePath('/deliveries');
+    revalidateLoadPlanViews();
 
     return NextResponse.json({ success: true });
   } catch (error) {

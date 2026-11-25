@@ -193,12 +193,16 @@ export interface CreateLoadPlanInput {
   driverId?: unknown
   date?: unknown
   notes?: unknown
+  items?: unknown
+  activitySource?: string
+  capacityErrorStatus?: 400 | 409
 }
 
 /**
- * Create a DRAFT load plan. A driver is optional at this stage (optimizer and
- * manual flows create plans before a driver is chosen); it is required at
- * dispatch. Items are not accepted here — use `updateLoadPlan`.
+ * Create a DRAFT load plan. A driver is optional at this stage (optimizer,
+ * recommendation, and manual flows can create plans before a driver is chosen);
+ * it is required at dispatch. Optional `items` atomically validates and
+ * allocates pending deliveries within the same transaction.
  */
 export async function createLoadPlan(
   db: LoadPlanDb,
@@ -214,6 +218,9 @@ export async function createLoadPlan(
     const driverId = parseOptionalId(input.driverId, 'driver') ?? null
     const date = parseDate(input.date)
     const notes = parseNotes(input.notes)
+    const items = parseItems(input.items)
+
+    let warnings: DateWarning[] = []
 
     const data = await db.$transaction(async (tx: Tx) => {
       const truck = await resolveTruck(tx, companyId, truckId)
@@ -221,25 +228,102 @@ export async function createLoadPlan(
       await assertNoTruckConflict(tx, truckId, date, companyId)
       await assertNoDriverConflict(tx, driverId, date, companyId)
 
+      if (items && items.length > 0) {
+        const eligibility = await validateDeliveryEligibility(tx, companyId, items, null)
+        if (!eligibility.valid) {
+          throw new LoadPlanError(eligibility.notFound ? 404 : 409, eligibility.error!.message)
+        }
+        const capacity = await validateCapacity(tx, truckId, items, companyId)
+        if (!capacity.valid) {
+          throw new LoadPlanError(
+            capacity.notFound ? 404 : (input.capacityErrorStatus ?? 400),
+            capacity.error!.message,
+          )
+        }
+        warnings = await getDeliveryDateWarnings(tx, items, date, companyId)
+      }
+
       const plan = await tx.loadPlan.create({
         data: { companyId, truckId, driverId, date, notes, status: 'DRAFT' },
         include: { truck: true, driver: true },
       })
 
-      await recordActivity(tx, companyId, actor, [
+      const ref = planRef(plan.id)
+      const sourceSuffix = input.activitySource ? ` via ${input.activitySource}` : ''
+      const events: ActivityInput[] = [
         {
           entityType: 'LOAD_PLAN',
           entityId: plan.id,
           type: 'LOAD_PLAN_CREATED',
-          message: `Draft plan ${planRef(plan.id)} created for ${format(date, 'MMM d, yyyy')} with truck ${truck.name}${driver ? ` and driver ${driver.name}` : ''}.`,
+          message: `Draft plan ${ref} created${sourceSuffix} for ${format(date, 'MMM d, yyyy')} with truck ${truck.name}${driver ? ` and driver ${driver.name}` : ''}.`,
           metadata: { truckId, driverId },
         },
-      ])
+      ]
+
+      if (items && items.length > 0) {
+        await tx.loadPlanItem.createMany({
+          data: items.map((deliveryId, sortOrder) => ({
+            loadPlanId: plan.id,
+            deliveryId,
+            sortOrder,
+          })),
+        })
+
+        const allocated = await tx.delivery.updateMany({
+          where: { id: { in: items }, companyId, status: 'PENDING' },
+          data: { status: 'ASSIGNED' },
+        })
+        if (allocated.count !== items.length) {
+          throw new LoadPlanError(409, CONCURRENT_MODIFICATION)
+        }
+
+        const named = await tx.delivery.findMany({
+          where: { id: { in: items }, companyId },
+          select: { id: true, customerName: true },
+        })
+        const nameOf = new Map(named.map((d) => [d.id, d.customerName]))
+
+        events.push({
+          entityType: 'LOAD_PLAN',
+          entityId: plan.id,
+          type: 'LOAD_PLAN_DELIVERIES_ADDED',
+          message: `Allocated ${items.length} ${items.length === 1 ? 'delivery' : 'deliveries'}: ${summarizeNames(items.map((id) => nameOf.get(id) ?? 'Unknown'))}.`,
+          metadata: { deliveryIds: items },
+        })
+
+        for (const id of items) {
+          events.push({
+            entityType: 'DELIVERY',
+            entityId: id,
+            type: 'DELIVERY_ALLOCATED',
+            message: `Allocated to load plan ${ref}${sourceSuffix}.`,
+            metadata: { loadPlanId: plan.id },
+          })
+          await recordLifecycleTrackingEvent(tx, {
+            companyId,
+            deliveryId: id,
+            eventType: 'DELIVERY_ASSIGNED',
+            title: 'Assigned to Dispatch Plan',
+            description: `Shipment scheduled on dispatch plan for ${format(date, 'MMM d, yyyy')}.`,
+          })
+        }
+      }
+
+      await recordActivity(tx, companyId, actor, events)
+
+      if (items && items.length > 0) {
+        return (
+          (await tx.loadPlan.findFirst({
+            where: { id: plan.id, companyId },
+            include: PLAN_DETAIL_INCLUDE,
+          })) ?? plan
+        )
+      }
 
       return plan
     }, TX_OPTIONS)
 
-    return { data }
+    return { data, warnings }
   })
 }
 
